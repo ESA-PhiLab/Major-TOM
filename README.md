@@ -1,5 +1,5 @@
 
-![image/png](https://cdn-uploads.huggingface.co/production/uploads/6304c06eeb6d777a838eab63/A07zVbed5h19KJSV9u4NI.png)
+![image/png](https://cdn-uploads.huggingface.co/production/uploads/6304c06eeb6d777a838eab63/BJKsLwX0GG4W3-gdf40TJ.png)
 
 # Major TOM: Expandable Datasets for Earth Observation
 A standard for curating large-scale (Terabyte-scale) EO datasets.
