@@ -1,7 +1,9 @@
 
 ![image/png](https://cdn-uploads.huggingface.co/production/uploads/6304c06eeb6d777a838eab63/BJKsLwX0GG4W3-gdf40TJ.png)
 
-# Major TOM: Expandable Datasets for Earth Observation
+# 🗺️ Major TOM: Expandable Datasets for Earth Observation
+[![HF](https://img.shields.io/badge/%F0%9F%A4%97-Datasets-yellow)](https://www.huggingface.co/Major-TOM) [![paper](https://img.shields.io/badge/arXiv-2402.12095-D12424)](https://www.arxiv.org/abs/2402.12095) [![GitHub stars](https://img.shields.io/github/stars/ESA-PhiLab/Major-TOM?style=social&label=Star&maxAge=2592000)](https://github.com/ESA-PhiLab/Major-TOM/)
+
 A standard for curating large-scale (Terabyte-scale) EO datasets.
 
 This organisation provides a platform for making further contributions to the project with the aim of building large and compatible Earth observation datasets.
@@ -13,7 +15,6 @@ This organisation provides a platform for making further contributions to the pr
 | [Core-S2L1C](https://huggingface.co/datasets/Major-TOM/Core-S2L1C) | Sentinel-2 Level 1C | TBC | Multi-Spectral | General-Purpose Global (about 25 TB) |
 
 ## 📌 Open Access Manuscript
-[![arxiv](https://img.shields.io/badge/Open_Access-arxiv:2402.12095-b31b1b)](https://arxiv.org/abs/2402.12095/)
 This project has been outlined in [https://arxiv.org/abs/2402.12095/](https://arxiv.org/abs/2402.12095/).
 <details>
 <summary>Read Abstract</summary>
