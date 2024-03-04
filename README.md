@@ -2,7 +2,7 @@
 ![image/png](https://cdn-uploads.huggingface.co/production/uploads/6304c06eeb6d777a838eab63/BJKsLwX0GG4W3-gdf40TJ.png)
 
 # 🗺️ Major TOM: Expandable Datasets for Earth Observation
-[![HF](https://img.shields.io/badge/%F0%9F%A4%97-Datasets-yellow)](https://www.huggingface.co/Major-TOM) [![paper](https://img.shields.io/badge/arXiv-2402.12095-D12424)](https://www.arxiv.org/abs/2402.12095) [![GitHub stars](https://img.shields.io/github/stars/ESA-PhiLab/Major-TOM?style=social&label=Star&maxAge=2592000)](https://github.com/ESA-PhiLab/Major-TOM/)
+[![HF](https://img.shields.io/badge/%F0%9F%A4%97-Datasets-yellow)](https://www.huggingface.co/Major-TOM) [![paper](https://img.shields.io/badge/arXiv-2402.12095-D12424)](https://www.arxiv.org/abs/2402.12095) <a href="https://colab.research.google.com/github/ESA-PhiLab/Major-TOM/blob/main/03-Filtering-in-Colab.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a> [![GitHub stars](https://img.shields.io/github/stars/ESA-PhiLab/Major-TOM?style=social&label=Star&maxAge=2592000)](https://github.com/ESA-PhiLab/Major-TOM/)
 
 A standard for curating large-scale (Terabyte-scale) EO datasets.
 
