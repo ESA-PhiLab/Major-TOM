@@ -11,8 +11,8 @@ This organisation provides a platform for making further contributions to the pr
 ## 📊 Available Datasets
 | Dataset    | Modality            | Number of Patches | Sensing Type | Comments |
 |------------|---------------------|-------------------|--------------|----------|
-| [Core-S2L2A](https://huggingface.co/datasets/Major-TOM/Core-S2L2A) | Sentinel-2 Level 2A | 2,245,886 | Multi-Spectral | General-Purpose Global (about 25 TB) |
-| [Core-S2L1C](https://huggingface.co/datasets/Major-TOM/Core-S2L1C) | Sentinel-2 Level 1C | TBC | Multi-Spectral | General-Purpose Global (about 25 TB) |
+| [Core-S2L2A](https://huggingface.co/datasets/Major-TOM/Core-S2L2A) | Sentinel-2 Level 2A | 2,245,886 | Multi-Spectral | General-Purpose Global (about 23 TB) |
+| [Core-S2L1C](https://huggingface.co/datasets/Major-TOM/Core-S2L1C) | Sentinel-2 Level 1C | 2,245,886 | Multi-Spectral | General-Purpose Global (about 23 TB) |
 
 ## 📌 Open Access Manuscript
 This project has been outlined in [https://arxiv.org/abs/2402.12095/](https://arxiv.org/abs/2402.12095/).
