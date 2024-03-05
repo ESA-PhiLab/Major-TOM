@@ -2,7 +2,7 @@
 ![image/png](https://cdn-uploads.huggingface.co/production/uploads/6304c06eeb6d777a838eab63/BJKsLwX0GG4W3-gdf40TJ.png)
 
 # 🗺️ Major TOM: Expandable Datasets for Earth Observation
-[![HF](https://img.shields.io/badge/%F0%9F%A4%97-Datasets-yellow)](https://www.huggingface.co/Major-TOM) [![paper](https://img.shields.io/badge/arXiv-2402.12095-D12424)](https://www.arxiv.org/abs/2402.12095) <a href="https://colab.research.google.com/github/ESA-PhiLab/Major-TOM/blob/main/03-Filtering-in-Colab.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
+[![HF](https://img.shields.io/badge/%F0%9F%A4%97-Datasets-yellow)](https://www.huggingface.co/Major-TOM) [![HF](https://img.shields.io/badge/%F0%9F%A4%97-Spaces_Demo-yellow)]([https://www.huggingface.co/Major-TOM](https://huggingface.co/spaces/Major-TOM/MajorTOM-Core-Viewer)) [![paper](https://img.shields.io/badge/arXiv-2402.12095-D12424)](https://www.arxiv.org/abs/2402.12095) <a href="https://colab.research.google.com/github/ESA-PhiLab/Major-TOM/blob/main/03-Filtering-in-Colab.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a>
 
 A standard for curating large-scale (Terabyte-scale) EO datasets.
 
@@ -13,6 +13,11 @@ This organisation provides a platform for making further contributions to the pr
 |------------|---------------------|-------------------|--------------|----------|
 | [Core-S2L2A](https://huggingface.co/datasets/Major-TOM/Core-S2L2A) | Sentinel-2 Level 2A | 2,245,886 | Multi-Spectral | General-Purpose Global (about 23 TB) |
 | [Core-S2L1C](https://huggingface.co/datasets/Major-TOM/Core-S2L1C) | Sentinel-2 Level 1C | 2,245,886 | Multi-Spectral | General-Purpose Global (about 23 TB) |
+
+## 🔭 Demo
+You can view samples from the `MajorTOM-Core` dataset instantly in your browser here:
+https://huggingface.co/spaces/Major-TOM/MajorTOM-Core-Viewer
+[![huggingface co_spaces_Major-TOM_MajorTOM-Core-Viewer (1)](https://github.com/ESA-PhiLab/Major-TOM/assets/13435425/6a82c999-23f6-42e7-ad12-1e86869d17a4)](https://huggingface.co/spaces/Major-TOM/MajorTOM-Core-Viewer)
 
 ## 📌 Open Access Manuscript
 This project has been outlined in [https://arxiv.org/abs/2402.12095/](https://arxiv.org/abs/2402.12095/).
