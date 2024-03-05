@@ -6,7 +6,7 @@
 
 A standard for curating large-scale (Terabyte-scale) EO datasets.
 
-This organisation provides a platform for making further contributions to the project with the aim of building large and compatible Earth observation datasets.
+This repo currently provides some basic functionality and examples for interacting with Major TOM datasets. This will grow and change as more datasets are created.
 
 ## 📊 Available Datasets
 | Dataset    | Modality            | Number of Patches | Sensing Type | Comments |
