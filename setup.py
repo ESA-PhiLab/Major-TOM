@@ -16,7 +16,7 @@ setup(
       "numpy",
       "rasterio",
       "shapely",
-      "tqdm"
+      "tqdm",
       "pillow",
       "fsspec",
       "pyarrow",
