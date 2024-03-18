@@ -23,14 +23,16 @@ class MajorTOM(Dataset):
                  local_dir = None,
                  tif_bands=['B04','B03','B02'],
                  png_bands=['thumbnail'],
-                 custom_transforms=[transforms.ToTensor()]
+                 tif_transforms=[transforms.ToTensor()],
+                 png_transforms=[transforms.ToTensor()]
                 ):
         super().__init__()
         self.df = df
         self.local_dir = Path(local_dir) if isinstance(local_dir,str) else local_dir
         self.tif_bands = tif_bands if not isinstance(tif_bands,str) else [tif_bands]
         self.png_bands = png_bands if not isinstance(png_bands,str) else [png_bands]
-        self.custom_transforms = transforms.Compose(custom_transforms) if custom_transforms is not None else None
+        self.tif_transforms = transforms.Compose(tif_transforms) if tif_transforms is not None else None
+        self.png_transforms = transforms.Compose(png_transforms) if png_transforms is not None else None
 
     def __len__(self):
         return len(self.df)
@@ -48,15 +50,15 @@ class MajorTOM(Dataset):
         for band in self.tif_bands:
             with rio.open(path / '{}.tif'.format(band)) as f:
                 out = f.read()
-            if self.custom_transforms is not None:
-                out = self.custom_transforms(out)
+            if self.tif_transforms is not None:
+                out = self.tif_transforms(out)
             out_dict[band] = out
 
 
         for band in self.png_bands:
             out = Image.open(path / '{}.png'.format(band))
-            if self.custom_transforms is not None:
-                out = self.custom_transforms(out)
+            if self.png_transforms is not None:
+                out = self.png_transforms(out)
             out_dict[band] = out
 
         return out_dict
