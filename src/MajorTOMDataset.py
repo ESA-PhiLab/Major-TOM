@@ -1,5 +1,6 @@
 import os
 import pandas as pd
+import torch
 from torch.utils.data import Dataset
 from pathlib import Path
 import rasterio as rio
@@ -39,7 +40,7 @@ class MajorTOM(Dataset):
         row = grid_cell.split('_')[0]
     
         path = self.local_dir / Path("{}/{}/{}".format(row, grid_cell, product_id))
-        out_dict = {'meta' : meta}
+        out_dict = {'meta' : self._metadata_to_torch(meta)}
         
         for band in self.tif_bands:
             with rio.open(path / '{}.tif'.format(band)) as f:
@@ -50,3 +51,10 @@ class MajorTOM(Dataset):
             out_dict[band] = Image.open(path / '{}.png'.format(band))
 
         return out_dict
+
+    def _metadata_to_torch(self, meta):
+        meta = meta.to_dict() # to dict
+        meta['timestamp'] = meta['timestamp'].timestamp() # convert to float
+        del meta['geometry'] # remove geometry
+        meta = {k: torch.tensor(v) if not isinstance(v,str) else v for k,v in meta.items()} # convert to torch tensor all non-string values
+        return meta
