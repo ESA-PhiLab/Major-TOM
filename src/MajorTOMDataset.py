@@ -55,7 +55,7 @@ class MajorTOM(Dataset):
 
         for band in self.png_bands:
             out = Image.open(path / '{}.png'.format(band))
-            if self.transforms is not None:
+            if self.custom_transforms is not None:
                 out = self.custom_transforms(out)
             out_dict[band] = out
 
