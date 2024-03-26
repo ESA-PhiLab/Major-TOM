@@ -129,7 +129,7 @@ class Grid():
         cols,lons = cols[idxs],lons[idxs]
         return cols,lons
 
-    def latlon2rowcol(self,lats,lons,return_idx=False):
+    def latlon2rowcol(self,lats,lons,return_idx=False,integer=False):
         """
         Convert latitude and longitude to row and column number from the grid
         """
@@ -141,13 +141,20 @@ class Grid():
 
         # For each point, find the rightmost point that is still to the left of the given longitude
         cols = [poss_points.iloc[np.searchsorted(poss_points.geometry.x,lon)-1].col for poss_points,lon in zip(possible_points,lons)]
-        rows = self.rows[rows]
+        rows = self.rows[rows].tolist()
 
+        outputs = [rows, cols]
         if return_idx:
             # Get the table index for self.points with each row,col pair in rows, cols
             idx = [self.points[(self.points.row==row) & (self.points.col==col)].index.values[0] for row,col in zip(rows,cols)]
-            return rows,cols,idx
-        return rows,cols
+            outputs.append(idx)
+
+        # return raw numbers
+        if integer:
+            outputs[0] = [int(el[:-1]) if el[-1] == 'U' else -int(el[:-1]) for el in outputs[0]]
+            outputs[1] = [int(el[:-1]) if el[-1] == 'R' else -int(el[:-1]) for el in outputs[1]]
+            
+        return outputs
 
     def rowcol2latlon(self,rows,cols):
         point_geoms = [self.points.loc[(self.points.row==row) & (self.points.col==col),'geometry'].values[0] for row,col in zip(rows,cols)]
