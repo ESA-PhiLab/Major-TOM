@@ -305,3 +305,5 @@ if __name__ == "__main__":
 
     lines.to_file(f"testlines_{dist}km.geojson", driver="GeoJSON")
     grid.points.to_file(f"testgrid_{dist}km.geojson", driver="GeoJSON")
+    # Get bounded footprint of a grid cell
+    print(grid.get_bounded_footprint(grid.points.iloc[0]))
