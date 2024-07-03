@@ -4,6 +4,7 @@ import pandas as pd
 import geopandas as gpd
 from shapely.geometry import LineString, Polygon
 from tqdm import tqdm
+import re
 
 
 
@@ -167,7 +168,6 @@ class Grid():
         # Grid point defined as bottom-left corner of polygon. Buffer ratio is the ratio of the grid cell's width/height to buffer by.
 
         bottom,left = point.geometry.y,point.geometry.x
-        row = point.row
         row_idx = point.row_idx
         col_idx = point.col_idx
         next_row_idx = row_idx+1
@@ -179,12 +179,12 @@ class Grid():
         else:
             top = self.lats[next_row_idx]
         
-        max_col = len(self.points_by_row[row].col_idx)-1
+        max_col = len(self.points_by_row[row_idx].col_idx)-1
         if next_col_idx > max_col: # If at rightmost column, use difference between rightmost and second-to-rightmost column for width
-            width = (self.points_by_row[row].iloc[col_idx].geometry.x - self.points_by_row[row].iloc[col_idx-1].geometry.x)
-            right = self.points_by_row[row].iloc[col_idx].geometry.x + width
+            width = (self.points_by_row[row_idx].iloc[col_idx].geometry.x - self.points_by_row[row_idx].iloc[col_idx-1].geometry.x)
+            right = self.points_by_row[row_idx].iloc[col_idx].geometry.x + width
         else:
-            right = self.points_by_row[row].iloc[next_col_idx].geometry.x
+            right = self.points_by_row[row_idx].iloc[next_col_idx].geometry.x
 
         # Buffer the polygon by the ratio of the grid cell's width/height
         width = right - left
@@ -203,43 +203,63 @@ class Grid():
 
         return bbox
     
-
 def get_utm_zone_from_latlng(latlng):
     """
-    Get the UTM ZONE from a latlng list.
+    Get the UTM zone from a latlng list and return the corresponding EPSG code.
 
     Parameters
     ----------
     latlng : List[Union[int, float]]
-        The latlng list to get the UTM ZONE from.
-
-    return_epsg : bool, optional
-        Whether or not to return the EPSG code instead of the WKT, by default False
+        The latlng list to get the UTM zone from.
 
     Returns
     -------
     str
-        The WKT or EPSG code.
+        The EPSG code for the UTM zone.
     """
-    assert isinstance(latlng, (list, np.ndarray)), "latlng must be in the form of a list."
+    assert isinstance(latlng, (list, tuple)), "latlng must be in the form of a list or tuple."
 
-    zone = math.floor(((latlng[1] + 180) / 6) + 1)
-    n_or_s = "S" if latlng[0] < 0 else "N"
+    longitude = latlng[1]
+    latitude = latlng[0]
 
-    false_northing = "10000000" if n_or_s == "S" else "0"
-    central_meridian = str(zone * 6 - 183)
-    epsg = f"32{'7' if n_or_s == 'S' else '6'}{str(zone)}"
+    zone_number = math.floor((longitude + 180) / 6) + 1
 
-    return epsg
+    # Special zones for Svalbard and Norway
+    if latitude >= 56.0 and latitude < 64.0 and longitude >= 3.0 and longitude < 12.0:
+        zone_number = 32
+    elif latitude >= 72.0 and latitude < 84.0:
+        if longitude >= 0.0 and longitude < 9.0:
+            zone_number = 31
+        elif longitude >= 9.0 and longitude < 21.0:
+            zone_number = 33
+        elif longitude >= 21.0 and longitude < 33.0:
+            zone_number = 35
+        elif longitude >= 33.0 and longitude < 42.0:
+            zone_number = 37
+
+    # Determine the hemisphere and construct the EPSG code
+    if latitude < 0:
+        epsg_code = f"327{zone_number:02d}"
+    else:
+        epsg_code = f"326{zone_number:02d}"
+    if not re.match(r"32[6-7](0[1-9]|[1-5][0-9]|60)",epsg_code):
+        raise ValueError(f"out of bound latlng resulted in incorrect EPSG code for the point")
+    
+    return epsg_code
 
 
 if __name__ == '__main__':
-    import matplotlib.pyplot as plt
+
+    assert get_utm_zone_from_latlng([-1,-174.34]) == "32701"
+    assert get_utm_zone_from_latlng([48,-4]) == "32630"
+    assert get_utm_zone_from_latlng([78,13]) == "32633"
+    assert get_utm_zone_from_latlng([-34,19.7]) == "32734"
+    assert get_utm_zone_from_latlng([-36,175.7]) == "32760"
+
 
     dist = 100
     grid = Grid(dist,latitude_range=(10,70),longitude_range=(-30,60))
 
-    from pprint import pprint
 
     test_lons = np.random.uniform(-20,50,size=(1000))
     test_lats = np.random.uniform(12,68,size=(1000))
