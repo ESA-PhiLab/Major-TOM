@@ -222,7 +222,7 @@ def get_utm_zone_from_latlng(latlng):
     longitude = latlng[1]
     latitude = latlng[0]
 
-    zone_number = math.floor((longitude + 180) / 6) + 1
+    zone_number = (math.floor((longitude + 180) / 6)) % 60 + 1
 
     # Special zones for Svalbard and Norway
     if latitude >= 56.0 and latitude < 64.0 and longitude >= 3.0 and longitude < 12.0:
@@ -243,6 +243,7 @@ def get_utm_zone_from_latlng(latlng):
     else:
         epsg_code = f"326{zone_number:02d}"
     if not re.match(r"32[6-7](0[1-9]|[1-5][0-9]|60)",epsg_code):
+        print(f"latlng: {latlng}, epsg_code: {epsg_code}")
         raise ValueError(f"out of bound latlng resulted in incorrect EPSG code for the point")
     
     return epsg_code
@@ -258,11 +259,11 @@ if __name__ == '__main__':
 
 
     dist = 100
-    grid = Grid(dist,latitude_range=(10,70),longitude_range=(-30,60))
+    grid = Grid(dist)
 
-
-    test_lons = np.random.uniform(-20,50,size=(1000))
-    test_lats = np.random.uniform(12,68,size=(1000))
+    np.random.seed(0)
+    test_lons = np.random.uniform(-20,20,size=(1000)) % 180 # Checks edge-case of crossing 180th meridian
+    test_lats = np.random.uniform(-20,68,size=(1000))
 
     test_rows,test_cols = grid.latlon2rowcol(test_lats,test_lons)
     test_lats2,test_lons2 = grid.rowcol2latlon(test_rows,test_cols)
