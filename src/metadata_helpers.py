@@ -101,6 +101,7 @@ def filter_download(df, local_dir, source_name, by_row = False, verbose = False,
         source_name (str) : Name alias of the resulting dataset
         by_row (bool): If True, it will access individual rows of parquet via http - otherwise entire parquets are downloaded temporarily
         verbose (bool) : option for potential internal state printing
+        tif_columns (list of str) : Optionally specified columns to be downloaded as .tifs, e.g. ['B04', 'B03', 'B02']
 
     Returns:
         None
