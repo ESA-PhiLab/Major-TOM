@@ -15,6 +15,7 @@ This repo currently provides some basic functionality and examples for interacti
 | [Core-S2L2A](https://huggingface.co/datasets/Major-TOM/Core-S2L2A) | Sentinel-2 Level 2A | 2,245,886 | Multi-Spectral | General-Purpose Global (about 23 TB) |
 | [Core-S2L1C](https://huggingface.co/datasets/Major-TOM/Core-S2L1C) | Sentinel-2 Level 1C | 2,245,886 | Multi-Spectral | General-Purpose Global (about 23 TB) |
 | [Core-S1RTC](https://huggingface.co/datasets/Major-TOM/Core-S1RTC) | Sentinel-1 RTC | 1,469,955 | SAR | General-Purpose Global (about 16 TB) |
+| [Core-DEM](https://huggingface.co/datasets/Major-TOM/Core-DEM) | Copernicus DEM 30 | 1,837,843 | Digital Surface Model (DSM) | General-Purpose Global (about 1 TB) |
 
 ## 🔭 Demo
 You can view samples from the `MajorTOM-Core` dataset instantly in your browser here:
