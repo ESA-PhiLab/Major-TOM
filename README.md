@@ -22,6 +22,14 @@ You can view samples from the `MajorTOM-Core` dataset instantly in your browser 
 https://huggingface.co/spaces/Major-TOM/MajorTOM-Core-Viewer
 [![huggingface co_spaces_Major-TOM_MajorTOM-Core-Viewer (1)](https://github.com/ESA-PhiLab/Major-TOM/assets/13435425/6a82c999-23f6-42e7-ad12-1e86869d17a4)](https://huggingface.co/spaces/Major-TOM/MajorTOM-Core-Viewer)
 
+## 🌐 Generate uniform grid accross the globe
+You can use [grid.py]([url](https://github.com/ESA-PhiLab/Major-TOM/blob/main/src/grid.py)) script to generate uniform grid accross the globe:
+
+```
+dist = 100 # sets distance in km
+grid = Grid(dist) # returns grid points coordinates
+```
+
 ## 📌 Open Access Manuscript
 This project has been outlined in [https://arxiv.org/abs/2402.12095/](https://arxiv.org/abs/2402.12095/).
 <details>
