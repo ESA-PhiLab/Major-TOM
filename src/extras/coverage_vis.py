@@ -76,7 +76,32 @@ def dark_basemap():
         
         return fig2img(fig)
 
-def get_coveragemap(input):
+def get_coveragemap(input, input2=None):
+    """
+        Creates a complete coloured Major TOM coverage figure in the same style as in the official documentation
+
+        Optionally, input2 can be provided and then, the map plots a map with extra colours indicating cells available only in input (green) or only input2 (blue)
+    """
+
+    if input2 is None:
+        return single_coveragemap(input)
+    else:
+        cmap1 = single_coveragemap(input)
+        cmap2 = single_coveragemap(input2)
+
+        # arrays for mixing
+        inp1_arr = np.array(cmap1)[...,:3]
+        inp2_arr = np.array(cmap2)[...,:3]
+
+        common_arr = inp1_arr*(inp1_arr.sum(-1) == inp2_arr.sum(-1))[:,:,None]
+        common_arr[:,:,(1,2)] = 0
+        inp1_arr[:,:,(0,2)] = 0 # Green - indicates presence of S2 only
+        inp2_arr[:,:,(0,1)] = 0 # Blue - indicates presense of DEM only
+
+        return PIL.Image.fromarray(((common_arr + inp1_arr + inp2_arr)).astype(np.uint8))
+        
+
+def single_coveragemap(input):
     """
         Creates a complete coloured Major TOM coverage figure in the same style as in the official documentation
     """
@@ -107,10 +132,18 @@ def get_coveragemap(input):
 if __name__ == '__main__':
     DATASET_NAME = 'Major-TOM/Core-S2L2A'
     meta_path = 'https://huggingface.co/datasets/{}/resolve/main/metadata.parquet'.format(DATASET_NAME)
-    
     df = pd.read_parquet(meta_path)
 
     # This is how you make a coverage figure!
     coverage_img = get_coveragemap(df)
 
     coverage_img.save('coverage-example.png', format='PNG')
+
+    # and this is how you can create an overap for 2 datasets!
+    DATASET_NAME = 'Major-TOM/Core-DEM'
+    meta_path = 'https://huggingface.co/datasets/{}/resolve/main/metadata.parquet'.format(DATASET_NAME)
+    dem_df = pd.read_parquet(meta_path)
+
+    coverage_img = get_coveragemap(df,dem_df)
+
+    coverage_img.save('overlap-coverage-example.png', format='PNG')
