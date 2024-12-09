@@ -8,8 +8,31 @@ from models import *
 import cv2
 
 class MajorTOM_Embedder(torch.nn.Module):
+    """
+    MajorTOM Embedder class that applies a model to geospatial image fragments, 
+    computes embeddings, and returns metadata for each fragment.
 
+    This class is designed to work with raster data, where the image is fragmented 
+    into smaller tiles, and embeddings are computed for each tile using the provided 
+    embedder model. The output is a GeoDataFrame containing spatial metadata and 
+    the corresponding embeddings for each tile.
+
+    Attributes:
+        embedder: A model that generates embeddings for image fragments.
+        frag_params: Dictionary containing fragmentation parameters such as the 
+                      target overlap and border shift.
+        column_types: Dictionary specifying data types for the output GeoDataFrame columns.
+    """
+    
     def __init__(self, embedder, target_overlap=0.1, border_shift=True):
+        """
+        Initializes the MajorTOM Embedder with the given parameters.
+
+        Args:
+            embedder (torch.nn.Module): A model that generates embeddings for image fragments.
+            target_overlap (float): The target overlap between image fragments. Default is 0.1.
+            border_shift (bool): Whether to shift the borders of fragments to avoid edge artifacts. Default is True.
+        """
         super().__init__()
 
         # Model
@@ -39,23 +62,53 @@ class MajorTOM_Embedder(torch.nn.Module):
         }
 
     def bands(self):
-        '''
-            Return set of input bands (in correct order)
-        '''
+        """
+        Returns the set of input bands in the correct order.
+
+        Returns:
+            list: List of input bands used by the embedder.
+        """
         return self.embedder.bands
 
     def size(self):
-        '''
-            Return input image size
-        '''
+        """
+        Returns the input image size.
+
+        Returns:
+            tuple: Tuple representing the image size (height, width).
+        """
         return self.embedder.size
 
-    def calculate_checksum(self,geometry, timestamp, product_id, embedding):
+    def calculate_checksum(self, geometry, timestamp, product_id, embedding):
+        """
+        Calculates a checksum for the given geometry, timestamp, product ID, and embedding.
+
+        Args:
+            geometry (shapely.geometry): The geometry object representing the fragment's footprint.
+            timestamp (str): Timestamp of the data.
+            product_id (str): Product identifier.
+            embedding (np.ndarray): The embedding of the image fragment.
+
+        Returns:
+            str: A SHA256 checksum of the concatenated input parameters.
+        """
         combined = f"{geometry}_{timestamp}_{product_id}_{embedding}"
         checksum = hashlib.sha256(combined.encode()).hexdigest()
         return checksum
 
     def _read_image(self, row):
+        """
+        Reads and processes the image bands for a given row, performs optional upsampling 
+        if the resolution is mismatched, and returns the image data, footprint, and CRS.
+
+        Args:
+            row (pandas.Series): The input row containing the image bands.
+
+        Returns:
+            torch.Tensor: A tensor containing the stacked image bands.
+            shapely.geometry: The footprint of the image.
+            rasterio.crs.CRS: The CRS of the image.
+        """
 
         # Read the file
         img = []
@@ -79,7 +132,19 @@ class MajorTOM_Embedder(torch.nn.Module):
         
 
     def forward(self, row, row_meta, device='cuda'):
+        """
+        Forward pass of the model: Reads the image, fragments it, computes embeddings 
+        for each fragment, and returns a GeoDataFrame with the spatial metadata and 
+        embeddings.
 
+        Args:
+            row (pandas.Series): The input row containing the image data.
+            row_meta (pandas.Series): Metadata associated with the row (e.g., timestamp, product_id).
+            device (str): The device to run the model on ('cpu' or 'cuda'). Default is 'cuda'.
+
+        Returns:
+            geopandas.GeoDataFrame: A GeoDataFrame containing metadata and embeddings for each fragment.
+        """
         # Read file
         img, footprint, crs = self._read_image(row)
 

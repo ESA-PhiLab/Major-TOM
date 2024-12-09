@@ -12,7 +12,21 @@ from rasterio.transform import from_bounds, xy
 import rasterio as rio
 
 def crop_footprint(footprint, height, width, crop_bbox):
-    # Define as: crop_bbox = [col_start, row_start, col_end, row_end]  # [min_col, min_row, max_col, max_row]
+    """
+    Crops the given footprint to the specified bounding box.
+
+    Args:
+        footprint (shapely.geometry.Polygon): The original footprint of the image or area.
+        height (int): Height of the image (in pixels).
+        width (int): Width of the image (in pixels).
+        crop_bbox (list): The bounding box to crop the footprint. The format is 
+                          [col_start, row_start, col_end, row_end], where:
+                          - col_start, row_start: top-left corner
+                          - col_end, row_end: bottom-right corner
+
+    Returns:
+        shapely.geometry.Polygon: The cropped bounding box in the same coordinate reference system (CRS) as the original footprint.
+    """
     
     transform = from_bounds(*footprint.bounds, width, height)
 
@@ -25,25 +39,42 @@ def crop_footprint(footprint, height, width, crop_bbox):
     return box(min_x, min_y, max_x, max_y)
 
 def fragment_unfold(image,fragment_size,overlap):
-    '''
-        Unfold operation for a fragment with overlap
-    '''
+    """
+    Unfold operation for a fragment with overlap. This function extracts image patches (fragments) with a specified 
+    size and overlap between them.
+
+    Args:
+        image (torch.Tensor or np.ndarray): The input image to be fragmented (height, width, channels).
+        fragment_size (int or list): The size of each fragment. Can be a single integer for square fragments or 
+                                     a list of two integers for non-square fragments.
+        overlap (int or list): The overlap between adjacent fragments. Can be a single integer or a list of two integers.
+
+    Returns:
+        torch.Tensor: The unfolded fragments of the image, each with the specified size and overlap.
+    """
+    
+    # Convert image to a tensor and reorder dimensions if necessary
     if not torch.is_tensor(image):
-        image = torch.from_numpy(image).permute(2,0,1)
+        image = torch.from_numpy(image).permute(2, 0, 1)  # Rearrange to (channels, height, width)
     if len(image.shape) < 4:
-        image = image.unsqueeze(0)
+        image = image.unsqueeze(0)  # Add batch dimension
 
-    b,c,h,w=image.shape
+    b, c, h, w = image.shape
 
-    if isinstance(fragment_size,int):
-        fragment_size=[fragment_size,fragment_size]
-    if isinstance(overlap,int):
-        overlap=[overlap,overlap]
+    # Ensure fragment size is a list
+    if isinstance(fragment_size, int):
+        fragment_size = [fragment_size, fragment_size]
+    if isinstance(overlap, int):
+        overlap = [overlap, overlap]
 
-    stride = [f-o for f,o in zip(fragment_size,overlap)]
-    #print('STRIDE {}'.format(stride))
+    # Calculate stride based on fragment size and overlap
+    stride = [f - o for f, o in zip(fragment_size, overlap)]
+
+    # Perform the unfolding operation
     uf = torch.nn.functional.unfold(image, fragment_size, dilation=1, padding=0, stride=stride)
-    return uf.view(b,c,*fragment_size,-1).permute(0,4,1,2,3)[0]
+
+    # Reshape and permute to return the unfolded image fragments
+    return uf.view(b, c, *fragment_size, -1).permute(0, 4, 1, 2, 3)[0]
 
 def fragment_fn(img,
                 fragment_size,
@@ -52,20 +83,26 @@ def fragment_fn(img,
                 return_indices=False,
                 verbose=False
                ):
-    '''
-        End-to-end: fragmenting function - ATTENTION: SQUARE IMAGES AND FRAGMENTS ONLY
+    """
+    Fragment an image into smaller patches with a specified fragment size and overlap.
 
-        It adapts to various img sizes, fragment_sizes and desired overlap (in pixels)
+    This function handles different scenarios based on image size, fragment size, and overlap, 
+    and creates fragments from the input image accordingly. It also supports shifting the outer 
+    border of fragments to ensure full coverage of the image.
 
-        Scenario 1:
-            fragment_size < img_size : (not supported)
-        Scenario 2:
-            fragment_size == img_size : return image
-        Scenario 3:
-            fragment_size*2 - overlap < img_size : return only 2 fragments aligned to borders
-        Scenario 4: (most common):
-            fragment_size*2 - overlap > img_size : assign border fragments and fill the middle with other fragments if there is enough space (distributed evenly)
-    '''
+    Args:
+        img (np.ndarray or torch.Tensor): The input image to be fragmented (height, width, channels).
+        fragment_size (int or list): The size of the fragments. Can be a single integer (square) or a list of two integers (non-square).
+        target_overlap (float): The target overlap between adjacent fragments, in pixels.
+        border_shift (bool): Whether to shift the border of fragments to ensure full coverage of the image. Default is True.
+        return_indices (bool): If True, the function will also return the indices (offsets) for each fragment. Default is False.
+        verbose (bool): If True, the function will print additional details about the overlap. Default is False.
+
+    Returns:
+        torch.Tensor or tuple: 
+            - If `return_indices` is False, a tensor containing the image fragments.
+            - If `return_indices` is True, a tuple of the image fragments and their offsets.
+    """
 
     h,w,c=img.shape
 
@@ -125,38 +162,3 @@ def fragment_fn(img,
                     offset[-1,cidx,0] = w-wf
 
         return full,offset
-                
-
-# def get_product_window(lat, lon, utm_zone=4326, mt_grid_dist = 10, box_size = 10680):
-#     """
-#         Takes a reference coordinate for top-left corner (lat, lon) of a Major TOM cell
-#         and returns a product footprint for a product in the specified utm_zone (needs to be extracted from a given product)
-
-
-#         mt_grid_dist (km) : distance of a given Major TOM grid (10 km is the default)
-#         box_size (m) : length 
-#     """
-#     # offset distributed evenly on both sides
-#     box_offset = (box_size-mt_grid_dist*1000)/2 # metres
-
-#     if isinstance(utm_zone, int):
-#         utm_crs = f'EPSG:{utm_zone}'
-#     else:
-#         utm_crs = utm_zone
-    
-#     # Define transform
-#     transformer = Transformer.from_crs('EPSG:4326', utm_crs, always_xy=True)
-
-#     # Get corners in UTM coordinates
-#     left,bottom = transformer.transform(lon, lat)
-#     left,bottom = left-box_offset, bottom-box_offset
-#     right,top = left+box_size,bottom+box_size
-
-#     utm_footprint = Polygon([
-#         (left,bottom),
-#         (right,bottom),
-#         (right,top),
-#         (left,top)
-#     ])
-
-#     return utm_footprint, utm_crs
