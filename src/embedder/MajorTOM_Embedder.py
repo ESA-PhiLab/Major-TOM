@@ -3,8 +3,8 @@ import geopandas as gpd
 import hashlib
 from rasterio.io import MemoryFile
 
-from grid_cell_fragment import *
-from models import *
+from .grid_cell_fragment import *
+from .models import *
 import cv2
 
 class MajorTOM_Embedder(torch.nn.Module):
