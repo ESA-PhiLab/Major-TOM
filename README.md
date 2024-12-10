@@ -9,13 +9,21 @@ A standard for curating large-scale (Terabyte-scale) EO datasets.
 
 This repo currently provides some basic functionality and examples for interacting with Major TOM datasets. This will grow and change as more datasets are created.
 
-## 📊 Available Datasets
+## 🎞 Official Image Datasets
 | Dataset    | Modality            | Number of Patches | Sensing Type | Comments |
-|------------|---------------------|-------------------|--------------|----------|
+|------------|---------------------|------------------:|--------------|----------|
 | [Core-S2L2A](https://huggingface.co/datasets/Major-TOM/Core-S2L2A) | Sentinel-2 Level 2A | 2,245,886 | Multi-Spectral | General-Purpose Global (about 23 TB) |
 | [Core-S2L1C](https://huggingface.co/datasets/Major-TOM/Core-S2L1C) | Sentinel-2 Level 1C | 2,245,886 | Multi-Spectral | General-Purpose Global (about 23 TB) |
 | [Core-S1RTC](https://huggingface.co/datasets/Major-TOM/Core-S1RTC) | Sentinel-1 RTC | 1,469,955 | SAR | General-Purpose Global (about 16 TB) |
 | [Core-DEM](https://huggingface.co/datasets/Major-TOM/Core-DEM) | Copernicus DEM 30 | 1,837,843 | Digital Surface Model (DSM) | General-Purpose Global (about 1 TB) |
+
+## 📊 Official Embedding Datasets
+| Dataset    | Modality            | Number of Embeddings | Sensing Type  | Source Dataset | Source Model | Size |
+|------------|---------------------|------------------:|--------------|----------|--------------|----------|
+| [Core-S2L1C-SSL4EO](https://huggingface.co/datasets/Major-TOM/Core-S2L1C-SSL4EO) | Sentinel-2 Level 1C | 56,147,150 | Multi-Spectral  | [Core-S2L1C](https://huggingface.co/datasets/Major-TOM/Core-S2L1C) | [SSL4EO-ResNet50-DINO](https://github.com/zhu-xlab/SSL4EO-S12) | 252.9 GB |
+| [Core-S1RTC-SSL4EO](https://huggingface.co/datasets/Major-TOM/Core-S1RTC-SSL4EO) | Sentinel-1 RTC | 36,748,875 | SAR  | [Core-S1RTC](https://huggingface.co/datasets/Major-TOM/Core-S1RTC) | [SSL4EO-ResNet50-MOCO](https://github.com/zhu-xlab/SSL4EO-S12) | 332.5 GB |
+| [Core-S2RGB-DINOv2](https://huggingface.co/datasets/Major-TOM/Core-S2RGB-DinoV2) | Sentinel-2 Level 2A (RGB) | 56,147,150 | True Colour | [Core-S2L2A](https://huggingface.co/datasets/Major-TOM/Core-S2L2A) | [DINOv2](https://huggingface.co/docs/transformers/en/model_doc/dinov2) | 223.1 GB |
+| [Core-S2RGB-SigLIP](https://huggingface.co/datasets/Major-TOM/Core-S2RGB-SigLIP) | Sentinel-2 Level 2A (RGB) | 20,212,974 | True Colour | [Core-S2L2A](https://huggingface.co/datasets/Major-TOM/Core-S2L2A) | [SigLIP-SO400M-384](https://huggingface.co/docs/transformers/en/model_doc/siglip) | 41.3 GB |
 
 ## 🔭 Demo
 You can view samples from the `MajorTOM-Core` dataset instantly in your browser here:
