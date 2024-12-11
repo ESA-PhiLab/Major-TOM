@@ -7,7 +7,7 @@ setup(
     url='https://github.com/ESA-PhiLab/Major-TOM',
     author='Alistair Francis and Mikolaj Czerkawski',
     author_email="mikolaj.czerkawski@esa.int",
-    package_dir={"majortom":"src"},
+    package_dir={"majortom":"MajorTom"},
     install_requires=[
       "torch>=1.10.0",
       "torchvision",
