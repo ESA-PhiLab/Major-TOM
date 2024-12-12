@@ -1,1 +1,1 @@
-from MajorTom import *
+from MajorTOM import *
