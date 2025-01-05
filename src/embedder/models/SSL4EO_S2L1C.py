@@ -80,7 +80,7 @@ class SSL4EO_S2L1C_Embedder(torch.nn.Module):
         Returns:
             torch.Tensor: Preprocessed input, scaled by a factor of 10,000.
         """
-       return input / 1e4
+        return input / 1e4
 
     def forward(self, input):
         """
