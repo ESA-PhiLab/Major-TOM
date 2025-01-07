@@ -1,8 +1,9 @@
 import numpy as np
+import os
 import math
 import pandas as pd
 import geopandas as gpd
-from shapely.geometry import LineString, Polygon
+from shapely.geometry import LineString, Polygon, box
 from tqdm import tqdm
 import re
 
@@ -105,14 +106,14 @@ class Grid():
 
                 c_idx += 1
             points_by_row[r_idx] = gpd.GeoDataFrame({
-                'name':point_names,
+                'grid_cell':point_names,
                 'row':grid_row_names,
                 'col':grid_col_names,
                 'row_idx':grid_row_idx,
                 'col_idx':grid_col_idx,
                 'utm_zone':utm_zones,
-                'epsg':epsgs
-            },geometry=gpd.points_from_xy(grid_lons,grid_lats))
+                'utm_crs':epsgs
+            },geometry=gpd.points_from_xy(grid_lons,grid_lats), crs='EPSG:4326')
             r_idx += 1
         points = gpd.GeoDataFrame(pd.concat(points_by_row))
         # points.reset_index(inplace=True,drop=True)
@@ -202,7 +203,238 @@ class Grid():
         bbox = Polygon([(new_left,new_bottom),(new_left,new_top),(new_right,new_top),(new_right,new_bottom)])
 
         return bbox
+        
+
+        
+    def generate_product_outlines_for_utm_zone(self, utm_zone, shift=340, pixel_size=10, raster_width=1068, raster_height=1068, 
+                                                output_file=None, driver="ESRI Shapefile", get_footprints=False):
+        """
+        Generate the Major-TOM grid and product outlines for a given UTM zone.
+
+        Args:
+            utm_zone (str): UTM zone (e.g., "EPSG:32633").
+            shift (int): Shift applied to the bottom-left corner (default is 340 meters).
+            pixel_size (int): Pixel size in meters (default is 10).
+            raster_width (int): Raster width in pixels (default is 1068).
+            raster_height (int): Raster height in pixels (default is 1068).
+            output_file (str): Path to save the resulting shapefile or GeoJSON.
+            driver (str): File driver (e.g., "ESRI Shapefile", "GeoJSON").
+            get_footprints (bool): Whether to include the `utm_footprint` column.
+
+        Returns:
+            GeoDataFrame: Product outlines for the specified UTM zone.
+        """
+        grid_points_utm = self.points[self.points['utm_crs'] == utm_zone]
+        product_outlines = generate_product_outlines(
+            grid_points_utm,
+            shift=shift,
+            pixel_size=pixel_size,
+            raster_width=raster_width,
+            raster_height=raster_height,
+            get_footprints=get_footprints,
+        )
+
+        if output_file:
+            output_file = ensure_file_extension(output_file, driver)
+            product_outlines.to_file(output_file, driver=driver)
+        return product_outlines
+     
+   
+
+    def get_product_outline_for_cell(self, grid_cell=None, lat_lon=None, shift=340, pixel_size=10, raster_width=1068, raster_height=1068):
+        """
+        Retrieve the product outline for a single grid cell.
+
+        Args:
+            grid_cell (str): The grid cell name (optional).
+            lat_lon (tuple): A tuple of (latitude, longitude) (optional).
+            shift (int): Shift applied to the bottom-left corner (default is 340 meters).
+            pixel_size (int): Pixel size in meters (default is 10).
+            raster_width (int): Raster width in pixels (default is 1068).
+            raster_height (int): Raster height in pixels (default is 1068).
+
+        Returns:
+            shapely.geometry.Polygon: Product outline for the specified grid cell.
+        """
+        if grid_cell:
+            grid_row = self.points[self.points['grid_cell'] == grid_cell]
+        elif lat_lon:
+            lat, lon = lat_lon
+            grid_row_idx = self.latlon2rowcol([lat], [lon], return_idx=True)[-1][0]
+            grid_row = self.points.iloc[[grid_row_idx]]
+        else:
+            raise ValueError("Either 'grid_cell' or 'lat_lon' must be provided.")
+
+        return generate_product_outlines(grid_row, shift=shift, pixel_size=pixel_size, raster_width=raster_width, raster_height=raster_height).iloc[0].geometry
+        
+    def generate_global_product_outlines_by_utm(self, output_folder, shift=340, pixel_size=10, raster_width=1068, raster_height=1068, 
+                                                naming_convention="zone", driver="ESRI Shapefile", get_footprints=False):
+        """
+        Generate global product outlines grouped by UTM zones.
+
+        Args:
+            output_folder (str): Directory to save the shapefiles.
+            shift (int): Shift applied to the bottom-left corner (default is 340 meters).
+            pixel_size (int): Pixel size in meters (default is 10).
+            raster_width (int): Raster width in pixels (default is 1068).
+            raster_height (int): Raster height in pixels (default is 1068).
+            naming_convention (str): Naming convention for filenames ("epsg" or "zone").
+                                     - "epsg": Use EPSG code in the filename.
+                                     - "zone": Use UTM zone with hemisphere in the filename.
+
+        Returns:
+            None
+        """
+        os.makedirs(output_folder, exist_ok=True)
+
+        for utm_zone in self.points['utm_crs'].unique():
+            print("Processing utm_zone... ", utm_zone)
+            # Determine naming convention
+            if naming_convention == "zone":
+                if "EPSG:326" in utm_zone:
+                    zone_number = int(utm_zone.split(":326")[1])  # UTM Zone = EPSG - 32600
+                    hemisphere = "N"  # Northern Hemisphere
+                elif "EPSG:327" in utm_zone:
+                    zone_number = int(utm_zone.split(":327")[1])  # UTM Zone = EPSG - 32700
+                    hemisphere = "S"  # Southern Hemisphere
+                else:
+                    print(f"Skipping EPSG code: {utm_zone} (not a valid UTM zone)")
+                    continue
+                output_filename = f"raster_outlines_UTM_zone_{zone_number}{hemisphere}.shp"
+            else:
+                # Default to using EPSG in the filename
+                output_filename = f"raster_outlines_{utm_zone.replace(':', '_')}.shp"
+
+            # Construct full path to output file
+            output_file = os.path.join(output_folder, output_filename)
+
+            # Generate the product outlines for the current UTM zone
+            self.generate_product_outlines_for_utm_zone(
+                utm_zone, 
+                shift=shift, 
+                pixel_size=pixel_size, 
+                raster_width=raster_width, 
+                raster_height=raster_height, 
+                output_file=output_file,
+                driver=driver,
+                get_footprints=get_footprints
+            )
+            
+    def filter_gridpoints_from_metadata(self, metadata):
+        """
+        Filter grid_points using the metadata.parquet file.
+
+        Args:
+            metadata: Dataframe with the contents of the metadata file (Parquet format) containing a 'grid_cell' column.
+        Returns:
+            Filtered grid points that match the metadata rows
+        """
+
+        if 'grid_cell' not in metadata.columns:
+            raise ValueError("The metadata file must contain a 'grid_cell' column.")
+        
+        unique_grid_cells = metadata['grid_cell'].unique()
+        print(f"Found {len(unique_grid_cells)} unique grid cells in metadata.")
+
+        # Filter the grid points to include only the matching grid cells
+        filtered_grid_points = self.points[self.points['grid_cell'].isin(unique_grid_cells)]
+        print(f"Filtered grid points to {len(filtered_grid_points)} matching records.")
+        
+        return filtered_grid_points
+
+
+                
+def generate_product_outlines(grid_points_gdf, shift=340, pixel_size=10, raster_width=1068, raster_height=1068, get_footprints=False):
+    """
+    Optimized generation of product outlines from grid points by processing all points in a UTM zone together.
+
+    Args:
+        grid_points_gdf (GeoDataFrame): Grid points GeoDataFrame for a single UTM zone.
+        shift (int): Distance in meters to shift the bottom-left point (default is 340m).
+        pixel_size (int): Pixel size in meters (e.g., 10m for Sentinel-2).
+        raster_width (int): Raster width in pixels (e.g., 1068).
+        raster_height (int): Raster height in pixels (e.g., 1068).
+
+    Returns:
+        GeoDataFrame: GeoDataFrame with raster outlines as polygons.
+    """
+    # Reproject all points in the GeoDataFrame to the UTM CRS
+    utm_crs = grid_points_gdf["utm_crs"].iloc[0]  # Get the CRS (all points in this group share the same CRS)
+    reprojected_gdf = grid_points_gdf.to_crs(utm_crs)
     
+    # Shift the bottom-left points
+    reprojected_gdf["shifted_x"] = reprojected_gdf.geometry.x - shift
+    reprojected_gdf["shifted_y"] = reprojected_gdf.geometry.y - shift
+
+    # Vectorized bounding box creation
+    reprojected_gdf["geometry"] = reprojected_gdf.apply(
+        lambda row: box(
+            row["shifted_x"],
+            row["shifted_y"],
+            row["shifted_x"] + raster_width * pixel_size,
+            row["shifted_y"] + raster_height * pixel_size,
+        ),
+        axis=1,
+    )
+    if get_footprints: 
+        reprojected_gdf["utm_footprint"] = reprojected_gdf["geometry"].astype('string')
+        export_columns = ["grid_cell", "utm_crs", "geometry", "utm_footprint"]
+    else:
+        export_columns = ["grid_cell", "utm_crs", "geometry"]
+    # Drop temporary columns and return the GeoDataFrame
+    return reprojected_gdf[export_columns]
+
+def merge_utm_files_to_wgs84(utm_folder, output_file, ext=".shp", driver="ESRI Shapefile"):
+    """
+    Merge UTM zone shapefiles into a single WGS84 file.
+
+    Args:
+        utm_folder (str): Directory containing UTM zone shapefiles.
+        output_file (str): Path to save the merged WGS84 file.
+
+    Returns:
+        None
+    """
+    all_gdfs = []
+    for file in os.listdir(utm_folder):
+        if file.endswith(ext):
+            print("processing file: ", file)
+            gdf = gpd.read_file(os.path.join(utm_folder, file))
+            gdf = gdf.to_crs("EPSG:4326")  # Reproject to WGS84
+            all_gdfs.append(gdf)
+
+    merged_gdf = gpd.GeoDataFrame(pd.concat(all_gdfs, ignore_index=True))
+    output_file = ensure_file_extension(output_file, driver)
+    merged_gdf.to_file(output_file, driver=driver)
+ 
+ 
+def ensure_file_extension(output_file, driver):
+    """
+    Ensure the correct file extension for the given driver.
+
+    Args:
+        output_file (str): The output file path.
+        driver (str): The file driver (e.g., "ESRI Shapefile", "GeoJSON").
+
+    Returns:
+        str: The file path with the correct extension.
+    """
+    extension_map = {
+        "ESRI Shapefile": ".shp",
+        "GeoJSON": ".geojson",
+        "GPKG": ".gpkg",
+    }
+    desired_extension = extension_map.get(driver, "")
+    if not desired_extension:
+        raise ValueError(f"Unsupported driver: {driver}")
+
+    base, ext = os.path.splitext(output_file)
+    if ext.lower() != desired_extension:
+        output_file = f"{base}{desired_extension}"
+    return output_file
+
+
+
 def get_utm_zone_from_latlng(latlng):
     """
     Get the UTM zone from a latlng list and return the corresponding EPSG code.
@@ -272,6 +504,7 @@ if __name__ == '__main__':
     print(test_lats[:10])
     print(test_rows[:10])
     print(test_cols[:10])
+    
 
     # Make line segments from the points to their corresponding grid points
     lines = []
@@ -282,3 +515,12 @@ if __name__ == '__main__':
 
     lines.to_file(f'testlines_{dist}km.geojson',driver='GeoJSON')
     grid.points.to_file(f'testgrid_{dist}km.geojson',driver='GeoJSON')
+    
+    # Test 2: Single Grid Cell Outline
+    grid_cell_name = "1U_17R"  # Replace with a valid grid cell name
+    outline = grid.get_product_outline_for_cell(grid_cell=grid_cell_name)
+    print(f"Product outline for grid cell {grid_cell_name}: {outline}")
+
+    lat_lon = (45.0, 13.0)  # Replace with a valid lat/lon pair
+    outline = grid.get_product_outline_for_cell(lat_lon=lat_lon)
+    print(f"Product outline for lat/lon {lat_lon}: {outline}")

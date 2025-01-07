@@ -11,6 +11,8 @@ setup(
     install_requires=[
       "torch>=1.10.0",
       "torchvision",
+      "torchgeo", # Added New
+      "open_clip_torch", # Added New
       "pandas",
       "geopandas",
       "numpy",
