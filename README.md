@@ -50,13 +50,15 @@ This project has been outlined in [https://arxiv.org/abs/2402.12095/](https://ar
 
 ### If you found this useful for your research, please cite accordingly as:
 ```latex
-@inproceedings{Major_TOM,
+@inproceedings{Francis2024MajorTOM,
+  author={Francis, Alistair and Czerkawski, Mikolaj},
+  booktitle={IGARSS 2024 - 2024 IEEE International Geoscience and Remote Sensing Symposium}, 
   title={Major TOM: Expandable Datasets for Earth Observation}, 
-  author={Alistair Francis and Mikolaj Czerkawski},
   year={2024},
-  eprint={2402.12095},
-  archivePrefix={arXiv},
-  primaryClass={cs.CV}
+  volume={},
+  number={},
+  pages={2935-2940},
+  doi={10.1109/IGARSS53475.2024.10640760}
 }
 ```
 
