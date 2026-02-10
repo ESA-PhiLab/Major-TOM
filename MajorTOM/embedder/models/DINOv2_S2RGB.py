@@ -33,7 +33,7 @@ class DINOv2_S2RGB_Embedder(torch.nn.Module):
         Initializes the DINOv2_S2RGB_Embedder by loading the pre-trained DINOv2 model and processor,
         and setting the expected input size for Sentinel-2 RGB data.
 
-        This embedder uses the 'facebook/dinov2-base' model for feature extraction from Sentinel-2 
+        This embedder uses the 'facebook/dinov2-large' model for feature extraction from Sentinel-2 
         true-color images (RGB).
 
         Attributes:
@@ -45,8 +45,8 @@ class DINOv2_S2RGB_Embedder(torch.nn.Module):
         super().__init__()
 
         # Load the DINOv2 processor and model from Hugging Face
-        self.processor = AutoImageProcessor.from_pretrained('facebook/dinov2-base')
-        self.model = AutoModel.from_pretrained('facebook/dinov2-base')
+        self.processor = AutoImageProcessor.from_pretrained('facebook/dinov2-large')
+        self.model = AutoModel.from_pretrained('facebook/dinov2-large')
 
         # Define the RGB bands for Sentinel-2 (B04, B03, B02)
         self.bands = ['B04', 'B03', 'B02']
