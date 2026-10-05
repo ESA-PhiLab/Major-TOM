@@ -42,6 +42,8 @@ With `R` = 6378.137 km (the equatorial radius used by `grid.py`):
 
 Row latitudes are whole multiples of `Δφ`, so row 0 lies on the equator: row `kU` is at `+k·Δφ`, row `kD` at `−k·Δφ`. For `d` = 10 km: `N_rows` = 2,004 and `Δφ` ≈ 0.0898°, about 10 km.
 
+The equator row is `0U`; there is no `0D`. Northwards the rows are `0U`, `1U`, `2U`, …; southwards `1D`, `2D`, …. Because a cell is named after its south-west corner, the `0U` cells lie just north of the equator and the `1D` cells just south of it.
+
 ### 2.2 Columns
 
 A row at latitude `φ` is a circle of circumference `2π·R·cos φ`. It is split into
@@ -49,7 +51,7 @@ A row at latitude `φ` is a circle of circumference `2π·R·cos φ`. It is spli
     n(φ)  = ceil(2π · R · cos φ / d)       columns
     Δλ(φ) = 360° / n(φ)                    spacing in longitude
 
-Column longitudes are whole multiples of `Δλ(φ)`, so column 0 lies on 0° longitude in every row: column `cR` is at `+c·Δλ`, `cL` at `−c·Δλ`. Rounding up makes neighbouring points at most `d` apart along a row.
+Column longitudes are whole multiples of `Δλ(φ)`, so column 0 lies on 0° longitude in every row: column `cR` is at `+c·Δλ`, `cL` at `−c·Δλ`. As with rows, the 0° column is `0R` and there is no `0L`: eastwards `0R`, `1R`, …; westwards `1L`, `2L`, …. Rounding up makes neighbouring points at most `d` apart along a row.
 
 ### 2.3 Cells
 
