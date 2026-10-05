@@ -16,7 +16,7 @@ Workstreams are defined in `docs/STRATEGY.md`.
 - [x] `majortom/` package with `MajorTOM` alias (old module names kept)
 - [x] Lazy imports with extra-naming `ImportError` (`tests/test_imports.py`)
 - [ ] Keep `majortom/extras/` notebooks and images out of the wheel
-- [ ] CI (tests, wheel build)
+- [x] CI (tests on 3.10–3.13, wheel build): `.github/workflows/tests.yml`
 - [ ] Publish to PyPI (#20)
 
 ## WS2 — Grid

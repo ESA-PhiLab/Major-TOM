@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-05 Add GitHub Actions CI: tests on Python 3.10–3.13, package build
 - 2026-10-05 Move package to majortom/ with MajorTOM alias, lazy torch/embedder imports, import tests
 - 2026-10-05 Add pyproject.toml (hatchling, extras) and uv.lock; remove setup.py
 - 2026-10-05 Update strategy (frozen grid, known issues, builder provenance); set up uv env with Python 3.10

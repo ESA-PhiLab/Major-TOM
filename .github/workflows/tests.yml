@@ -1,0 +1,27 @@
+name: tests
+on:
+  push:
+    branches: [main, refactor/v1]
+  pull_request:
+
+jobs:
+  test:                                   # core install only: also proves torch isn't needed
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6       # official uv action, caches downloads
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv sync --locked             # fails if uv.lock is out of date with pyproject.toml
+      - run: uv run pytest -q
+
+  build:                                  # the wheel and source archive build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv build
