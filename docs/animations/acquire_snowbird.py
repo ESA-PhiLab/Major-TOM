@@ -179,8 +179,10 @@ def lane_cdse(race: str, clock: Clock) -> dict[str, np.ndarray]:
 def lane_gee(race: str, clock: Clock) -> dict[str, np.ndarray]:
     """Earth Engine: one computePixels call on the window's exact UTM grid (no resampling)."""
     import ee
+    key = Path.home() / ".config" / "earthengine" / "ee-sa.json"     # service account of project wiki-eo
     with clock.step("access"):
-        ee.Initialize(project="wiki-eo")
+        email = json.loads(key.read_text())["client_email"]          # read only; never printed
+        ee.Initialize(ee.ServiceAccountCredentials(email, str(key)), project="wiki-eo")
     with clock.step("search"):
         col = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED").filter(ee.Filter.eq("MGRS_TILE", TILE))
         if race == "same":

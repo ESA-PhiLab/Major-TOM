@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-05 Add Earth Engine lane (service account) to the acquisition races -> [report](docs/reports/2026-10-05-acquisition-v2.md)
 - 2026-10-05 Re-measure acquisition with cloud-native reads, add CDSE lane, race B, pole slide -> [report](docs/reports/2026-10-05-acquisition-v2.md)
 - 2026-10-05 Add workflow GIF, Snowbird acquisition race, archive matrix; fix GIF background to pure white -> [report](docs/reports/2026-10-05-acquisition-gifs.md)
 - 2026-10-04 Add tutorial GIFs: grid, anchoring, multiples of 12, trade-off -> [report](docs/reports/2026-10-04-tutorial-gifs.md)

@@ -119,9 +119,12 @@ def draw_lane(ax, fig, key: str, y: float, lane: dict | None, errors: list[dict]
     if lane and clock >= start:                                       # finished: result + date
         done = level * phase_in(clock - start)
         text(fig, 0.80, y + 0.022, f"✓ {start:.1f} s", size=16, weight=600, color=INDIGO, va="center", level=done)
-        req = f"{lane['requests']} requests · " if lane["requests"] else ""
-        text(fig, 0.80, y - 0.008, f"{req}{lane['bytes'] / 1e6:.1f} MB", size=11, color=INK_SOFT, va="center",
-             level=done)
+        if lane["bytes"]:
+            req = f"{lane['requests']} requests · " if lane["requests"] else ""
+            detail = f"{req}{lane['bytes'] / 1e6:.1f} MB"
+        else:                                                         # Earth Engine: no GDAL byte count
+            detail = "1 computePixels call"
+        text(fig, 0.80, y - 0.008, detail, size=11, color=INK_SOFT, va="center", level=done)
         old = race == "recent" and key == "major-tom"
         label = f"{dt.date.fromisoformat(lane['acquired']):%d %b %Y}" + (" · fixed sample" if old else "")
         text(fig, 0.80, y - 0.036, label, size=11, weight=500 if old else 300, va="center", level=done,

@@ -63,6 +63,15 @@ Grid icon replaced by a small orthographic globe of the official grid at 2,500 k
 
 - `style.py` `to_palette`: colour matching in chunks of 8,192 colours. The first race render was killed (exit 137) by a multi-GB temporary from photo thumbnails.
 
+## Update: Earth Engine lane
+
+`lane_gee` authenticates with the wiki-eo service account (`~/.config/earthengine/ee-sa.json`, read only for `client_email`, never printed), as Miko specified.
+
+    email = json.loads(key.read_text())["client_email"]          # read only; never printed
+    ee.Initialize(ee.ServiceAccountCredentials(email, str(key)), project="wiki-eo")
+
+Sums of per-step medians, 3 runs each: race A 4.7 s (access 1.37, search 0.50, computePixels 2.84); race B 4.6 s, scene 2026-10-01. No byte count: the traffic does not go through GDAL. The six earlier "login missing" records were moved out of `acquisition_runs.jsonl`. GIF 5 and the matrix now show sums of per-step medians, so both slides give the same numbers.
+
 ## Decisions
 
 - Integer filters over `grid_cell` for the Major TOM lookup: 2.5 s vs 11 s; what an expert would write.
@@ -72,7 +81,6 @@ Grid icon replaced by a small orthographic globe of the official grid at 2,500 k
 
 ## Known gaps
 
-- Earth Engine lanes need `earthengine authenticate` on this machine (or a service-account key path from Miko).
 - Times are from our server; location not stated on slides.
 - Major TOM still reads its v1 1068 px window; the others the v2 1056 px window.
 - A cell index for Major TOM metadata (sorted by cell, or a small lookup file) would cut its 2.5 s lookup; candidate for WS1/WS4.

@@ -30,9 +30,9 @@ ROWS = [  # label, one (text, tone) per column
                 ("token lasts ~45 min", N), ("—", N)]),
     ("L2A +1000 offset", [("kept, declared", G), ("kept, declared", G), ("removed (harmonised)", N),
                           ("kept, not declared", Y_), ("kept (as ESA L2A)", N)]),
-    ("Same product, measured", [("6.8 s", Y_), ("4.9 s", N), ("login not set up", Y_), ("2.0 s", G),
-                                ("4.4 s", N)]),
-    ("Newest clear scene", [("1 Oct 2026", G), ("1 Oct 2026 · 429s", N), ("—", N), ("1 Oct 2026", G),
+    ("Same product, measured", [("6.7 s", Y_), ("4.8 s", N), ("4.7 s", N), ("1.8 s", G),
+                                ("4.0 s", N)]),
+    ("Newest clear scene", [("1 Oct 2026", G), ("1 Oct 2026 · 429s", N), ("1 Oct 2026", G), ("1 Oct 2026", G),
                             ("15 Apr 2023, fixed", Y_)]),
 ]
 TONE = {G: mix(PAPER, MINT, 0.85), Y_: mix(PAPER, YELLOW, 0.45), N: PAPER}
@@ -64,7 +64,7 @@ def main() -> None:
             text(fig, x + col_w / 2, y, value, size=11.5, weight=500 if i == len(ROWS) - 1 else 300,
                  ha="center", va="center")
     text(fig, 0.03, 0.035, "Checked 5 Oct 2026 against each archive's STAC catalogue and documentation. "
-                           "Times: medians of 3 runs for cell 451U_946L (GIF 5); 429s = CDSE search rate-limited 2 of 4 tries.",
+                           "Times: sums of per-step medians over 3 runs for cell 451U_946L (GIF 5); 429s = CDSE search rate-limited 2 of 4 tries.",
          size=10.5, color=INK_SOFT, va="center")
     OUT.mkdir(exist_ok=True)
     fig.savefig(OUT / "archives_matrix.png", dpi=200, facecolor=PAPER)
