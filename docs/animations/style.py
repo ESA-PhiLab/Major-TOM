@@ -68,7 +68,20 @@ def text(fig: plt.Figure, x: float, y: float, s: str, size: float = 16, weight: 
     Weights follow the brand: 300 body, 400 labels, 500 headings, 600 strong emphasis.
     """
     if level > 0.01:
-        fig.text(x, y, s, fontsize=size, fontweight=weight, color=mix(PAPER, color, level), **kw)
+        return fig.text(x, y, s, fontsize=size, fontweight=weight, color=mix(PAPER, color, level), **kw)
+    return None
+
+
+LOCK = "\U0001F512"     # padlock; drawn from Noto Sans Symbols2 (monochrome outline font)
+
+
+def lock_after(fig: plt.Figure, artist, size: float = 14, gap: float = 0.006, color: str = INK) -> None:
+    """Padlock right after a drawn text (marks archives that need an account)."""
+    if artist is None:
+        return
+    box = artist.get_window_extent(renderer=fig.canvas.get_renderer()).transformed(fig.transFigure.inverted())
+    fig.text(box.x1 + gap, (box.y0 + box.y1) / 2, LOCK, fontsize=size, color=color,
+             fontfamily="Noto Sans Symbols2", va="center")
 
 
 # ---------- timing ----------

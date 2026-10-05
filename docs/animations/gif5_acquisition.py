@@ -24,8 +24,9 @@ import numpy as np
 from matplotlib.patches import FancyBboxPatch, Rectangle
 from PIL import Image
 
-from style import (HERE, INDIGO, INDIGO_TINT, INK, INK_FAINT, INK_SOFT, MINT, PAPER, YELLOW, mix, new_figure,
-                   render_loop, text, use_brand_fonts)
+from acquire_snowbird import NEEDS_LOGIN
+from style import (HERE, INDIGO, INDIGO_TINT, INK, INK_FAINT, INK_SOFT, LOCK, MINT, PAPER, YELLOW, lock_after, mix,
+                   new_figure, render_loop, text, use_brand_fonts)
 
 DATA = HERE / "data"
 SPEED = 1.0                       # clock seconds per playback second (1.0 = real time, 0.5 = 2x slow motion)
@@ -158,7 +159,9 @@ def draw(t: float, race: str, lanes: dict, errors: dict, chips: dict, loop: floa
         text(fig, x_of(sec), 0.845, f"{sec} s", size=10, color=INK_SOFT, ha="center")
 
     for (key, name, how), y in zip(LANES, LANE_Y):
-        text(fig, 0.03, y + 0.016, name, size=16, weight=500, va="center")
+        label = text(fig, 0.03, y + 0.016, name, size=16, weight=500, va="center")
+        if key in NEEDS_LOGIN:
+            lock_after(fig, label)
         text(fig, 0.03, y - 0.018, how, size=11, color=INK_SOFT, va="center")
         draw_lane(ax, fig, key, y, lanes.get(key), errors.get(key, []), clock, chips.get(key), level, race)
 
@@ -166,6 +169,8 @@ def draw(t: float, race: str, lanes: dict, errors: dict, chips: dict, loop: floa
         x = BAR[0] + i * 0.12
         ax.add_patch(Rectangle((x, 0.1), 0.018, 0.022, facecolor=color, edgecolor="none"))
         text(fig, x + 0.024, 0.111, label, size=12, weight=400, va="center")
+    fig.text(BAR[0] + 0.49, 0.111, LOCK, fontsize=12, color=INK, fontfamily="Noto Sans Symbols2", va="center")
+    text(fig, BAR[0] + 0.508, 0.111, "needs an account", size=12, weight=400, va="center")
     text(fig, 0.5, 0.04, "Medians of 3 runs from our server, 5 Oct 2026. Bands read concurrently over HTTP/2, "
                          "exact window only. Times depend on where you are.", size=12, color=INK_SOFT, ha="center")
     return fig

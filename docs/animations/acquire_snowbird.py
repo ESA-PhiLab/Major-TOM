@@ -38,6 +38,7 @@ SAME_DATE = "2023-04-15"
 RECENT_DAYS, MAX_CLOUD = 60, 10
 CORE_META = "https://huggingface.co/datasets/Major-TOM/Core-S2L2A/resolve/main/metadata.parquet"
 LANES = ["major-tom", "planetary-computer", "earth-search", "cdse", "gee"]
+NEEDS_LOGIN = {"cdse", "gee"}                         # shown with a padlock on the slides
 
 os.environ.update({
     "GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR",       # no directory listing per file

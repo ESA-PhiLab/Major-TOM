@@ -10,10 +10,13 @@ from __future__ import annotations
 
 from matplotlib.patches import Rectangle
 
-from style import INDIGO, INK, INK_FAINT, INK_SOFT, MINT, OUT, PAPER, YELLOW, mix, new_figure, text, use_brand_fonts
+from acquire_snowbird import NEEDS_LOGIN
+from style import (INDIGO, INK, INK_FAINT, INK_SOFT, MINT, OUT, PAPER, YELLOW, lock_after, mix, new_figure, text,
+                   use_brand_fonts)
 
 COLUMNS = ["AWS Earth Search", "Copernicus Data Space", "Google Earth Engine", "Planetary Computer",
            "Major TOM Core"]
+COLUMN_KEYS = ["earth-search", "cdse", "gee", "planetary-computer", "major-tom"]
 G, Y_, N = "good", "friction", "neutral"
 ROWS = [  # label, one (text, tone) per column
     ("Sentinel-2 L1C", [("requester-pays JP2", Y_), ("✓ SAFE / JP2", G), ("✓", G), ("✗ not offered", Y_),
@@ -52,8 +55,10 @@ def main() -> None:
     top, row_h = 0.80, 0.076
     for j, name in enumerate(COLUMNS):
         x = x0 + label_w + j * col_w + (0.012 if j == 4 else 0)        # small gap before Major TOM
-        text(fig, x + col_w / 2, top, name, size=13, weight=500, ha="center", va="center",
-             color=INDIGO if j == 4 else INK)
+        header = text(fig, x + col_w / 2 - (0.008 if COLUMN_KEYS[j] in NEEDS_LOGIN else 0), top, name, size=13,
+                      weight=500, ha="center", va="center", color=INDIGO if j == 4 else INK)
+        if COLUMN_KEYS[j] in NEEDS_LOGIN:
+            lock_after(fig, header, size=12, gap=0.004)
     for i, (label, cells) in enumerate(ROWS):
         y = top - (i + 1) * row_h
         text(fig, x0, y, label, size=13, weight=400, va="center")
