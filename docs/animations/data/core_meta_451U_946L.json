@@ -1,0 +1,8 @@
+{
+ "grid_cell": "451U_946L",
+ "product_id": "S2B_MSIL2A_20230415T181919_N0509_R127_T12TVK_20230415T211527",
+ "timestamp": "20230415T181919",
+ "parquet_url": "https://huggingface.co/datasets/Major-TOM/Core-S2L2A/resolve/main/images/part_03174.parquet",
+ "parquet_row": 492,
+ "crs": "EPSG:32612"
+}
