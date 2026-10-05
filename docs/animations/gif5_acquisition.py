@@ -171,7 +171,7 @@ def draw(t: float, race: str, lanes: dict, errors: dict, chips: dict, loop: floa
         text(fig, x + 0.024, 0.111, label, size=12, weight=400, va="center")
     fig.text(BAR[0] + 0.49, 0.111, LOCK, fontsize=12, color=INK, fontfamily="Noto Sans Symbols2", va="center")
     text(fig, BAR[0] + 0.508, 0.111, "needs an account", size=12, weight=400, va="center")
-    text(fig, 0.5, 0.04, "Medians of 3 runs from our server, 5 Oct 2026. Bands read concurrently over HTTP/2, "
+    text(fig, 0.5, 0.04, "Medians of 3 runs from a server in the UK (a European example), 5 Oct 2026. Bands read concurrently over HTTP/2, "
                          "exact window only. Times depend on where you are.", size=12, color=INK_SOFT, ha="center")
     return fig
 

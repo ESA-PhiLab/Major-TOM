@@ -69,7 +69,7 @@ def main() -> None:
             text(fig, x + col_w / 2, y, value, size=11.5, weight=500 if i == len(ROWS) - 1 else 300,
                  ha="center", va="center")
     text(fig, 0.03, 0.035, "Checked 5 Oct 2026 against each archive's STAC catalogue and documentation. "
-                           "Times: sums of per-step medians over 3 runs for cell 451U_946L (GIF 5); 429s = CDSE search rate-limited 2 of 4 tries.",
+                           "Times from a server in the UK: sums of per-step medians over 3 runs for cell 451U_946L (GIF 5); 429s = CDSE search rate-limited 2 of 4 tries.",
          size=10.5, color=INK_SOFT, va="center")
     OUT.mkdir(exist_ok=True)
     fig.savefig(OUT / "archives_matrix.png", dpi=200, facecolor=PAPER)
