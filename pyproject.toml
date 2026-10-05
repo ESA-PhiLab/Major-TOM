@@ -18,12 +18,14 @@ dependencies = [
     "pyarrow",
     "fsspec[http]",        # remote parquet and GeoTIFF reads
     "rasterio",
+    "pillow",
     "tqdm",
 ]
 
 [project.optional-dependencies]
 torch = ["torch", "torchvision"]
-embed = ["majortom[torch]", "timm", "torchgeo", "open-clip-torch", "transformers"]
+embed = ["majortom[torch]", "timm", "torchgeo", "open-clip-torch", "transformers", "opencv-python-headless",
+         "matplotlib"]
 viz = ["matplotlib"]
 build = ["pystac-client", "planetary-computer"]   # finalised after the WS5 decision gate
 all = ["majortom[embed,viz,build]"]

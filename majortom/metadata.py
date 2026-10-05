@@ -11,7 +11,7 @@ from rasterio.io import MemoryFile
 from tqdm.notebook import tqdm
 import os
 
-from .sample_helpers import *
+from .sample import *
 
 def metadata_from_url(access_url, local_url):
     local_url, response = urllib.request.urlretrieve(access_url, local_url)

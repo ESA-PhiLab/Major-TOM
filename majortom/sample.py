@@ -1,10 +1,10 @@
 from rasterio.io import MemoryFile
-import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 from io import BytesIO
 
 def plot(sample, bands = ['B04', 'B03', 'B02'], scaling=2e3):
+    import matplotlib.pyplot as plt  # [viz] extra; only plotting needs it
     img = []
     for b in bands:
         img.append(read_tif_bytes(sample[b]))
