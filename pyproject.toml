@@ -1,0 +1,44 @@
+[project]
+name = "majortom"
+version = "0.2.0.dev0"
+description = "Major TOM: expandable datasets for Earth observation (grid, metadata, samples)"
+readme = "README.md"
+license = "Apache-2.0"
+authors = [
+    { name = "Alistair Francis" },
+    { name = "Mikolaj Czerkawski", email = "mikolaj.czerkawski@esa.int" },
+]
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "pandas",
+    "geopandas",
+    "shapely>=2",
+    "pyproj",
+    "pyarrow",
+    "fsspec[http]",        # remote parquet and GeoTIFF reads
+    "rasterio",
+    "tqdm",
+]
+
+[project.optional-dependencies]
+torch = ["torch", "torchvision"]
+embed = ["majortom[torch]", "timm", "torchgeo", "open-clip-torch", "transformers"]
+viz = ["matplotlib"]
+build = ["pystac-client", "planetary-computer"]   # finalised after the WS5 decision gate
+all = ["majortom[embed,viz,build]"]
+
+[project.urls]
+Homepage = "https://github.com/ESA-PhiLab/Major-TOM"
+Paper = "https://arxiv.org/abs/2402.12095"
+Datasets = "https://huggingface.co/Major-TOM"
+
+[dependency-groups]
+dev = ["pytest", "ruff"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["majortom", "MajorTOM"]               # MajorTOM = alias package for existing code

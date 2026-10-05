@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-05 Add pyproject.toml (hatchling, extras) and uv.lock; remove setup.py
 - 2026-10-05 Update strategy (frozen grid, known issues, builder provenance); set up uv env with Python 3.10
 - 2026-10-05 Add Earth Engine lane (service account) to the acquisition races -> [report](docs/reports/2026-10-05-acquisition-v2.md)
 - 2026-10-05 Re-measure acquisition with cloud-native reads, add CDSE lane, race B, pole slide -> [report](docs/reports/2026-10-05-acquisition-v2.md)

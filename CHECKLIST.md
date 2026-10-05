@@ -12,7 +12,7 @@ Workstreams are defined in `docs/STRATEGY.md`.
 - [ ] Review and mark docs reviewed (Miko)
 
 ## WS1 — Packaging and PyPI
-- [ ] `pyproject.toml` with extras
+- [x] `pyproject.toml` with extras; uv env (`.venv`, Python 3.10), `uv.lock`; `setup.py` removed
 - [ ] `majortom/` package with `MajorTOM` alias
 - [ ] Lazy imports with extra-naming `ImportError`
 - [ ] CI (tests, wheel build)
