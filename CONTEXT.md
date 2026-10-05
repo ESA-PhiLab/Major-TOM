@@ -22,3 +22,9 @@ Major TOM (Terrestrial Observation Metaset) is a standard for large EO datasets:
 - Refactor in progress on `refactor/v1`. Plan: `docs/STRATEGY.md`.
 - Known defect: every Core sample has a fractional geotransform (sub-pixel error). See `docs/reports/2026-09-30-refactor-research.md`.
 - `main` has a stash (`stash@{0}`) with the embedding reproducibility check and the embedder import re-enabled.
+
+## Development environment
+
+- Package development uses **uv** with Python 3.10: `.venv/` in the repo root (not committed), built from `pyproject.toml`; `uv.lock` is committed once it exists. Activate with `source .venv/bin/activate`, or prefix commands with `uv run`. In Slurm jobs, activate inside the job.
+- uv lives in `~/.local/bin/uv` (add `~/.local/bin` to `PATH`).
+- The tutorial scripts in `docs/animations/` still run in the conda env `miko-torch`.
