@@ -64,7 +64,8 @@ def read_asset(tiles: list[pystac.Item], asset: str, win: Window, res: float,
             same_crs = src.crs == CRS.from_user_input(win.crs)
             method = Resampling.nearest if same_crs else Resampling[resampling]
             with WarpedVRT(src, crs=win.crs, transform=win.transform(res), width=n, height=n,
-                           resampling=method, add_alpha=True) as vrt:
+                           resampling=method, add_alpha=True,
+                           init_dest_nodata=False, INIT_DEST=0) as vrt:   # empty pixels 0; coverage from alpha
                 tile = retry(vrt.read)                       # bands, then alpha (0 = not covered)
         values, alpha = tile[:-1], tile[-1] > 0
         if data is None:
