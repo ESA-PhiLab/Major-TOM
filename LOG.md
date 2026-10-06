@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-06 Builder: clear/cloudy scene choice, yearly/static products, pass grouping; MajorTOM.py alias; Colab link; WS5 backends -> [report](docs/reports/2026-10-06-builder-preferences.md)
 - 2026-10-06 Add majortom.build (Planetary Computer, any spacing, per-sample queries) and the workshop notebook -> [report](docs/reports/2026-10-06-majortom-build.md)
 - 2026-10-06 Draft sample specification docs/SPEC.md (grid at any spacing, window rule, source profiles, legacy Core)
 - 2026-10-05 Add GitHub Actions CI: tests on Python 3.10–3.13, package build

@@ -38,6 +38,9 @@ Workstreams are defined in `docs/STRATEGY.md`.
 
 ## WS5 — majortom.build
 - [x] First version for the workshop: `majortom.build` on Planetary Computer, 13 collections (WS5 decision gate still open)
+- [x] Scene choice (`prefer`, `cloud` range, `strict`), yearly/static products, pass grouping
+- [ ] Backends beyond Planetary Computer (STRATEGY WS5 `Backend` protocol)
+- [ ] Record per-sample +1000 offset
 - [ ] Catalog / Selector / Reader / Writer interfaces
 - [ ] Earth Search, Planetary Computer, CDSE catalogs
 - [ ] Offset normalisation
