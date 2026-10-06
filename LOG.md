@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-06 Workshop notebook: Cesar trimmed the playground (no Bytes/Read steps, GRAPH set in the encode cell); text matched, outputs stripped
 - 2026-10-06 Workshop notebook: Cesar's Rumi playground and inline TACO writer merged; dataset name from points/class; install force-reinstalls majortom
 - 2026-10-06 Builder reuses a sample on disk only for the same request and removes stale chips (fixes old images after changing points); notebook PICK = "top" or "random"
 - 2026-10-06 Workshop notebook: one points cell (own CSV/GeoJSON via Files panel, or catalogue class); date column sets each sample's time window; gallery handles pre-2022 Sentinel-2 offset
