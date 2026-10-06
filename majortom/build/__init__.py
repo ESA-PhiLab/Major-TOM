@@ -12,11 +12,16 @@ its georeferencing and Major TOM fields, the layout used by the taco workshop no
 Per-sample queries: optional columns in `cells` override the arguments of `download` for that row:
 `datetime` (an interval "start/end" or one time), `days` (search +- days around that time) and
 `margin` (window margin as a fraction of the grid spacing).
+
+Which scene: `prefer` sets the order scenes are tried in ("clearest", "cloudiest", "nearest" to the
+date, "newest"); `cloud` sets the accepted share of cloudy pixels in the window, e.g. (0, 0.05) for
+clear or (0.3, 1) for cloudy samples, or None for any. Both are recorded in every sample.
 """
 from __future__ import annotations
 
 import json
 import os
+from dataclasses import asdict, dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -58,31 +63,65 @@ def search_box(cell: Cell, margin: float) -> tuple[float, float, float, float]:
     return transform_bounds(win.crs, "EPSG:4326", *win.bounds, densify_pts=21)
 
 
-def pick_scene(cell, name, collection, query, margin, max_cloud, max_nodata):
-    """Among the best few scenes, the first with little no-data and few clouds; else the best of them.
+@dataclass(frozen=True)
+class Choice:
+    """How a sample's scene is chosen. Recorded in every sample.
 
-    Returns (tiles, window, pixel sizes, native, cloud share, no-data share, mask asset data or None).
+    prefer      order in which scenes are tried: "clearest", "cloudiest", "nearest" (to the sample's
+                date, or the middle of its range) or "newest"
+    cloud       accepted share of cloudy pixels in the window, as (low, high); None accepts any
+    max_nodata  accepted share of window pixels without data
+    strict      if no scene tried is acceptable: True fails the sample, False takes the one closest to
+                the accepted cloud range (its real cloud share is recorded)
+    """
+    prefer: str = "clearest"
+    cloud: tuple[float, float] | None = (0.0, 0.05)
+    max_nodata: float = 0.01
+    strict: bool = False
+
+    def accepts(self, cloud: float | None, nodata: float) -> bool:
+        return nodata <= self.max_nodata and self.cloud_gap(cloud) == 0
+
+    def cloud_gap(self, cloud: float | None) -> float:
+        """How far a cloud share is outside the accepted range (0 inside it, or without a range)."""
+        if cloud is None or self.cloud is None:
+            return 0.0
+        low, high = self.cloud
+        return max(low - cloud, cloud - high, 0.0)
+
+
+def pick_scene(cell, name, collection, query, margin, choice: Choice):
+    """The first acceptable scene in the order of `choice.prefer`, among the first few.
+
+    Returns (tiles, window, pixel sizes, native, cloud share, no-data share, mask asset data or None,
+    note on the dates used).
     """
     mask_asset = collection.clouds[0] if collection.clouds else collection.assets[0]
     grid_assets = list(collection.assets) + ([mask_asset] if collection.clouds else [])
     tried = []
-    for scene in scenes(name, collection, search_box(cell, margin), query)[:CANDIDATES]:
-        crs, tiles = tiles_for(scene, cell, margin)
-        win, res, native = layout(cell, tiles[0], collection, grid_assets, margin, crs)
-        method = "nearest" if collection.clouds else collection.resampling   # without a mask, this is the data
-        data, covered = read_asset(tiles, mask_asset, win, res[mask_asset], method)
-        cloud = None
-        if collection.clouds:                           # the mask also marks no-data pixels inside files
-            clouds, fill = collection.clouds[1](data[0])
-            covered &= ~fill
-            cloud = float(clouds[covered].mean()) if covered.any() else 1.0
-        nodata = 1 - covered.mean()
-        tried.append((tiles, win, res, native, cloud, nodata, None if collection.clouds else data))
-        if nodata <= max_nodata and (cloud is None or cloud <= max_cloud):
-            return tried[-1]
+    found, note = scenes(name, collection, search_box(cell, margin), query, choice.prefer)
+    for scene in found[:CANDIDATES]:
+        for crs, tiles in tiles_for(scene, cell, margin):   # same scene, another zone if this one is empty
+            win, res, native = layout(cell, tiles[0], collection, grid_assets, margin, crs)
+            method = "nearest" if collection.clouds else collection.resampling   # without a mask: the data
+            data, covered = read_asset(tiles, mask_asset, win, res[mask_asset], method)
+            cloud = None
+            if collection.clouds:                       # the mask also marks no-data pixels inside files
+                clouds, fill = collection.clouds[1](data[0])
+                covered &= ~fill
+                cloud = float(clouds[covered].mean()) if covered.any() else 1.0
+            nodata = 1 - covered.mean()
+            tried.append((tiles, win, res, native, cloud, nodata, None if collection.clouds else data, note))
+            if choice.accepts(cloud, nodata):
+                return tried[-1]
+            if nodata <= choice.max_nodata:             # data is there, only the clouds are off: next scene
+                break
     if not tried:
-        raise LookupError("no scene found")
-    return min(tried, key=lambda t: (t[5] > max_nodata, t[4] or 0, t[5]))
+        raise LookupError(f"no scene found ({note})")
+    if choice.strict:
+        raise LookupError(f"none of {len(tried)} scenes has cloud in {choice.cloud} "
+                          f"and no-data <= {choice.max_nodata}")
+    return min(tried, key=lambda t: (t[5] > choice.max_nodata, choice.cloud_gap(t[4]), t[5]))
 
 
 def band_names(arrays: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
@@ -94,7 +133,7 @@ def band_names(arrays: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
     return planes
 
 
-def build_one(row, name: str, collection: Collection, datetime, days, margin, max_cloud, max_nodata,
+def build_one(row, name: str, collection: Collection, datetime, days, margin, choice: Choice,
               outdir: Path, force: bool) -> None:
     """Build and write one sample."""
     path = outdir / f"{row.Index:06d}.npz"
@@ -106,8 +145,8 @@ def build_one(row, name: str, collection: Collection, datetime, days, margin, ma
     query = interval(_field(row, "datetime") or datetime, days)
 
     with rasterio.Env(**GDAL_OPTIONS):
-        tiles, win, res, native, cloud, nodata, first = pick_scene(cell, name, collection, query, margin,
-                                                                    max_cloud, max_nodata)
+        tiles, win, res, native, cloud, nodata, first, note = pick_scene(cell, name, collection, query, margin,
+                                                                          choice)
         arrays = {}
         for asset in collection.assets:
             reuse = first is not None and asset == collection.assets[0]
@@ -122,7 +161,7 @@ def build_one(row, name: str, collection: Collection, datetime, days, margin, ma
         left=win.left, top=win.top, res=finest, size=win.pixels(finest), bands=list(planes),
         grid_cell=cell.name, grid_km=cell.d, window_m=win.side, cell_coverage=cell_coverage(cell, win),
         profile=PROFILE, resampled=[] if native else list(collection.assets),
-        query=dict(datetime=query, margin=margin),
+        query=dict(datetime=query, margin=margin, dates_used=note), choice=asdict(choice),
     )
     # sidecar first, then the arrays atomically: a chip on disk is always a complete pair
     path.with_suffix(".json").write_text(json.dumps(meta))
@@ -133,17 +172,24 @@ def build_one(row, name: str, collection: Collection, datetime, days, margin, ma
 
 
 def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, days: float | None = None,
-             margin: float = MARGIN, max_cloud: float = 0.05, max_nodata: float = 0.01,
+             margin: float = MARGIN, prefer: str = "clearest", cloud: tuple[float, float] | None = (0.0, 0.05),
+             max_nodata: float = 0.01, strict: bool = False,
              outdir: str | Path = "chips", workers: int = 16, force: bool = False) -> pd.DataFrame:
     """Build one sample per row of `cells` from a Planetary Computer collection.
 
-    datetime     dates to search ("start/end" or one time); ignored by static products
+    datetime     dates to search ("start/end" or one time). Yearly products: selects the version.
+                 Static products: ignored
     days         widen a single `datetime` by +- days
     margin       window margin as a fraction of the grid spacing (0.056: 10,560 m at 10 km)
-    max_cloud    accept the first scene with at most this share of cloudy pixels in the window
-    max_nodata   ... and at most this share of window pixels without data
+    prefer       order scenes are tried: "clearest", "cloudiest", "nearest" (to the date) or "newest"
+    cloud        accepted share of cloudy pixels in the window, (low, high); None accepts any
+    max_nodata   accepted share of window pixels without data
+    strict       True: a sample with no acceptable scene fails; False: the closest to the range is used
     Returns the samples that failed, with the reason.
     """
+    choice = Choice(prefer, tuple(cloud) if cloud is not None else None, max_nodata, strict)
+    if prefer not in ("clearest", "cloudiest", "nearest", "newest"):
+        raise ValueError(f"prefer must be clearest, cloudiest, nearest or newest, not {prefer!r}")
     if collection not in COLLECTIONS:
         raise KeyError(f"unknown collection {collection!r}; pick one of {sorted(COLLECTIONS)}")
     if cells.index.has_duplicates:
@@ -153,7 +199,7 @@ def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, 
     errors = []
     with ThreadPoolExecutor(workers) as pool:
         jobs = {pool.submit(build_one, row, collection, COLLECTIONS[collection], datetime, days, margin,
-                            max_cloud, max_nodata, out, force): row for row in cells.itertuples()}
+                            choice, out, force): row for row in cells.itertuples()}
         for job in tqdm(as_completed(jobs), total=len(jobs), desc=collection):
             try:
                 job.result()

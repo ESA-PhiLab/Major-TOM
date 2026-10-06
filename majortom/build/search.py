@@ -58,43 +58,87 @@ def item_crs(item: pystac.Item) -> str | None:
     return code or (f"EPSG:{epsg}" if epsg else None)
 
 
+ORDER = {                                               # catalogue sort for each preference
+    "clearest": [{"field": "eo:cloud_cover", "direction": "asc"}],
+    "cloudiest": [{"field": "eo:cloud_cover", "direction": "desc"}],
+    "newest": [{"field": "datetime", "direction": "desc"}],
+    "nearest": [{"field": "datetime", "direction": "desc"}],   # then re-sorted by distance to the date
+}
+
+
+def middle(datetime: str | None) -> pd.Timestamp:
+    """The date a "nearest" search aims at: the given time, the middle of a range, or now."""
+    if not datetime:
+        return pd.Timestamp.now(tz="UTC")
+    ends = [pd.Timestamp(t) for t in datetime.split("/")]
+    ends = [t.tz_localize("UTC") if t.tzinfo is None else t for t in ends]
+    return ends[0] + (ends[-1] - ends[0]) / 2
+
+
 def scenes(name: str, collection: Collection, bbox: tuple[float, float, float, float],
-           datetime: str | None, limit: int = 50) -> list[list[pystac.Item]]:
-    """Scenes over a lon/lat box, best first: least cloudy, or newest for products without clouds.
+           datetime: str | None, prefer: str = "clearest", limit: int = 100) -> tuple[list[list[pystac.Item]], str]:
+    """Scenes over a lon/lat box in the order of `prefer`, and a note on which dates were used.
 
-    A scene is the list of tiles of one acquisition.
+    A scene is the list of tiles of one acquisition. Products without clouds are ordered newest first
+    for "clearest" and "cloudiest". Yearly products take the newest version if none is in `datetime`.
     """
-    query = dict(collections=[name], bbox=bbox, max_items=limit,
-                 sortby=[{"field": "eo:cloud_cover", "direction": "asc"}] if collection.clouds
-                 else [{"field": "datetime", "direction": "desc"}])
-    if collection.time and datetime:
-        query["datetime"] = datetime
+    if not collection.clouds and prefer in ("clearest", "cloudiest"):
+        prefer = "newest"
     needed = set(collection.assets) | ({collection.clouds[0]} if collection.clouds else set())
-    items = [it for it in retry(lambda: list(catalog().search(**query).items())) if needed <= set(it.assets)]
-    groups: dict[pd.Timestamp, list[pystac.Item]] = {}
-    for item in items:                                  # dicts keep the catalogue's order
-        groups.setdefault(acquired(item), []).append(item)
-    return list(groups.values())
+
+    def search(dates: str | None) -> list[pystac.Item]:
+        query = dict(collections=[name], bbox=bbox, max_items=limit, sortby=ORDER[prefer])
+        if dates:
+            query["datetime"] = dates
+        return [it for it in retry(lambda: list(catalog().search(**query).items())) if needed <= set(it.assets)]
+
+    note = "dates ignored: one version" if collection.time == "static" else f"dates {datetime}"
+    items = search(datetime if collection.time != "static" else None)
+    if not items and collection.time == "yearly" and datetime:
+        items, note = search(None), f"no version in {datetime}: newest used"
+    if prefer == "nearest":
+        target = middle(datetime)
+        items.sort(key=lambda it: abs(acquired(it) - target))
+    return passes(items), note
 
 
-def tiles_for(scene: list[pystac.Item], cell: Cell, margin: float) -> tuple[str, list[pystac.Item]]:
-    """The window's CRS and the tiles to read for one scene (docs/SPEC.md sections 3.1 and 6.4).
+def passes(items: list[pystac.Item], gap: pd.Timedelta = pd.Timedelta(minutes=5)) -> list[list[pystac.Item]]:
+    """Group tiles of one satellite pass: same platform, acquired within `gap` of each other.
 
-    The cell's UTM zone if that zone's tiles cover the whole window, else another projected zone whose
-    tiles do: pixels stay native. Products in latitude/longitude use the cell's zone and are resampled.
-    Tiles of one CRS only, those containing the whole window first.
+    Tiles of one pass can carry sensing times seconds apart (HLS does), so exact times do not match.
+    Groups keep the order of the input.
+    """
+    groups: list[list[pystac.Item]] = []
+    for item in items:
+        platform, when = item.properties.get("platform"), acquired(item)
+        for group in groups:
+            if group[0].properties.get("platform") == platform and abs(acquired(group[0]) - when) <= gap:
+                group.append(item)
+                break
+        else:
+            groups.append([item])
+    return groups
+
+
+def tiles_for(scene: list[pystac.Item], cell: Cell, margin: float) -> list[tuple[str, list[pystac.Item]]]:
+    """Ways to read one scene, best first: (window CRS, tiles) (docs/SPEC.md sections 3.1 and 6.4).
+
+    First the projected zones whose tiles cover the whole window, the cell's own zone first, so pixels
+    stay native; then zones that cover it only partly. Products in latitude/longitude use the cell's zone
+    and are resampled. Each option uses tiles of one CRS, those containing the whole window first.
+    Footprints in the catalogue can overstate the data (some are whole tile squares), so the caller
+    checks the no-data it actually reads and moves on to the next option if needed.
     """
     target = cell_crs(cell)
     by_crs: dict[str | None, list[pystac.Item]] = {}
     for item in scene:
         by_crs.setdefault(item_crs(item), []).append(item)
     projected = sorted((c for c in by_crs if c and CRS.from_user_input(c).is_projected), key=lambda c: c != target)
+    covering, partial = [], []
     for crs in projected:
         need = shapely.box(*transform_bounds(crs, "EPSG:4326", *window(cell, 10, margin=margin, crs=crs).bounds,
                                              densify_pts=21))
-        footprints = {it.id: shape(it.geometry) for it in by_crs[crs]}
-        if shapely.union_all(list(footprints.values())).contains(need):
-            return crs, sorted(by_crs[crs], key=lambda it: not footprints[it.id].contains(need))
-    if projected:                                       # no zone covers it all: best effort, flagged by nodata
-        return projected[0], by_crs[projected[0]]
-    return target, scene
+        footprints = {it.id: shapely.make_valid(shape(it.geometry)) for it in by_crs[crs]}   # some are invalid
+        tiles = sorted(by_crs[crs], key=lambda it: not footprints[it.id].contains(need))
+        (covering if shapely.union_all(list(footprints.values())).contains(need) else partial).append((crs, tiles))
+    return covering + partial if projected else [(target, scene)]
