@@ -110,25 +110,50 @@ Non-goals:
 
 ### WS5 — `majortom.build`
 
-Pipeline, each stage swappable:
+**Status (2026-10-06):** first version, used by the workshop: Planetary Computer, 13 collections, any grid spacing, per-sample dates and margins, scene choice by `prefer` and `cloud` range. Report: `docs/reports/2026-10-06-majortom-build.md`.
 
-    cells   = grid.cells_in(aoi)
-    spec    = SampleSpec(size_px=1056, snap_m=60)
-    builder = Builder(catalog=STACCatalog("planetary-computer", "sentinel-2-l2a"),
-                      selector=LowestCloud(max_cloud=20), spec=spec)
-    plan    = builder.plan(cells, time=("2024-01", "2024-12"))
-    builder.run(plan, out=..., executor="local" | "slurm")
-    builder.report(out)   # WS4
+Flow today:
 
-- **Decision gate before implementation:** how products are read. Options: existing packages (aereo, odc-stac/odc-geo, phidown for CDSE/PhiSat-2) or custom readers ("binders") per archive. Choose with a short comparison against the measurements in `docs/reports/2026-10-05-acquisition-v2.md`; the rest of this section is finalised after that.
-- Catalogs: Earth Search, Planetary Computer, CDSE STAC. phidown as optional CDSE/PhiSat-2 backend.
-- Rate limits and retries: retry with exponential back-off on HTTP 429/5xx; batch searches by tile and date, not per cell; cache search results. Measured: CDSE STAC returned 429 in 2 of 4 searches of one small test.
-- Source preference per product: COG archives for window reads (12 requests per 4-band window); CDSE JP2 only where needed (~225 requests and JPEG 2000 decoding per window), e.g. L1C or a specific reprocessing.
-- Provenance per sample, easy to access: product ID, processing baseline, archive and collection, acquisition time; raster metadata (CRS, geotransform, band names, dtype, nodata, offset/scale actually applied); dataset metadata (spec version, window size, build date, code version).
-- Reader: windowed read at integer offsets; no resampling when CRS matches, else reproject and flag.
-- Offset normalisation: Earth Search and CDSE declare `raster:bands` offset; Planetary Computer requires `s2:processing_baseline >= 04.00` → subtract 1000.
-- Writers: COG (352 px blocks) and Core-style parquet shards + `metadata.parquet`. Writer returns arrays + geotransform so TACO/rumi writers in the taco repo can consume them.
-- v1→v2 path: for croppable cells, derive v2 from Core v1.1 instead of re-downloading.
+    cells (points or area) -> window (spec) -> scenes (search, ordered by prefer) -> choose (cloud range, no-data)
+      -> CRS and tiles per scene (native coverage) -> read onto the window grid -> .npz + .json per sample
+
+**Extending beyond Planetary Computer.** Most of the builder is already archive-agnostic: cells, the window rule, the CRS choice per scene, the scene choice and the writer. Two steps are archive-specific and move behind one small interface:
+
+    class Backend(Protocol):
+        def scenes(self, product, bbox, dates, prefer) -> list[list[Tile]]          # search and order
+        def read(self, tiles, band, window, res, resampling) -> tuple[array, covered]
+
+| Backend | Search | Read | Access | Notes |
+|---|---|---|---|---|
+| Planetary Computer | STAC | GDAL window reads (COG) | free signed URLs | done |
+| AWS Earth Search | STAC | GDAL window reads (COG) | none | band names differ (`red` for B04); offset declared in metadata |
+| CDSE | STAC | GDAL `/vsis3/` window reads (JP2) | account + S3 keys | retry and back-off on HTTP 429; batch searches by tile and date; JP2 costs ~225 requests per window |
+| Google Earth Engine | Earth Engine filters | `computePixels` on the window grid (server-side) | Cloud project + registration | not file-based; one request per window |
+| Major TOM datasets (Hugging Face, source.coop) | metadata parquet | one row group per sample | none | Core v1 samples cropped to v2 windows where possible (SPEC 7.3) |
+
+Planetary Computer, Earth Search and CDSE share one STAC + GDAL implementation, configured per archive (address, URL signing, band names, offset rule). A product such as "Sentinel-2 L2A" is described once, with its name and band keys in each archive, so a dataset states product and archive separately.
+
+**Related tools, and why the builder does not depend on them:**
+
+| Tool | What it does | Why not (now) |
+|---|---|---|
+| odc-stac / odc-geo | loads STAC items onto a target pixel grid (xarray, dask) | closest match to our read step; adds dask and xarray. To be compared behind the `Backend` interface on exactness (native pixels copied unchanged) and speed |
+| stackstac | STAC items to xarray | same role as odc-stac; less active |
+| aereo | plugin framework writing Major TOM-aligned GeoTIFFs and a parquet index | depends on `majortom-eg`, an unofficial grid (D2), and defines its own windows; we keep the grid and window rule here. Output can stay compatible |
+| phidown | CDSE and PhiSat-2 search and whole-product download | no window reads; useful for discovery or whole-product workflows, not per-cell samples |
+| earthengine-api / xee | Earth Engine access | the Earth Engine backend would call `computePixels` directly: one request per window |
+| TorchGeo | training-time datasets and samplers | consumes data; does not acquire it |
+
+None of these provides what makes a sample Major TOM: the cell, the window rule, the native-grid CRS choice and the scene choice. That stays in this package; the reading step may use one of them.
+
+**Still to do:**
+
+- `Backend` interface; Earth Search, CDSE and Earth Engine backends; odc-stac reader comparison.
+- Offset: record per sample whether the +1000 L2A offset is in the values (Planetary Computer keeps it without declaring it).
+- Rate limits: retry with back-off on 429/5xx (done for searches), batch searches by tile and date, cache search results.
+- Provenance per sample: processing baseline, offset and scale applied, band descriptions, spec and code version (product ID, archive, CRS, geotransform, scene choice and dates are recorded).
+- Writers beyond the notebook layout: COG (352 px blocks), Core-style parquet shards + `metadata.parquet`.
+- v1 → v2: derive v2 samples from Core where croppable (SPEC 7.3).
 
 ### WS6 — Code cleanup and embedder
 
