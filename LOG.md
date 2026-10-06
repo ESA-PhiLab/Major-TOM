@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-06 Add majortom.build (Planetary Computer, any spacing, per-sample queries) and the workshop notebook -> [report](docs/reports/2026-10-06-majortom-build.md)
 - 2026-10-06 Draft sample specification docs/SPEC.md (grid at any spacing, window rule, source profiles, legacy Core)
 - 2026-10-05 Add GitHub Actions CI: tests on Python 3.10–3.13, package build
 - 2026-10-05 Move package to majortom/ with MajorTOM alias, lazy torch/embedder imports, import tests

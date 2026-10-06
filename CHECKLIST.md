@@ -37,6 +37,7 @@ Workstreams are defined in `docs/STRATEGY.md`.
 - [ ] Slurm runs over Core datasets
 
 ## WS5 — majortom.build
+- [x] First version for the workshop: `majortom.build` on Planetary Computer, 13 collections (WS5 decision gate still open)
 - [ ] Catalog / Selector / Reader / Writer interfaces
 - [ ] Earth Search, Planetary Computer, CDSE catalogs
 - [ ] Offset normalisation
@@ -52,6 +53,7 @@ Workstreams are defined in `docs/STRATEGY.md`.
 
 ## WS7 — Workshop notebook
 - [x] Tutorial GIFs: grid, anchoring, multiples of 12, trade-off (`docs/animations/`, review pending)
+- [x] Workshop notebook using `majortom.build`: `docs/workshop/workshop.ipynb`
 - [ ] Draft notebook with figures and backend comparison
 
 ## WS8 — Releases
