@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** unreviewed (sections 1–4 drafted; 5–9 to follow)
+> **Review status:** unreviewed (sections 1–6 drafted; 7–9 to follow)
 
 # Major TOM sample specification
 
@@ -183,11 +183,71 @@ Headers of three recent scenes per collection over Snowbird, from Planetary Comp
 
 ## 5. Worked examples
 
-*To follow:* Sentinel-2 at `d` = 10 km for cell `451U_946L` (Snowbird); one other spacing.
+Both examples use the `s2` profile (section 4.2) at Snowbird, Utah (40.5829°N, 111.6556°W). All numbers were computed with the formulas of sections 2–3.
+
+### 5.1 Sentinel-2 at `d` = 10 km: cell `451U_946L`
+
+| Step | Result |
+|---|---|
+| Rows (2.1) | `N_rows` = 2,004; `Δφ` = 0.089820°. Snowbird is in row 451U, at 40.508982°N |
+| Columns (2.2) | this row has 3,047 columns; `Δλ` = 0.118149°. Snowbird is in column 946L, at 111.768953°W |
+| Cell (2.3) | `451U_946L`; 99.74 km²; centroid 40.553892°N, 111.709879°W |
+| CRS (3.1) | UTM zone 12N (EPSG:32612); Sentinel-2 tile 12TVK contains the whole window |
+| Anchor (3.2) | centroid projected: x = 439,897.17 m, y = 4,489,478.87 m |
+| Snap (3.3) | anchor: x = 439,920 m, y = 4,489,500 m (moved by +22.8 m, +21.1 m) |
+| Window (3.4) | `S` = 10,560 m: x 434,640–445,200 m, y 4,484,220–4,494,780 m |
+| Pixels | 1056 × 1056 at 10 m, 528 × 528 at 20 m, 176 × 176 at 60 m |
+| Geotransform at 10 m | (434640, 10, 0, 4494780, 0, −10) |
+| Coverage (3.5) | the cell is rotated 0.46° against the UTM axes; `cell_coverage` = 1.0; window area is 11.8% larger than the cell |
+
+### 5.2 Sentinel-2 at `d` = 1 km: cell `4517U_9441L`
+
+A smaller spacing keeps the rule unchanged but changes the trade-off, because the 60 m lattice is now coarse compared with the cell.
+
+| Step | Result |
+|---|---|
+| Rows and columns | `N_rows` = 20,038; Snowbird is in row 4517U (40.575906°N), which has 30,439 columns; column 9441L (111.658070°W) |
+| Cell | `4517U_9441L`; 0.998 km²; about 1,008 m × 1,005 m; rotated 0.42° |
+| Anchor | x = 444,780 m, y = 4,492,380 m (moved by −26.1 m, −3.2 m) |
+
+`S` must be a multiple of `2L` = 120 m, so the choices step in 12% increments of `d`:
+
+| `S` | Pixels at 10 / 20 / 60 m | `cell_coverage` | Window area beyond the cell |
+|---|---|---|---|
+| 960 m | 96 / 48 / 16 | 0.918 | −7.7% |
+| 1,080 m | 108 / 54 / 18 | 1.0 | +16.9% |
+| 1,200 m | 120 / 60 / 20 | 1.0 | +44.3% |
+
+At this spacing a profile may prefer a finer lattice: without the 60 m bands, `L` = 20 m, `S` steps by 40 m, and about 1,040 m (104 / 52 px) covers this cell with roughly 8% extra area.
 
 ## 6. Special cases
 
-*To follow:* exception zones, pole caps, `cell_coverage` flags.
+### 6.1 Exception zones (Norway, Svalbard)
+
+UTM widens some zones: zone 32V around southern Norway, and zones 31X, 33X, 35X and 37X over Svalbard (each 9–12° wide). Cells far from such a zone's central meridian are rotated by up to about 6°.
+
+- **Norway:** Sentinel-2 also has tiles in the neighbouring regular zone 31V, so the CRS rule of section 3.1 picks that zone and the rotation stays below 3°.
+- **Svalbard:** Sentinel-2 has no tiles in zones 32X, 34X and 36X, so no better zone exists. With `S` = 10,560 m, 3,508 Core cells there are not fully covered: at most 258 m of a cell, 0.9% of its area, lies outside its window. These samples carry `cell_coverage` < 1 (section 6.3).
+
+### 6.2 Pole caps
+
+- **CRS:** beyond 84°N and 80°S there is no UTM; the CRS rule uses UPS (EPSG:32661 north, EPSG:32761 south).
+- **Even `N_rows`** (e.g. `d` = 10 km): the southernmost row lies on the south pole and has one cell, a disc around the pole. Its window is centred **on the pole**, not on the cell's latitude/longitude midpoint, which lies one half-row (about 5 km) away. The northernmost row's cells are wedges meeting at the north pole; the general rule applies to them.
+- **Odd `N_rows`** (e.g. `d` = 500 km): no cell covers the area south of the southernmost row, and the northernmost cells extend past the north pole. Datasets at such spacings state how they treat the caps.
+- **Coverage:** even with these rules, square windows around wedge-shaped cells leave gaps and overlaps. With `S` = 10,560 m and midpoint anchors, 1.7% of the area within 32 km of the north pole and 17.5% around the south pole was not covered (figure `docs/animations/out/poles_1056.png`); the south figure improves with the pole-centred window above (to be measured).
+- **Data:** Sentinel-2 images systematically up to 82.8°N, and Antarctica only on request, so for `s2` these rules matter only for other sources.
+
+### 6.3 `cell_coverage`
+
+The share of the cell's area that lies inside its window, between 0 and 1:
+
+    cell_coverage = area(cell ∩ window) / area(cell)
+
+computed in the window's CRS, with the cell's edges densified so that curved edges are followed. Every sample records it (section 8). For `s2` at `d` = 10 km with `S` = 10,560 m, 0.32% of Core cells have `cell_coverage` < 1, mostly in Svalbard; the worst value is about 0.99.
+
+### 6.4 Windows that no single tile contains
+
+The CRS rule prefers a native tile that contains the whole window. Where none does, the sample is built from adjacent tiles of the **same acquisition and the same CRS**, which share one pixel grid, so no resampling is needed; the sample records every source tile. Tiles in different CRSs are not mixed: the cell then uses the next CRS that works, or is skipped.
 
 ## 7. Legacy Core v1
 
