@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-06 Workshop notebook: one points cell (own CSV/GeoJSON via Files panel, or catalogue class); date column sets each sample's time window; gallery handles pre-2022 Sentinel-2 offset
 - 2026-10-06 Workshop notebook: optional own points from CSV or GeoJSON (upload, file or URL)
 - 2026-10-06 Workshop notebook: thumbnail gallery of built samples after the download cell
 - 2026-10-06 Silence GDAL INIT_DEST warning flooding Colab output (rasterio 1.5); pixels unchanged
