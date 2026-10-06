@@ -13,3 +13,4 @@ Scripts behind `docs/reports/2026-09-30-refactor-research.md`. They write output
 - `core_join.py` — joins Core-S2L2A metadata to the index.
 - `core_cells.py` — v1 vs v2 metrics on all Core-S2L2A cells; writes `core_cells_v1_v2.csv`. Run via Slurm.
 - `v2_misses.py` — causes of 1056 px misses, CRS rule test, minimal window size, neighbour coverage; writes `v2_misses_cells.parquet` (input to `docs/figures/make_figures_1056.py`).
+- `check_grids.py` — reads CRS, pixel size and origin of Sentinel-2, Landsat, Sentinel-1 RTC and Copernicus DEM products over Snowbird (spec section 4).

@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** unreviewed (sections 1–3 drafted; 4–9 to follow)
+> **Review status:** unreviewed (sections 1–4 drafted; 5–9 to follow)
 
 # Major TOM sample specification
 
@@ -16,8 +16,8 @@ How a Major TOM grid cell becomes a sample: a window of pixels from a data sourc
 |---|---|
 | grid spacing `d` | Target distance between neighbouring grid points, in km. Major TOM Core uses `d` = 10 km; any `d` is allowed. |
 | grid point | One point of the grid, named by its row and column, e.g. `451U_946L`. |
-| row | All grid points at one latitude. Named `kU` (k rows north of the equator) or `kD` (south). |
-| column | Position of a point within its row. Named `cR` (east of 0° longitude) or `cL` (west). |
+| row | All grid points at one latitude. Named `kU` (k rows north of the equator) or `kD` (south). Row `0U` lies on the equator. |
+| column | Position of a point within its row. Named `cR` (east of 0° longitude) or `cL` (west). Column `0R` is at 0 degree longitude. |
 | cell | The area between a grid point and the next row and column: the point is the cell's south-west corner. A cell shares its point's name. |
 | cell centroid | The midpoint of the cell in latitude and longitude. |
 | source | Where pixels come from: a sensor product (e.g. Sentinel-2 L2A) or a derived product (e.g. a DEM). |
@@ -135,7 +135,51 @@ When sources are used together (e.g. Sentinel-2, Landsat, Sentinel-1 and a DEM),
 
 ## 4. Source profiles
 
-*To follow:* Sentinel-2 L1C/L2A; the combined Sentinel-2 + Landsat + Sentinel-1 + Copernicus DEM profile; notes on sensors with very different grids (e.g. Sentinel-5P, geostationary).
+A profile fixes everything section 3 needs. Pixel grids below were read from product headers over Snowbird, Utah (UTM zone 12N), on 2026-10-06; see section 4.5.
+
+### 4.1 What a profile records
+
+| Field | Meaning |
+|---|---|
+| name and version | e.g. `s2` v1; recorded in every sample (section 8) |
+| sources | the products the profile covers, with their bands and pixel sizes |
+| reference source | the source whose pixel grid defines the lattice (section 3.6) |
+| CRS rule | how a cell's CRS is chosen (section 3.1) |
+| lattice `L` and origin | where pixel edges of the reference source fall |
+| resampling | for every non-reference source: aligned (no resampling) or resampled, with the method and target pixel size |
+| default `S` at `d` = 10 km | the window side, and the pixel counts it gives |
+
+### 4.2 Sentinel-2 L1C / L2A (`s2`)
+
+- **Bands:** 10 m (B02, B03, B04, B08), 20 m (B05, B06, B07, B8A, B11, B12, scene classes), 60 m (B01, B09, B10).
+- **CRS rule:** UTM, through the Sentinel-2 tiling grid: among tiles that contain the whole window, the one whose zone's central meridian is nearest the cell centroid. UPS beyond 84°N / 80°S.
+- **Lattice:** `L` = 60 m. Every band's tile origin is a multiple of 60 m (measured: x = 399,960 m, y = 4,500,000 m and 4,600,020 m), so pixel edges of all three resolutions coincide every 60 m. Origin: x ≡ 0, y ≡ 0 (mod 60) in the northern hemisphere; y ≡ 40 (mod 60) in the southern hemisphere, where UTM northings start at 10,000 km.
+- **Default `S` at `d` = 10 km:** 10,560 m, giving 1056 / 528 / 176 pixels at 10 / 20 / 60 m. Divisible by 16 at every resolution, so it tiles into unpadded GeoTIFF blocks.
+
+### 4.3 Optical, radar and elevation together (`s2-ls-s1-dem`)
+
+Sentinel-2, Landsat 8/9, Sentinel-1 and the Copernicus DEM are often used together. They do not share one pixel grid, so Sentinel-2 is the reference source and its lattice defines the window:
+
+| Source | Native pixel grid | In this profile |
+|---|---|---|
+| Sentinel-2 L1C/L2A | UTM, 10/20/60 m, edges on the 60 m lattice | reference: as in 4.2 |
+| Sentinel-1 RTC (Planetary Computer) | UTM, 10 m, edges on whole multiples of 10 m | aligned with Sentinel-2's 10 m pixels when the UTM zone is the same: no resampling. Different zone: resampled (bilinear) |
+| Landsat 8/9 Collection 2, Level 2 | UTM, 30 m, edges offset by 15 m from multiples of 30 m | always resampled onto a 30 m grid on the lattice (bilinear; nearest for quality bands) |
+| Copernicus DEM GLO-30 | latitude/longitude (EPSG:4326), 1 arc-second (≈ 30 m), 1° tiles | always resampled onto a 30 m grid on the lattice (bilinear) |
+
+- **Target pixel sizes:** Landsat and the DEM keep about their native resolution, 30 m, rather than being enlarged to 10 m: 30 m divides the 60 m lattice, so `S` = 10,560 m gives 352 × 352 pixels, and no detail is invented. A profile variant may resample them to 10 m for models that need one resolution.
+- **Recorded per sample:** for every resampled band, the method and the source pixel grid (section 8).
+
+### 4.4 Sensors on very different grids
+
+Some sensors do not fit UTM and metre-scale lattices. A profile for them defines its own CRS rule and lattice, and usually a larger grid spacing `d`. Two examples, not specified here:
+
+- **Swath sensors such as Sentinel-5P** (pixels of a few km, delivered along the orbit): the lattice would be that of a gridded product (e.g. a regular latitude/longitude or equal-area grid), with `d` of tens to hundreds of km.
+- **Geostationary sensors** (a fixed view of one Earth disk): the CRS is the satellite's own fixed-grid projection, the lattice is its pixel grid, and cells outside the disk have no samples.
+
+### 4.5 How the pixel grids were checked
+
+Headers of three recent scenes per collection over Snowbird, from Planetary Computer's STAC catalogue (2026-10-06): the CRS, pixel size and origin of each band, and the origin's remainder against 60 m and 30 m. Script: `docs/evidence/check_grids.py`.
 
 ## 5. Worked examples
 
