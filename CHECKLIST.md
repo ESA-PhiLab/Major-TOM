@@ -26,7 +26,7 @@ Workstreams are defined in `docs/STRATEGY.md`.
 
 ## WS3 — Spec and Core correction
 - [ ] Repeat pixel-match on ~10 products
-- [ ] `docs/SPEC.md`
+- [x] `docs/SPEC.md` drafted (any spacing, source profiles; review pending)
 - [ ] `sample_window`, `correct_core_transform`, `crop_1068_to_1056`
 - [ ] Readers apply correction by default
 - [ ] Decide exception-zone rule
