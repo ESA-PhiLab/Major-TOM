@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** unreviewed (sections 1–6 drafted; 7–9 to follow)
+> **Review status:** unreviewed (all sections drafted)
 
 # Major TOM sample specification
 
@@ -251,12 +251,66 @@ The CRS rule prefers a native tile that contains the whole window. Where none do
 
 ## 7. Legacy Core v1
 
-*To follow:* bottom-left anchor, 1068 px, fractional-geotransform correction, 1068 → 1056 crop.
+Major TOM Core (Core-S2L2A, Core-S2L1C, Core-S1RTC, Core-DEM on Hugging Face) was built before this spec, with a different window rule. Its data are not re-made (decision D11); this section says how to read them correctly. Evidence: `docs/reports/2026-09-30-refactor-research.md`.
+
+### 7.1 How Core windows were made
+
+| | Core v1 | This spec (`s2`, `d` = 10 km) |
+|---|---|---|
+| Anchor | the grid point (cell's south-west corner), projected | the cell centroid, projected and snapped (3.2–3.3) |
+| Window | from the anchor minus 340 m, 10,680 m up and right | centred on the anchor, 10,560 m |
+| Pixels | 1068 / 534 / 178 at 10 / 20 / 60 m | 1056 / 528 / 176 |
+| CRS | the UTM zone of the product the sample came from | the CRS rule (3.1) |
+
+Pixel values are native Sentinel-2 pixels: they were read from the product at whole-pixel offsets, without resampling.
+
+### 7.2 The geotransform error, and its correction
+
+The geotransform stored with each Core sample is the **unrounded** window corner, not the corner of the pixels actually read. Every sample checked (55 of 55) has an origin off the pixel grid: by up to 5 m at 10 m resolution and up to 30 m at 60 m, because all bands carry the same origin.
+
+Correction, per band of pixel size `r`, using that band's native pixel grid (origin `x₀`, `y₀`; for Sentinel-2, multiples of 60 m, with `y₀` = 40 m in the southern hemisphere):
+
+    x' = x₀ + r · round((x − x₀) / r)
+    y' = y₀ + r · round((y − y₀) / r)
+
+The pixels themselves are unchanged. Checked pixel for pixel on one product against the original Sentinel-2 file; the formula reproduces the stored origins of all 55 samples.
+
+### 7.3 Cropping a Core sample to a v2 window
+
+When the v2 window (section 3) lies inside a Core sample's window, in the same CRS, the v2 sample can be cut out of the Core sample without reading the original product. With both origins on each band's pixel grid, the crop offsets are whole pixels:
+
+    column offset = (x_v2 − x'_v1) / r
+    row offset    = (y'_v1 − y_v2) / r
+
+where `x_v2`, `y_v2` is the v2 window's top-left corner and `x'_v1`, `y'_v1` the corrected Core origin. This is possible for 48% of Core cells (more near the equator and central meridians, fewer at high latitudes); the others need a new read from the source product.
+
+### 7.4 Other properties of Core to know
+
+- 8.3% of Core cells are not fully inside their Core window (mostly above 40° latitude and far from a zone's central meridian), against 0.32% with v2.
+- Duplicate cells and samples with no data occur (issues #17, #8); quality reports flag them (strategy WS4).
+- Finding a cell's sample means querying `metadata.parquet`; filtering on the integer `grid_row_u`, `grid_col_r` columns is much faster than on `grid_cell` (strategy, known issues).
 
 ## 8. Required metadata per sample
 
-*To follow.*
+Every sample carries the following. "Required" fields must be present; "recommended" ones should be.
+
+| Group | Field | Status | Example |
+|---|---|---|---|
+| Identity | `grid_cell`, grid spacing `d`, row and column as signed integers | required | `451U_946L`, 10 km, 451, −946 |
+| Specification | spec version, profile name and version, window side `S`, anchor rule | required | 1.0, `s2` v1, 10,560 m, centroid |
+| Georeferencing, per band | CRS (EPSG code), geotransform, shape, pixel size, band name, data type, nodata value | required | EPSG:32612, (434640, 10, 0, 4494780, 0, −10), 1056 × 1056, 10 m, B04, uint16, 0 |
+| Values, per band | scale and offset needed to get physical values, and whether the archive's offset was kept or removed | required | 0.0001, −0.1, kept |
+| Resampling, per band | `none`, or the method and the source pixel grid | required | bilinear from Landsat 30 m grid offset 15 m |
+| Source | archive and collection, product ID, processing baseline, acquisition time, source tiles used | required | Planetary Computer `sentinel-2-l2a`, `S2B_MSIL2A_20230415T181919_…`, N0509, 2023-04-15T18:19:19Z, 12TVK |
+| Quality | `cell_coverage`, cloud fraction (with the mask used), nodata fraction | required | 1.0, 0.0 (scene classes 8–10), 0.0 |
+| Build | build date, `majortom` version, licence of the source data | recommended | 2026-10-06, 0.2.0, Copernicus open licence |
 
 ## 9. Open points
 
-*To follow.*
+- **Landsat and DEM pixel size in `s2-ls-s1-dem`:** 30 m (current text) or 10 m (as in ELLIOT)?
+- **Resampling method:** bilinear for continuous values, nearest for classes and quality bands (current text). Confirm.
+- **Pole-centred south window (6.2):** effect on coverage not yet measured.
+- **Finer lattice at small spacings (5.2):** the 1,040 m figure at `d` = 1 km is an estimate.
+- **Sentinel-1 RTC in another UTM zone:** resample (current text), or prefer a scene in the cell's zone?
+- **Hierarchy codes** (`code_100km`, `code_1000km` in the ELLIOT index): adopt into the spec, and fix their sign convention?
+- **Spec versioning:** does the spec version follow the `majortom` package version, or its own?
