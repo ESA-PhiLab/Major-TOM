@@ -44,3 +44,14 @@ def test_grid_still_works():
     from majortom import Grid
     grid = Grid(1000)
     assert len(grid.rows) == 19 and grid.points.shape[0] > 0
+
+
+def test_no_paths_differ_only_in_case():
+    """macOS and Windows treat MajorTOM/ and majortom/ as the same folder: no such pairs in the repo."""
+    root = __file__.rsplit("/tests/", 1)[0]
+    files = subprocess.run(["git", "ls-files"], cwd=root, capture_output=True, text=True, check=True).stdout.split()
+    paths = {"/".join(f.split("/")[:i]) for f in files for i in range(1, f.count("/") + 2)}   # files and folders
+    lowered = {}
+    for path in paths:
+        lowered.setdefault(path.lower(), []).append(path)
+    assert [group for group in lowered.values() if len(group) > 1] == []
