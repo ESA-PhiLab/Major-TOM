@@ -166,3 +166,4 @@ cython_debug/
 docs/evidence/*.parquet
 docs/evidence/*.csv
 !docs/animations/data/
+!majortom/build/

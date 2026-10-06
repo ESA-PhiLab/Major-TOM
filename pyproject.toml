@@ -27,7 +27,7 @@ torch = ["torch", "torchvision"]
 embed = ["majortom[torch]", "timm", "torchgeo", "open-clip-torch", "transformers", "opencv-python-headless",
          "matplotlib"]
 viz = ["matplotlib"]
-build = ["pystac-client", "planetary-computer"]   # finalised after the WS5 decision gate
+build = ["pystac-client", "planetary-computer", "requests"]   # first version; WS5 decision gate still open
 all = ["majortom[embed,viz,build]"]
 
 [project.urls]

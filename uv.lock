@@ -1778,6 +1778,7 @@ all = [
     { name = "opencv-python-headless" },
     { name = "planetary-computer" },
     { name = "pystac-client" },
+    { name = "requests" },
     { name = "timm" },
     { name = "torch" },
     { name = "torchgeo", version = "0.6.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -1789,6 +1790,7 @@ all = [
 build = [
     { name = "planetary-computer" },
     { name = "pystac-client" },
+    { name = "requests" },
 ]
 embed = [
     { name = "matplotlib", version = "3.10.9", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -1836,6 +1838,7 @@ requires-dist = [
     { name = "pyproj" },
     { name = "pystac-client", marker = "extra == 'build'" },
     { name = "rasterio" },
+    { name = "requests", marker = "extra == 'build'" },
     { name = "shapely", specifier = ">=2" },
     { name = "timm", marker = "extra == 'embed'" },
     { name = "torch", marker = "extra == 'torch'" },
