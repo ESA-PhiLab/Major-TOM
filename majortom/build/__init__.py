@@ -133,16 +133,31 @@ def band_names(arrays: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
     return planes
 
 
+def _same_request(sidecar: Path, cell: Cell, query, margin: float, choice: Choice) -> bool:
+    """Whether a saved sample was built for this cell, dates, margin and scene choice."""
+    try:
+        old = json.loads(sidecar.read_text())
+    except (OSError, ValueError):
+        return False
+    return (old.get("grid_cell"), old.get("grid_km"), old.get("query", {}).get("datetime"),
+            old.get("query", {}).get("margin"), old.get("choice")) == (
+            cell.name, cell.d, query, margin, json.loads(json.dumps(asdict(choice))))
+
+
 def build_one(row, name: str, collection: Collection, datetime, days, margin, choice: Choice,
               outdir: Path, force: bool) -> None:
     """Build and write one sample."""
     path = outdir / f"{row.Index:06d}.npz"
-    if path.exists() and not force:
-        return
     cell = Cell(int(row.row), int(row.col), float(row.grid_km))
     margin = float(_field(row, "margin") if _field(row, "margin") is not None else margin)
     days = _field(row, "days") if _field(row, "days") is not None else days
     query = interval(_field(row, "datetime") or datetime, days)
+    if path.exists():
+        # reuse a sample on disk only if it was built for this cell, query and choice
+        if not force and _same_request(path.with_suffix(".json"), cell, query, margin, choice):
+            return
+        path.unlink()                                   # never leave an old sample under this index
+        path.with_suffix(".json").unlink(missing_ok=True)
 
     with rasterio.Env(**GDAL_OPTIONS):
         tiles, win, res, native, cloud, nodata, first, note = pick_scene(cell, name, collection, query, margin,
@@ -185,6 +200,8 @@ def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, 
     cloud        accepted share of cloudy pixels in the window, (low, high); None accepts any
     max_nodata   accepted share of window pixels without data
     strict       True: a sample with no acceptable scene fails; False: the closest to the range is used
+    force        True: rebuild every sample. False: reuse a sample on disk if it was built for the same
+                 cell, dates, margin and scene choice. Samples in outdir for rows not in `cells` are removed
     Returns the samples that failed, with the reason.
     """
     choice = Choice(prefer, tuple(cloud) if cloud is not None else None, max_nodata, strict)
@@ -196,6 +213,11 @@ def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, 
         raise ValueError("cells must have a unique index; call cells.reset_index(drop=True) first")
     out = Path(outdir) / collection
     out.mkdir(parents=True, exist_ok=True)
+    keep = {f"{i:06d}" for i in cells.index}
+    for old in out.glob("*.npz"):                        # samples from earlier, different cell tables
+        if old.stem not in keep:
+            old.unlink()
+            old.with_suffix(".json").unlink(missing_ok=True)
     errors = []
     with ThreadPoolExecutor(workers) as pool:
         jobs = {pool.submit(build_one, row, collection, COLLECTIONS[collection], datetime, days, margin,

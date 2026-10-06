@@ -45,3 +45,20 @@ def test_tiles_of_one_pass_are_grouped_even_seconds_apart():
     items = [tile("a", "sentinel-2a", 52), tile("b", "sentinel-2b", 50), tile("c", "sentinel-2a", 32),
              tile("d", "sentinel-2a", 3600)]
     assert [[t.id for t in g] for g in passes(items)] == [["a", "c"], ["b"], ["d"]]
+
+
+def test_saved_sample_is_reused_only_for_the_same_request(tmp_path):
+    import json
+    from dataclasses import asdict
+    from majortom.build import _same_request
+    from majortom.cells import Cell
+
+    cell, choice = Cell(450, -910, 10.0), Choice()
+    sidecar = tmp_path / "000000.json"
+    sidecar.write_text(json.dumps(dict(grid_cell=cell.name, grid_km=cell.d, choice=asdict(choice),
+                                       query=dict(datetime="2024-01-01/2024-12-31", margin=0.056))))
+    assert _same_request(sidecar, cell, "2024-01-01/2024-12-31", 0.056, choice)
+    assert not _same_request(sidecar, Cell(450, -909, 10.0), "2024-01-01/2024-12-31", 0.056, choice)
+    assert not _same_request(sidecar, cell, "2020-07-02/2020-08-31", 0.056, choice)
+    assert not _same_request(sidecar, cell, "2024-01-01/2024-12-31", 0.056, Choice(cloud=(0.3, 1.0)))
+    assert not _same_request(tmp_path / "missing.json", cell, None, 0.056, choice)
