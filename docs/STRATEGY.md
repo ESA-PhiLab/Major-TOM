@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** unreviewed
+> **Review status:** reviewed by Mikolaj Czerkawski 21 Oct 2026
 
 # Major TOM refactor strategy
 

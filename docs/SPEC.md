@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** unreviewed (all sections drafted)
+> **Review status:** reviewed by Mikolaj Czerkawski, 15 Oct 2026 COMPLETE
 
 # Major TOM sample specification
 
