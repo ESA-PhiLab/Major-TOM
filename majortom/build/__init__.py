@@ -38,7 +38,7 @@ from ..spec import MARGIN, cell_coverage, window
 from .archives import ARCHIVES, Archive
 from .collections import COLLECTIONS, Collection, Source
 from .read import layout, read_asset
-from .search import acquired, scenes, tiles_for
+from .search import acquired, item_crs, same_pass, scenes, tiles_for
 
 PROFILE = "native-v0"          # recorded in every sample: native grid if the CRS matches, else resampled
 CANDIDATES = 5                 # scenes examined per sample
@@ -93,28 +93,59 @@ class Choice:
         return max(low - cloud, cloud - high, 0.0)
 
 
+def scene_cloud(tiles) -> float | None:
+    """The catalogue's cloud cover of a scene's tiles, as a share; None if not given."""
+    covers = [it.properties["eo:cloud_cover"] for it in tiles if it.properties.get("eo:cloud_cover") is not None]
+    return float(np.mean(covers)) / 100 if covers else None
+
+
+def borrowed_clouds(archive: Archive, collection: Collection, tiles, crs: str, win, res: float,
+                    covered: np.ndarray, bbox) -> tuple[float | None, str, list[str]]:
+    """Cloud share in the window from the mask of the same pass in `collection.clouds_from` (L1C: L2A SCL).
+
+    The mask is read at `res`, the pixel size of `covered` (nearest neighbour). Returns (cloud share, cloud
+    source, items used). Without a matching pass: the scene's cloud cover.
+    """
+    other = COLLECTIONS[collection.clouds_from]
+    where = other.source(collection.clouds_from, archive.name)
+    mates = [it for it in same_pass(archive, where, tiles, bbox) if item_crs(it) == crs] if where else []
+    if not mates:
+        return scene_cloud(tiles), "scene", []
+    key = where.key(other.clouds[0])
+    data, seen = read_asset(mates, key, win, res, "nearest")
+    clouds, fill = other.clouds[1](data[0])
+    valid = covered & seen & ~fill
+    return (float(clouds[valid].mean()) if valid.any() else 1.0), collection.clouds_from, [it.id for it in mates]
+
+
 def pick_scene(archive: Archive, source: Source, cell, collection, query, margin, choice: Choice):
     """The first acceptable scene in the order of `choice.prefer`, among the first few.
 
     Returns (tiles, window, pixel sizes, native, cloud share, no-data share, mask asset data or None,
-    note on the dates used).
+    note on the dates used, cloud source, items the cloud share came from).
     """
-    mask_asset = collection.clouds[0] if collection.clouds else collection.assets[0]
-    grid_assets = list(collection.assets) + ([mask_asset] if collection.clouds else [])
+    own_mask = collection.clouds is not None
+    mask_asset = collection.clouds[0] if own_mask else collection.assets[0]
+    grid_assets = list(collection.assets) + ([mask_asset] if own_mask else [])
     tried = []
-    found, note = scenes(archive, source, collection, search_box(cell, margin), query, choice.prefer)
+    bbox = search_box(cell, margin)
+    found, note = scenes(archive, source, collection, bbox, query, choice.prefer)
     for scene in found[:CANDIDATES]:
         for crs, tiles in tiles_for(scene, cell, margin):   # same scene, another zone if this one is empty
             win, res, native = layout(cell, tiles[0], collection, source, grid_assets, margin, crs)
-            method = "nearest" if collection.clouds else collection.resampling   # without a mask: the data
+            method = "nearest" if own_mask else collection.resampling   # without a mask: the data
             data, covered = read_asset(tiles, source.key(mask_asset), win, res[mask_asset], method)
-            cloud = None
-            if collection.clouds:                       # the mask also marks no-data pixels inside files
+            cloud, cloud_source, cloud_items = None, None, []
+            if own_mask:                                # the mask also marks no-data pixels inside files
                 clouds, fill = collection.clouds[1](data[0])
                 covered &= ~fill
-                cloud = float(clouds[covered].mean()) if covered.any() else 1.0
+                cloud, cloud_source = (float(clouds[covered].mean()) if covered.any() else 1.0), "own"
+            elif collection.clouds_from:
+                cloud, cloud_source, cloud_items = borrowed_clouds(archive, collection, tiles, crs, win,
+                                                                   res[mask_asset], covered, bbox)
             nodata = 1 - covered.mean()
-            tried.append((tiles, win, res, native, cloud, nodata, None if collection.clouds else data, note))
+            tried.append((tiles, win, res, native, cloud, nodata, None if own_mask else data, note,
+                          cloud_source, cloud_items))
             if choice.accepts(cloud, nodata):
                 return tried[-1]
             if nodata <= choice.max_nodata:             # data is there, only the clouds are off: next scene
@@ -165,8 +196,8 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
         path.with_suffix(".json").unlink(missing_ok=True)
 
     with rasterio.Env(**archive.gdal_env()):             # credentials, if any, live only inside this block
-        tiles, win, res, native, cloud, nodata, first, note = pick_scene(archive, source, cell, collection, query,
-                                                                          margin, choice)
+        tiles, win, res, native, cloud, nodata, first, note, cloud_source, cloud_items = pick_scene(
+            archive, source, cell, collection, query, margin, choice)
         arrays = {}
         for asset in collection.assets:
             reuse = first is not None and asset == collection.assets[0]
@@ -184,7 +215,8 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
         archive=archive.name, collection=name, source_collection=source.collection,
         processing_baseline=tiles[0].properties.get("s2:processing_baseline"), offset=offset,
         items=[it.id for it in tiles], datetime=acquired(tiles[0]).floor("us").isoformat(),
-        cloud=cloud, nodata=float(nodata), crs=win.crs, epsg=int(win.crs.split(":")[1]),
+        cloud=cloud, cloud_source=cloud_source, cloud_items=cloud_items, nodata=float(nodata),
+        crs=win.crs, epsg=int(win.crs.split(":")[1]),
         left=win.left, top=win.top, res=finest, size=win.pixels(finest), bands=list(planes),
         grid_cell=cell.name, grid_km=cell.d, window_m=win.side, cell_coverage=cell_coverage(cell, win),
         profile=PROFILE, resampled=[] if native else list(collection.assets),

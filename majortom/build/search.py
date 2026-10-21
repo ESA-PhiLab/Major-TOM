@@ -84,7 +84,7 @@ def scenes(archive: Archive, source: Source, collection: Collection, bbox: tuple
     A scene is the list of tiles of one acquisition. Products without clouds are ordered newest first
     for "clearest" and "cloudiest". Yearly products take the newest version if none is in `datetime`.
     """
-    if not collection.clouds and prefer in ("clearest", "cloudiest"):
+    if not (collection.clouds or collection.clouds_from) and prefer in ("clearest", "cloudiest"):
         prefer = "newest"
     bands = set(collection.assets) | ({collection.clouds[0]} if collection.clouds else set())
     needed = {source.key(band) for band in bands}                    # this archive's asset keys
@@ -104,6 +104,22 @@ def scenes(archive: Archive, source: Source, collection: Collection, bbox: tuple
         target = middle(datetime)
         items.sort(key=lambda it: abs(acquired(it) - target))
     return passes(items), note
+
+
+def tile_code(item: pystac.Item) -> str | None:
+    """The product tile an item covers (Sentinel-2: its MGRS square)."""
+    return item.properties.get("grid:code") or item.properties.get("s2:mgrs_tile")
+
+
+def same_pass(archive: Archive, source: Source, scene: list[pystac.Item], bbox: tuple[float, float, float, float],
+              slack: pd.Timedelta = pd.Timedelta(seconds=60)) -> list[pystac.Item]:
+    """Tiles of another product from the same pass as `scene`: same tile, platform and time (within `slack`)."""
+    times = [acquired(it) for it in scene]
+    dates = f"{(min(times) - slack).isoformat()}/{(max(times) + slack).isoformat()}"
+    query = dict(collections=[source.collection], bbox=bbox, datetime=dates, max_items=50)
+    found = retry(lambda: list(catalog(archive).search(**query).items()))
+    want = {(tile_code(it), it.properties.get("platform")) for it in scene}
+    return [it for it in found if (tile_code(it), it.properties.get("platform")) in want]
 
 
 def passes(items: list[pystac.Item], gap: pd.Timedelta = pd.Timedelta(minutes=5)) -> list[list[pystac.Item]]:

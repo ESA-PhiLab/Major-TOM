@@ -65,6 +65,10 @@ class Collection:
     resampling  method when the data are not already on the cell's pixel grid: "nearest" for classes,
                 "bilinear" for continuous values
     res_m       pixel size in metres when the product is in latitude/longitude: one value, or per asset
+    clouds_from product whose cloud mask, from the same pass, ranks this product's scenes. Sentinel-2 L1C
+                has no mask and borrows the L2A SCL: per candidate scene one extra catalogue search and one
+                read of SCL over the window at the coarsest band's pixel size (60 m). Without a matching pass
+                the catalogue's whole-scene cloud cover is used. Recorded per sample (cloud_source)
     sources     archive name -> Source; None: Planetary Computer, under the product's own name
     offset      bands whose stored values carry an offset, and the function giving it (item, asset key)
     """
@@ -73,6 +77,7 @@ class Collection:
     clouds: tuple[str, MaskFn] | None = None
     resampling: str = "bilinear"
     res_m: float | dict[str, float] | None = None
+    clouds_from: str | None = None
     sources: dict[str, Source] | None = None
     offset: tuple[tuple[str, ...], Callable[[pystac.Item, str], float | None]] | None = None
 
@@ -96,7 +101,7 @@ COLLECTIONS = {
     "sentinel-2-l2a": Collection(S2, clouds=("SCL", s2_clouds), offset=(S2, declared_or_baseline_offset),
                                  sources={"planetary-computer": Source("sentinel-2-l2a"),
                                           "earth-search": Source("sentinel-2-c1-l2a", S2_EARTH_SEARCH)}),
-    "sentinel-2-l1c": Collection(S2_L1C, offset=(S2_L1C, declared_or_baseline_offset),
+    "sentinel-2-l1c": Collection(S2_L1C, clouds_from="sentinel-2-l2a", offset=(S2_L1C, declared_or_baseline_offset),
                                  sources={"earth-search": Source("sentinel-2-l1c", S2_EARTH_SEARCH)}),
     "cop-dem-glo-30": Collection(("DEM",), time="static", res_m=30,
                                  sources={"planetary-computer": Source("cop-dem-glo-30", {"DEM": "data"}),

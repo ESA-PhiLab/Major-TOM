@@ -80,3 +80,29 @@ def test_unknown_archive_is_refused():
 
     with pytest.raises(KeyError, match="unknown archive"):
         download(pd.DataFrame(), "sentinel-2-l2a", archive="nowhere")
+
+
+def test_l1c_borrows_clouds_from_the_same_pass_of_l2a(monkeypatch):
+    import datetime as dt
+    import pystac
+    from majortom.build import ARCHIVES, scene_cloud, search
+    from majortom.build.collections import Source
+
+    def tile(name, code, platform, seconds, cloud=None):
+        when = dt.datetime(2024, 8, 29, 18, 23, tzinfo=dt.timezone.utc) + dt.timedelta(seconds=seconds)
+        props = {"grid:code": code, "platform": platform, "eo:cloud_cover": cloud}
+        return pystac.Item(name, None, None, when, props)
+
+    l2a = [tile("vk", "MGRS-12TVK", "sentinel-2a", 0), tile("vl", "MGRS-12TVL", "sentinel-2a", -15),
+           tile("other-satellite", "MGRS-12TVK", "sentinel-2b", 5)]
+
+    class Catalog:
+        def search(self, **query):
+            return type("Search", (), {"items": lambda self: iter(l2a)})()
+
+    monkeypatch.setattr(search, "catalog", lambda archive: Catalog())
+    l1c = [tile("l1c-vk", "MGRS-12TVK", "sentinel-2a", 0, cloud=10), tile("l1c-vl", "MGRS-12TVL", "sentinel-2a", -15,
+                                                                           cloud=30)]
+    mates = search.same_pass(ARCHIVES["earth-search"], Source("sentinel-2-c1-l2a"), l1c, (0, 0, 1, 1))
+    assert [it.id for it in mates] == ["vk", "vl"]                      # same tiles, same satellite
+    assert scene_cloud(l1c) == pytest.approx(0.2)                        # fallback: catalogue cloud cover
