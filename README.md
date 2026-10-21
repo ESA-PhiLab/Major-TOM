@@ -7,6 +7,8 @@
 
 A standard for curating large-scale (Terabyte-scale) EO datasets.
 
+📚 **Docs:** [Sample specification](docs/SPEC.md) · [Workshop notebook](docs/workshop/workshop.ipynb)
+
 This repo currently provides some basic functionality and examples for interacting with Major TOM datasets. This will grow and change as more datasets are created.
 
 ## 🎞 Official Image Datasets

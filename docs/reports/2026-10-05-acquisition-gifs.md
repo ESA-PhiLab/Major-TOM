@@ -68,6 +68,7 @@ Static 2560×1440 PNG. Facts verified 2026-10-05 by a research agent against liv
 Corrections to the draft claims, now on the slide:
 
 - AWS: L1C exists (requester-pays JP2); S1 GRD is open too; L2A is free COG.
+  Correction 2026-10-21: L1C JP2 in `s3://sentinel-s2-l1c` (Earth Search `sentinel-2-l1c`) reads anonymously over HTTPS; not requester-pays.
 - CDSE: "slow" is not documented; the limit is 4 connections × 20 MB/s and 12 TB/month.
 - GEE: needs a Cloud project plus noncommercial/commercial registration; L2A from 2017.
 - Planetary Computer: no L1C (confirmed); only archive with stored S1 RTC files. CDSE offers gamma0 on the fly; GEE S1_GRD is terrain-corrected, not RTC.

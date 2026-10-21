@@ -9,7 +9,7 @@ Workstreams are defined in `docs/STRATEGY.md`.
 ## WS0 — Scaffolding
 - [x] Branch `refactor/v1`; stash `main` changes
 - [x] `CONTEXT.md`, `CHECKLIST.md`, `LOG.md`, `docs/STRATEGY.md`, research report
-- [ ] Review and mark docs reviewed (Miko)
+- [ ] Review and mark docs reviewed (Miko): SPEC and STRATEGY done; reports, GIFs pending
 
 ## WS1 — Packaging and PyPI
 - [x] `pyproject.toml` with extras; uv env (`.venv`, Python 3.10), `uv.lock`; `setup.py` removed
@@ -26,7 +26,7 @@ Workstreams are defined in `docs/STRATEGY.md`.
 
 ## WS3 — Spec and Core correction
 - [ ] Repeat pixel-match on ~10 products
-- [x] `docs/SPEC.md` drafted (any spacing, source profiles; review pending)
+- [x] `docs/SPEC.md` drafted (any spacing, source profiles) and reviewed (Miko, 2026-10-15)
 - [ ] `sample_window`, `correct_core_transform`, `crop_1068_to_1056`
 - [ ] Readers apply correction by default
 - [ ] Decide exception-zone rule

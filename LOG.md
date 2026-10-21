@@ -1,5 +1,9 @@
 # Log
 
+- 2026-10-21 README links the docs near the top; L1C on AWS noted as anonymous, not requester-pays
+- 2026-10-21 STRATEGY.md reviewed by Miko
+- 2026-10-15 SPEC.md reviewed by Miko
+- 2026-10-06 Tag cng-workshop-2026: workshop notebook frozen with pinned package versions
 - 2026-10-06 Workshop notebook: Cesar trimmed the playground (no Bytes/Read steps, GRAPH set in the encode cell); text matched, outputs stripped
 - 2026-10-06 Workshop notebook: Cesar's Rumi playground and inline TACO writer merged; dataset name from points/class; install force-reinstalls majortom
 - 2026-10-06 Builder reuses a sample on disk only for the same request and removes stale chips (fixes old images after changing points); notebook PICK = "top" or "random"
