@@ -19,7 +19,7 @@ from shapely.geometry import shape
 
 from ..cells import Cell
 from ..spec import cell_crs, window
-from .collections import Collection
+from .collections import Collection, Source
 
 if TYPE_CHECKING:
     from .archives import Archive
@@ -77,7 +77,7 @@ def middle(datetime: str | None) -> pd.Timestamp:
     return ends[0] + (ends[-1] - ends[0]) / 2
 
 
-def scenes(archive: Archive, name: str, collection: Collection, bbox: tuple[float, float, float, float],
+def scenes(archive: Archive, source: Source, collection: Collection, bbox: tuple[float, float, float, float],
            datetime: str | None, prefer: str = "clearest", limit: int = 100) -> tuple[list[list[pystac.Item]], str]:
     """Scenes over a lon/lat box in the order of `prefer`, and a note on which dates were used.
 
@@ -86,10 +86,12 @@ def scenes(archive: Archive, name: str, collection: Collection, bbox: tuple[floa
     """
     if not collection.clouds and prefer in ("clearest", "cloudiest"):
         prefer = "newest"
-    needed = set(collection.assets) | ({collection.clouds[0]} if collection.clouds else set())
+    bands = set(collection.assets) | ({collection.clouds[0]} if collection.clouds else set())
+    needed = {source.key(band) for band in bands}                    # this archive's asset keys
 
     def search(dates: str | None) -> list[pystac.Item]:
-        query = dict(collections=[name], bbox=bbox, max_items=limit, sortby=ORDER[prefer])
+        sortby = [dict(order, field=archive.sort_prefix + order["field"]) for order in ORDER[prefer]]
+        query = dict(collections=[source.collection], bbox=bbox, max_items=limit, sortby=sortby)
         if dates:
             query["datetime"] = dates
         return [it for it in retry(lambda: list(catalog(archive).search(**query).items())) if needed <= set(it.assets)]

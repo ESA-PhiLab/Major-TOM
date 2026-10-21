@@ -16,7 +16,7 @@ from rasterio.vrt import WarpedVRT
 
 from ..cells import Cell
 from ..spec import Window, window
-from .collections import Collection
+from .collections import Collection, Source
 from .search import retry
 
 GDAL_OPTIONS = dict(                       # cloud-native reads: one request per header, HTTP/2, retries
@@ -26,16 +26,16 @@ GDAL_OPTIONS = dict(                       # cloud-native reads: one request per
 )
 
 
-def layout(cell: Cell, item: pystac.Item, collection: Collection, assets: list[str],
+def layout(cell: Cell, item: pystac.Item, collection: Collection, source: Source, assets: list[str],
            margin: float, crs: str) -> tuple[Window, dict[str, float], bool]:
-    """The window in `crs` and the pixel size per asset for this cell and product.
+    """The window in `crs` and the pixel size per asset (band name) for this cell and product.
 
     If the product is in `crs`, the lattice is its own coarsest pixel grid, so pixels are copied
     unchanged (native). Otherwise the lattice is the coarsest target pixel size and the data are resampled.
     """
     headers = {}
     for asset in assets:
-        with rasterio.open(item.assets[asset].href) as src:
+        with rasterio.open(item.assets[source.key(asset)].href) as src:
             headers[asset] = (src.crs, src.transform)
     native = all(c == CRS.from_user_input(crs) for c, _ in headers.values())
     if native:
@@ -56,7 +56,10 @@ def _metres(crs: CRS, transform) -> float:
 
 def read_asset(tiles: list[pystac.Item], asset: str, win: Window, res: float,
                resampling: str) -> tuple[np.ndarray, np.ndarray]:
-    """One asset on the window grid, stitched from a scene's tiles. Returns (bands, covered pixels)."""
+    """One asset (the archive's key) on the window grid, stitched from a scene's tiles.
+
+    Returns (bands, covered pixels).
+    """
     n = win.pixels(res)
     data, covered = None, np.zeros((n, n), bool)
     for item in tiles:

@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-21 Builder: earth-search archive (S2 L2A Collection 1, S2 L1C, Copernicus DEM); band names per archive; per-sample offset and processing baseline; cop-dem-glo-30 on both archives
 - 2026-10-21 Builder: Archive interface (archives.py), Planetary Computer behind it, samples record their archive; secret scan test and gitignore for credentials
 - 2026-10-21 README links the docs near the top; L1C on AWS noted as anonymous, not requester-pays
 - 2026-10-21 STRATEGY.md reviewed by Miko

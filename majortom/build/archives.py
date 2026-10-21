@@ -21,6 +21,15 @@ def public_env() -> dict:
     return dict(GDAL_OPTIONS)
 
 
+def unsigned_s3_env() -> dict:
+    """GDAL settings for public S3 buckets: s3:// links are read without signing (AWS Open Data).
+
+    JPEG 2000 files (Sentinel-2 L1C) are decoded in one thread: GDAL's decoder threads do not see settings
+    made by rasterio.Env in a worker thread, so their unsigned requests fail. Samples still run in parallel.
+    """
+    return dict(GDAL_OPTIONS, AWS_NO_SIGN_REQUEST="YES", GDAL_NUM_THREADS="1")
+
+
 @dataclass(frozen=True)
 class Archive:
     """Where samples are searched and read.
@@ -29,6 +38,7 @@ class Archive:
     stac_url    STAC API address
     modifier    applied to every item found, e.g. signing its links
     sorts       the API sorts results (sortby), whether or not it declares it
+    sort_prefix put before sort fields (Earth Search sorts on "properties.eo:cloud_cover")
     gdal_env    GDAL settings for reading, fetched per read
     workers     parallel samples the archive allows
     """
@@ -36,6 +46,7 @@ class Archive:
     stac_url: str
     modifier: Callable | None = None
     sorts: bool = True
+    sort_prefix: str = ""
     gdal_env: Callable[[], dict] = public_env
     workers: int = 16
 
@@ -43,4 +54,7 @@ class Archive:
 ARCHIVES = {
     "planetary-computer": Archive("planetary-computer", "https://planetarycomputer.microsoft.com/api/stac/v1",
                                   modifier=planetary_computer.sign_inplace),
+    # Element 84's catalogue of AWS Open Data buckets; some links are s3://, some https://
+    "earth-search": Archive("earth-search", "https://earth-search.aws.element84.com/v1", sort_prefix="properties.",
+                            gdal_env=unsigned_s3_env),
 }

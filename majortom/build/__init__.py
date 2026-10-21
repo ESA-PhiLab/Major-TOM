@@ -36,7 +36,7 @@ from tqdm.auto import tqdm
 from ..cells import Cell, cells_from_points, cells_in   # noqa: F401  re-exported for convenience
 from ..spec import MARGIN, cell_coverage, window
 from .archives import ARCHIVES, Archive
-from .collections import COLLECTIONS, Collection
+from .collections import COLLECTIONS, Collection, Source
 from .read import layout, read_asset
 from .search import acquired, scenes, tiles_for
 
@@ -93,7 +93,7 @@ class Choice:
         return max(low - cloud, cloud - high, 0.0)
 
 
-def pick_scene(archive: Archive, cell, name, collection, query, margin, choice: Choice):
+def pick_scene(archive: Archive, source: Source, cell, collection, query, margin, choice: Choice):
     """The first acceptable scene in the order of `choice.prefer`, among the first few.
 
     Returns (tiles, window, pixel sizes, native, cloud share, no-data share, mask asset data or None,
@@ -102,12 +102,12 @@ def pick_scene(archive: Archive, cell, name, collection, query, margin, choice: 
     mask_asset = collection.clouds[0] if collection.clouds else collection.assets[0]
     grid_assets = list(collection.assets) + ([mask_asset] if collection.clouds else [])
     tried = []
-    found, note = scenes(archive, name, collection, search_box(cell, margin), query, choice.prefer)
+    found, note = scenes(archive, source, collection, search_box(cell, margin), query, choice.prefer)
     for scene in found[:CANDIDATES]:
         for crs, tiles in tiles_for(scene, cell, margin):   # same scene, another zone if this one is empty
-            win, res, native = layout(cell, tiles[0], collection, grid_assets, margin, crs)
+            win, res, native = layout(cell, tiles[0], collection, source, grid_assets, margin, crs)
             method = "nearest" if collection.clouds else collection.resampling   # without a mask: the data
-            data, covered = read_asset(tiles, mask_asset, win, res[mask_asset], method)
+            data, covered = read_asset(tiles, source.key(mask_asset), win, res[mask_asset], method)
             cloud = None
             if collection.clouds:                       # the mask also marks no-data pixels inside files
                 clouds, fill = collection.clouds[1](data[0])
@@ -156,6 +156,7 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
     margin = float(_field(row, "margin") if _field(row, "margin") is not None else margin)
     days = _field(row, "days") if _field(row, "days") is not None else days
     query = interval(_field(row, "datetime") or datetime, days)
+    source = collection.source(name, archive.name)
     if path.exists():
         # reuse a sample on disk only if it was built for this cell, query and choice
         if not force and _same_request(path.with_suffix(".json"), archive, cell, query, margin, choice):
@@ -164,17 +165,24 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
         path.with_suffix(".json").unlink(missing_ok=True)
 
     with rasterio.Env(**archive.gdal_env()):             # credentials, if any, live only inside this block
-        tiles, win, res, native, cloud, nodata, first, note = pick_scene(archive, cell, name, collection, query,
+        tiles, win, res, native, cloud, nodata, first, note = pick_scene(archive, source, cell, collection, query,
                                                                           margin, choice)
         arrays = {}
         for asset in collection.assets:
             reuse = first is not None and asset == collection.assets[0]
-            arrays[asset] = first if reuse else read_asset(tiles, asset, win, res[asset], collection.resampling)[0]
+            arrays[asset] = first if reuse else read_asset(tiles, source.key(asset), win, res[asset],
+                                                         collection.resampling)[0]
 
     planes = band_names(arrays)
+    offset = None
+    if collection.offset:                               # value added to stored values, per band
+        bands, rule = collection.offset
+        offset = {b: rule(tiles[0], source.key(b)) for b in collection.assets if b in bands}
     finest = min(res[a] for a in collection.assets)
     meta = dict(
-        index=int(row.Index), lon=float(row.lon), lat=float(row.lat), archive=archive.name, collection=name,
+        index=int(row.Index), lon=float(row.lon), lat=float(row.lat),
+        archive=archive.name, collection=name, source_collection=source.collection,
+        processing_baseline=tiles[0].properties.get("s2:processing_baseline"), offset=offset,
         items=[it.id for it in tiles], datetime=acquired(tiles[0]).floor("us").isoformat(),
         cloud=cloud, nodata=float(nodata), crs=win.crs, epsg=int(win.crs.split(":")[1]),
         left=win.left, top=win.top, res=finest, size=win.pixels(finest), bands=list(planes),
@@ -218,6 +226,8 @@ def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, 
     source = ARCHIVES[archive]
     if collection not in COLLECTIONS:
         raise KeyError(f"unknown collection {collection!r}; pick one of {sorted(COLLECTIONS)}")
+    if COLLECTIONS[collection].source(collection, archive) is None:
+        raise KeyError(f"{archive} does not have {collection}; it is in {COLLECTIONS[collection].archives()}")
     if cells.index.has_duplicates:
         raise ValueError("cells must have a unique index; call cells.reset_index(drop=True) first")
     out = Path(outdir) / collection
