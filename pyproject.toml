@@ -47,3 +47,7 @@ packages = ["majortom"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "MajorTOM.py" = "MajorTOM.py"                     # alias module for existing code (one file: no case clash)
+
+[tool.pytest.ini_options]
+markers = ["network: reads live data archives; skipped unless run with `pytest -m network`"]
+addopts = "-m 'not network'"

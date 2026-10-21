@@ -22,7 +22,10 @@ from .search import retry
 GDAL_OPTIONS = dict(                       # cloud-native reads: one request per header, HTTP/2, retries
     GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR", GDAL_INGESTED_BYTES_AT_OPEN="32768",
     GDAL_HTTP_VERSION="2", GDAL_HTTP_MULTIPLEX="YES", GDAL_HTTP_MERGE_CONSECUTIVE_RANGES="YES",
-    GDAL_HTTP_MAX_RETRY="5", GDAL_HTTP_RETRY_DELAY="1", GDAL_HTTP_TIMEOUT="30",
+    GDAL_HTTP_MAX_RETRY="5", GDAL_HTTP_RETRY_DELAY="1",
+    # give up on stalled transfers, not slow ones: a limit on total time (GDAL_HTTP_TIMEOUT) cut 1.4 MB tiles
+    # from a distant bucket short, and GDAL decoded the partial tile (TIFFFillTile "got ... bytes")
+    GDAL_HTTP_CONNECTTIMEOUT="30", GDAL_HTTP_LOW_SPEED_TIME="60", GDAL_HTTP_LOW_SPEED_LIMIT="1024",
 )
 
 
