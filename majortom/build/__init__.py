@@ -1,4 +1,4 @@
-"""Build Major TOM samples from Planetary Computer (needs `pip install 'majortom[build]'`).
+"""Build Major TOM samples from an archive, Planetary Computer by default (needs `pip install 'majortom[build]'`).
 
     cells (from points or an area)  ->  per sample: window -> search -> pick a scene -> read -> write
 
@@ -16,6 +16,8 @@ Per-sample queries: optional columns in `cells` override the arguments of `downl
 Which scene: `prefer` sets the order scenes are tried in ("clearest", "cloudiest", "nearest" to the
 date, "newest"); `cloud` sets the accepted share of cloudy pixels in the window, e.g. (0, 0.05) for
 clear or (0.3, 1) for cloudy samples, or None for any. Both are recorded in every sample.
+
+Which archive: `archive` names one of ARCHIVES (archives.py); it is recorded in every sample.
 """
 from __future__ import annotations
 
@@ -33,8 +35,9 @@ from tqdm.auto import tqdm
 
 from ..cells import Cell, cells_from_points, cells_in   # noqa: F401  re-exported for convenience
 from ..spec import MARGIN, cell_coverage, window
+from .archives import ARCHIVES, Archive
 from .collections import COLLECTIONS, Collection
-from .read import GDAL_OPTIONS, layout, read_asset
+from .read import layout, read_asset
 from .search import acquired, scenes, tiles_for
 
 PROFILE = "native-v0"          # recorded in every sample: native grid if the CRS matches, else resampled
@@ -90,7 +93,7 @@ class Choice:
         return max(low - cloud, cloud - high, 0.0)
 
 
-def pick_scene(cell, name, collection, query, margin, choice: Choice):
+def pick_scene(archive: Archive, cell, name, collection, query, margin, choice: Choice):
     """The first acceptable scene in the order of `choice.prefer`, among the first few.
 
     Returns (tiles, window, pixel sizes, native, cloud share, no-data share, mask asset data or None,
@@ -99,7 +102,7 @@ def pick_scene(cell, name, collection, query, margin, choice: Choice):
     mask_asset = collection.clouds[0] if collection.clouds else collection.assets[0]
     grid_assets = list(collection.assets) + ([mask_asset] if collection.clouds else [])
     tried = []
-    found, note = scenes(name, collection, search_box(cell, margin), query, choice.prefer)
+    found, note = scenes(archive, name, collection, search_box(cell, margin), query, choice.prefer)
     for scene in found[:CANDIDATES]:
         for crs, tiles in tiles_for(scene, cell, margin):   # same scene, another zone if this one is empty
             win, res, native = layout(cell, tiles[0], collection, grid_assets, margin, crs)
@@ -133,18 +136,19 @@ def band_names(arrays: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
     return planes
 
 
-def _same_request(sidecar: Path, cell: Cell, query, margin: float, choice: Choice) -> bool:
-    """Whether a saved sample was built for this cell, dates, margin and scene choice."""
+def _same_request(sidecar: Path, archive: Archive, cell: Cell, query, margin: float, choice: Choice) -> bool:
+    """Whether a saved sample was built from this archive for this cell, dates, margin and scene choice."""
     try:
         old = json.loads(sidecar.read_text())
     except (OSError, ValueError):
         return False
-    return (old.get("grid_cell"), old.get("grid_km"), old.get("query", {}).get("datetime"),
+    return (old.get("archive", "planetary-computer"),   # samples from before archives: Planetary Computer
+            old.get("grid_cell"), old.get("grid_km"), old.get("query", {}).get("datetime"),
             old.get("query", {}).get("margin"), old.get("choice")) == (
-            cell.name, cell.d, query, margin, json.loads(json.dumps(asdict(choice))))
+            archive.name, cell.name, cell.d, query, margin, json.loads(json.dumps(asdict(choice))))
 
 
-def build_one(row, name: str, collection: Collection, datetime, days, margin, choice: Choice,
+def build_one(row, archive: Archive, name: str, collection: Collection, datetime, days, margin, choice: Choice,
               outdir: Path, force: bool) -> None:
     """Build and write one sample."""
     path = outdir / f"{row.Index:06d}.npz"
@@ -154,14 +158,14 @@ def build_one(row, name: str, collection: Collection, datetime, days, margin, ch
     query = interval(_field(row, "datetime") or datetime, days)
     if path.exists():
         # reuse a sample on disk only if it was built for this cell, query and choice
-        if not force and _same_request(path.with_suffix(".json"), cell, query, margin, choice):
+        if not force and _same_request(path.with_suffix(".json"), archive, cell, query, margin, choice):
             return
         path.unlink()                                   # never leave an old sample under this index
         path.with_suffix(".json").unlink(missing_ok=True)
 
-    with rasterio.Env(**GDAL_OPTIONS):
-        tiles, win, res, native, cloud, nodata, first, note = pick_scene(cell, name, collection, query, margin,
-                                                                          choice)
+    with rasterio.Env(**archive.gdal_env()):             # credentials, if any, live only inside this block
+        tiles, win, res, native, cloud, nodata, first, note = pick_scene(archive, cell, name, collection, query,
+                                                                          margin, choice)
         arrays = {}
         for asset in collection.assets:
             reuse = first is not None and asset == collection.assets[0]
@@ -170,7 +174,7 @@ def build_one(row, name: str, collection: Collection, datetime, days, margin, ch
     planes = band_names(arrays)
     finest = min(res[a] for a in collection.assets)
     meta = dict(
-        index=int(row.Index), lon=float(row.lon), lat=float(row.lat), collection=name,
+        index=int(row.Index), lon=float(row.lon), lat=float(row.lat), archive=archive.name, collection=name,
         items=[it.id for it in tiles], datetime=acquired(tiles[0]).floor("us").isoformat(),
         cloud=cloud, nodata=float(nodata), crs=win.crs, epsg=int(win.crs.split(":")[1]),
         left=win.left, top=win.top, res=finest, size=win.pixels(finest), bands=list(planes),
@@ -188,8 +192,8 @@ def build_one(row, name: str, collection: Collection, datetime, days, margin, ch
 
 def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, days: float | None = None,
              margin: float = MARGIN, prefer: str = "clearest", cloud: tuple[float, float] | None = (0.0, 0.05),
-             max_nodata: float = 0.01, strict: bool = False,
-             outdir: str | Path = "chips", workers: int = 16, force: bool = False) -> pd.DataFrame:
+             max_nodata: float = 0.01, strict: bool = False, archive: str = "planetary-computer",
+             outdir: str | Path = "chips", workers: int | None = None, force: bool = False) -> pd.DataFrame:
     """Build one sample per row of `cells` from a Planetary Computer collection.
 
     datetime     dates to search ("start/end" or one time). Yearly products: selects the version.
@@ -200,6 +204,8 @@ def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, 
     cloud        accepted share of cloudy pixels in the window, (low, high); None accepts any
     max_nodata   accepted share of window pixels without data
     strict       True: a sample with no acceptable scene fails; False: the closest to the range is used
+    archive      where to search and read, one of ARCHIVES
+    workers      parallel samples; None: what the archive allows
     force        True: rebuild every sample. False: reuse a sample on disk if it was built for the same
                  cell, dates, margin and scene choice. Samples in outdir for rows not in `cells` are removed
     Returns the samples that failed, with the reason.
@@ -207,6 +213,9 @@ def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, 
     choice = Choice(prefer, tuple(cloud) if cloud is not None else None, max_nodata, strict)
     if prefer not in ("clearest", "cloudiest", "nearest", "newest"):
         raise ValueError(f"prefer must be clearest, cloudiest, nearest or newest, not {prefer!r}")
+    if archive not in ARCHIVES:
+        raise KeyError(f"unknown archive {archive!r}; pick one of {sorted(ARCHIVES)}")
+    source = ARCHIVES[archive]
     if collection not in COLLECTIONS:
         raise KeyError(f"unknown collection {collection!r}; pick one of {sorted(COLLECTIONS)}")
     if cells.index.has_duplicates:
@@ -219,8 +228,8 @@ def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, 
             old.unlink()
             old.with_suffix(".json").unlink(missing_ok=True)
     errors = []
-    with ThreadPoolExecutor(workers) as pool:
-        jobs = {pool.submit(build_one, row, collection, COLLECTIONS[collection], datetime, days, margin,
+    with ThreadPoolExecutor(workers or source.workers) as pool:
+        jobs = {pool.submit(build_one, row, source, collection, COLLECTIONS[collection], datetime, days, margin,
                             choice, out, force): row for row in cells.itertuples()}
         for job in tqdm(as_completed(jobs), total=len(jobs), desc=collection):
             try:

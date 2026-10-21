@@ -50,15 +50,33 @@ def test_tiles_of_one_pass_are_grouped_even_seconds_apart():
 def test_saved_sample_is_reused_only_for_the_same_request(tmp_path):
     import json
     from dataclasses import asdict
-    from majortom.build import _same_request
+    from dataclasses import replace
+    from majortom.build import ARCHIVES, _same_request
     from majortom.cells import Cell
 
+    pc = ARCHIVES["planetary-computer"]
     cell, choice = Cell(450, -910, 10.0), Choice()
     sidecar = tmp_path / "000000.json"
     sidecar.write_text(json.dumps(dict(grid_cell=cell.name, grid_km=cell.d, choice=asdict(choice),
                                        query=dict(datetime="2024-01-01/2024-12-31", margin=0.056))))
-    assert _same_request(sidecar, cell, "2024-01-01/2024-12-31", 0.056, choice)
-    assert not _same_request(sidecar, Cell(450, -909, 10.0), "2024-01-01/2024-12-31", 0.056, choice)
-    assert not _same_request(sidecar, cell, "2020-07-02/2020-08-31", 0.056, choice)
-    assert not _same_request(sidecar, cell, "2024-01-01/2024-12-31", 0.056, Choice(cloud=(0.3, 1.0)))
-    assert not _same_request(tmp_path / "missing.json", cell, None, 0.056, choice)
+    assert _same_request(sidecar, pc, cell, "2024-01-01/2024-12-31", 0.056, choice)   # no archive field: PC
+    assert not _same_request(sidecar, replace(pc, name="other"), cell, "2024-01-01/2024-12-31", 0.056, choice)
+    assert not _same_request(sidecar, pc, Cell(450, -909, 10.0), "2024-01-01/2024-12-31", 0.056, choice)
+    assert not _same_request(sidecar, pc, cell, "2020-07-02/2020-08-31", 0.056, choice)
+    assert not _same_request(sidecar, pc, cell, "2024-01-01/2024-12-31", 0.056, Choice(cloud=(0.3, 1.0)))
+    assert not _same_request(tmp_path / "missing.json", pc, cell, None, 0.056, choice)
+
+
+def test_planetary_computer_is_the_default_archive():
+    import inspect
+    from majortom.build import ARCHIVES, download
+
+    assert inspect.signature(download).parameters["archive"].default == "planetary-computer"
+    assert ARCHIVES["planetary-computer"].stac_url.startswith("https://planetarycomputer.microsoft.com")
+
+
+def test_unknown_archive_is_refused():
+    from majortom.build import download
+
+    with pytest.raises(KeyError, match="unknown archive"):
+        download(pd.DataFrame(), "sentinel-2-l2a", archive="nowhere")

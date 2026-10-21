@@ -1,4 +1,4 @@
-"""Find scenes over a window in the Planetary Computer STAC catalogue.
+"""Find scenes over a window in an archive's STAC catalogue.
 
 A scene is all tiles of one acquisition (same time); tiles of one scene can be stitched together.
 """
@@ -6,10 +6,9 @@ from __future__ import annotations
 
 import time
 from functools import lru_cache
-from typing import Callable, TypeVar
+from typing import TYPE_CHECKING, Callable, TypeVar
 
 import pandas as pd
-import planetary_computer
 import pystac
 import pystac_client
 import requests
@@ -22,7 +21,9 @@ from ..cells import Cell
 from ..spec import cell_crs, window
 from .collections import Collection
 
-PC_STAC = "https://planetarycomputer.microsoft.com/api/stac/v1"
+if TYPE_CHECKING:
+    from .archives import Archive
+
 T = TypeVar("T")
 
 
@@ -37,11 +38,12 @@ def retry(fn: Callable[[], T], attempts: int = 4) -> T:
             time.sleep(2 ** i)
 
 
-@lru_cache(maxsize=1)
-def catalog() -> pystac_client.Client:
-    """The catalogue client; asset links come back signed, so no account is needed."""
-    client = pystac_client.Client.open(PC_STAC, modifier=planetary_computer.sign_inplace, timeout=30)
-    client.add_conforms_to("SORT")                      # Planetary Computer sorts but does not declare it
+@lru_cache(maxsize=None)
+def catalog(archive: Archive) -> pystac_client.Client:
+    """The archive's catalogue client, one per archive (Planetary Computer signs the asset links)."""
+    client = pystac_client.Client.open(archive.stac_url, modifier=archive.modifier, timeout=30)
+    if archive.sorts:
+        client.add_conforms_to("SORT")                  # Planetary Computer sorts but does not declare it
     client._stac_io.session.mount("https://", requests.adapters.HTTPAdapter(pool_maxsize=32))
     return client
 
@@ -75,7 +77,7 @@ def middle(datetime: str | None) -> pd.Timestamp:
     return ends[0] + (ends[-1] - ends[0]) / 2
 
 
-def scenes(name: str, collection: Collection, bbox: tuple[float, float, float, float],
+def scenes(archive: Archive, name: str, collection: Collection, bbox: tuple[float, float, float, float],
            datetime: str | None, prefer: str = "clearest", limit: int = 100) -> tuple[list[list[pystac.Item]], str]:
     """Scenes over a lon/lat box in the order of `prefer`, and a note on which dates were used.
 
@@ -90,7 +92,7 @@ def scenes(name: str, collection: Collection, bbox: tuple[float, float, float, f
         query = dict(collections=[name], bbox=bbox, max_items=limit, sortby=ORDER[prefer])
         if dates:
             query["datetime"] = dates
-        return [it for it in retry(lambda: list(catalog().search(**query).items())) if needed <= set(it.assets)]
+        return [it for it in retry(lambda: list(catalog(archive).search(**query).items())) if needed <= set(it.assets)]
 
     note = "dates ignored: one version" if collection.time == "static" else f"dates {datetime}"
     items = search(datetime if collection.time != "static" else None)

@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-21 Builder: Archive interface (archives.py), Planetary Computer behind it, samples record their archive; secret scan test and gitignore for credentials
 - 2026-10-21 README links the docs near the top; L1C on AWS noted as anonymous, not requester-pays
 - 2026-10-21 STRATEGY.md reviewed by Miko
 - 2026-10-15 SPEC.md reviewed by Miko

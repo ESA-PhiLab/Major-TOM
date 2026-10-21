@@ -167,3 +167,8 @@ docs/evidence/*.parquet
 docs/evidence/*.csv
 !docs/animations/data/
 !majortom/build/
+# credentials for data archives: keep in the environment or ~/.aws, ~/.config, never in the repo
+.env
+*credentials*
+*-sa.json
+*.pem
