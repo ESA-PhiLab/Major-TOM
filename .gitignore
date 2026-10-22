@@ -170,5 +170,6 @@ docs/evidence/*.csv
 # credentials for data archives: keep in the environment or ~/.aws, ~/.config, never in the repo
 .env
 *credentials*
+!majortom/build/credentials.py
 *-sa.json
 *.pem
