@@ -14,4 +14,4 @@ Scripts behind `docs/reports/2026-09-30-refactor-research.md`. They write output
 - `core_cells.py` — v1 vs v2 metrics on all Core-S2L2A cells; writes `core_cells_v1_v2.csv`. Run via Slurm.
 - `v2_misses.py` — causes of 1056 px misses, CRS rule test, minimal window size, neighbour coverage; writes `v2_misses_cells.parquet` (input to `docs/figures/make_figures_1056.py`).
 - `check_grids.py` — reads CRS, pixel size and origin of Sentinel-2, Landsat, Sentinel-1 RTC and Copernicus DEM products over Snowbird (spec section 4).
-- `s2_sources.csv` — Sentinel-2 L2A from Planetary Computer vs Earth Search, same acquisitions, offset removed; written by `tests/test_sources.py` (`MAJORTOM_EVIDENCE_DIR=docs/evidence pytest -m network tests/test_sources.py`).
+- `s2_sources.csv` — Sentinel-2 L2A from Planetary Computer, Earth Search and CDSE, same acquisitions, offset removed; written by `tests/test_sources.py` (`MAJORTOM_EVIDENCE_DIR=docs/evidence pytest -m network tests/test_sources.py`).
