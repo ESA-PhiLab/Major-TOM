@@ -23,9 +23,11 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from dataclasses import asdict, dataclass
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
@@ -118,23 +120,42 @@ def borrowed_clouds(archive: Archive, collection: Collection, tiles, crs: str, w
     return (float(clouds[valid].mean()) if valid.any() else 1.0), collection.clouds_from, [it.id for it in mates]
 
 
-def pick_scene(archive: Archive, source: Source, cell, collection, query, margin, choice: Choice):
+class Pick(NamedTuple):
+    """One way of reading a scene, as examined by pick_scene."""
+    tiles: list                 # STAC items, stitched in this order
+    win: object                 # spec.Window in the read CRS
+    res: dict                   # pixel size per band
+    native: bool                # pixels copied unchanged
+    cloud: float | None         # cloud share in the window
+    nodata: float               # share of window pixels without data
+    first: np.ndarray | None    # the first band, if already read while choosing (no own mask)
+    first_seconds: float        # time that read took
+    note: str                   # dates used
+    cloud_source: str | None    # "own", the product borrowed from, "scene", or None
+    cloud_items: list           # items the cloud share came from, if borrowed
+
+
+def pick_scene(archive: Archive, source: Source, cell, collection, query, margin,
+               choice: Choice) -> tuple[Pick, dict]:
     """The first acceptable scene in the order of `choice.prefer`, among the first few.
 
-    Returns (tiles, window, pixel sizes, native, cloud share, no-data share, mask asset data or None,
-    note on the dates used, cloud source, items the cloud share came from).
+    Returns the pick and its timing in seconds: catalogue search, and scene choice (masks read, other searches).
     """
+    start = time.perf_counter()
     own_mask = collection.clouds is not None
     mask_asset = collection.clouds[0] if own_mask else collection.assets[0]
     grid_assets = list(collection.assets) + ([mask_asset] if own_mask else [])
     tried = []
     bbox = search_box(cell, margin)
     found, note = scenes(archive, source, collection, bbox, query, choice.prefer)
+    searched = time.perf_counter()
     for scene in found[:CANDIDATES]:
         for crs, tiles in tiles_for(scene, cell, margin):   # same scene, another zone if this one is empty
             win, res, native = layout(cell, tiles[0], collection, source, grid_assets, margin, crs)
             method = "nearest" if own_mask else collection.resampling   # without a mask: the data
+            read_start = time.perf_counter()
             data, covered = read_asset(tiles, source.key(mask_asset), win, res[mask_asset], method)
+            read_seconds = time.perf_counter() - read_start
             cloud, cloud_source, cloud_items = None, None, []
             if own_mask:                                # the mask also marks no-data pixels inside files
                 clouds, fill = collection.clouds[1](data[0])
@@ -144,10 +165,10 @@ def pick_scene(archive: Archive, source: Source, cell, collection, query, margin
                 cloud, cloud_source, cloud_items = borrowed_clouds(archive, collection, tiles, crs, win,
                                                                    res[mask_asset], covered, bbox)
             nodata = 1 - covered.mean()
-            tried.append((tiles, win, res, native, cloud, nodata, None if own_mask else data, note,
-                          cloud_source, cloud_items))
+            tried.append(Pick(tiles, win, res, native, cloud, nodata, None if own_mask else data, read_seconds,
+                              note, cloud_source, cloud_items))
             if choice.accepts(cloud, nodata):
-                return tried[-1]
+                return tried[-1], timing(start, searched)
             if nodata <= choice.max_nodata:             # data is there, only the clouds are off: next scene
                 break
     if not tried:
@@ -155,7 +176,13 @@ def pick_scene(archive: Archive, source: Source, cell, collection, query, margin
     if choice.strict:
         raise LookupError(f"none of {len(tried)} scenes has cloud in {choice.cloud} "
                           f"and no-data <= {choice.max_nodata}")
-    return min(tried, key=lambda t: (t[5] > choice.max_nodata, choice.cloud_gap(t[4]), t[5]))
+    best = min(tried, key=lambda p: (p.nodata > choice.max_nodata, choice.cloud_gap(p.cloud), p.nodata))
+    return best, timing(start, searched)
+
+
+def timing(start: float, searched: float) -> dict:
+    """Seconds spent on the catalogue search and on choosing the scene, rounded for the sidecar."""
+    return dict(search=round(searched - start, 3), scene_choice=round(time.perf_counter() - searched, 3))
 
 
 def band_names(arrays: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
@@ -188,6 +215,7 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
     days = _field(row, "days") if _field(row, "days") is not None else days
     query = interval(_field(row, "datetime") or datetime, days)
     source = collection.source(name, archive.name)
+    build_start = time.perf_counter()
     if path.exists():
         # reuse a sample on disk only if it was built for this cell, query and choice
         if not force and _same_request(path.with_suffix(".json"), archive, cell, query, margin, choice):
@@ -196,13 +224,18 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
         path.with_suffix(".json").unlink(missing_ok=True)
 
     with rasterio.Env(**archive.gdal_env()):             # credentials, if any, live only inside this block
-        tiles, win, res, native, cloud, nodata, first, note, cloud_source, cloud_items = pick_scene(
-            archive, source, cell, collection, query, margin, choice)
-        arrays = {}
+        pick, seconds = pick_scene(archive, source, cell, collection, query, margin, choice)
+        tiles, win, res, native, cloud, nodata = pick.tiles, pick.win, pick.res, pick.native, pick.cloud, pick.nodata
+        arrays, band_seconds = {}, {}
         for asset in collection.assets:
-            reuse = first is not None and asset == collection.assets[0]
-            arrays[asset] = first if reuse else read_asset(tiles, source.key(asset), win, res[asset],
-                                                         collection.resampling)[0]
+            if pick.first is not None and asset == collection.assets[0]:   # read while choosing the scene
+                arrays[asset], band_seconds[asset] = pick.first, pick.first_seconds
+                continue
+            read_start = time.perf_counter()
+            arrays[asset] = read_asset(tiles, source.key(asset), win, res[asset], collection.resampling)[0]
+            band_seconds[asset] = time.perf_counter() - read_start
+    seconds["bands"] = {band: round(s, 3) for band, s in band_seconds.items()}
+    seconds["total"] = round(time.perf_counter() - build_start, 3)
 
     planes = band_names(arrays)
     offset = None
@@ -215,12 +248,13 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
         archive=archive.name, collection=name, source_collection=source.collection,
         processing_baseline=processing_baseline(tiles[0]) if collection.offset else None, offset=offset,
         items=[it.id for it in tiles], datetime=acquired(tiles[0]).floor("us").isoformat(),
-        cloud=cloud, cloud_source=cloud_source, cloud_items=cloud_items, nodata=float(nodata),
+        cloud=cloud, cloud_source=pick.cloud_source, cloud_items=pick.cloud_items, nodata=float(nodata),
         crs=win.crs, epsg=int(win.crs.split(":")[1]),
         left=win.left, top=win.top, res=finest, size=win.pixels(finest), bands=list(planes),
         grid_cell=cell.name, grid_km=cell.d, window_m=win.side, cell_coverage=cell_coverage(cell, win),
         profile=PROFILE, resampled=[] if native else list(collection.assets),
-        query=dict(datetime=query, margin=margin, dates_used=note), choice=asdict(choice),
+        query=dict(datetime=query, margin=margin, dates_used=pick.note), choice=asdict(choice),
+        timing=seconds,                                 # seconds: search, scene_choice, bands, total
     )
     # sidecar first, then the arrays atomically: a chip on disk is always a complete pair
     path.with_suffix(".json").write_text(json.dumps(meta))

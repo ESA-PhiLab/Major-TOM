@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-22 Builder: every sample records timing (search, scene_choice, per-band reads, total) in its .json
 - 2026-10-22 Builder: sentinel-1-rtc (vv, vh) from Planetary Computer, native UTM 10 m
 - 2026-10-22 Cross-source S2 test with CDSE: CDSE = Earth Search where baselines match (2021 05.00, 2024 05.11); table updated
 - 2026-10-22 Builder: CDSE keys passed as a rasterio session (rasterio refuses AWS keys as settings); CRS from asset proj:code (STAC 1.1); overlapping tiles ordered by tile code, so L1C is identical across archives
