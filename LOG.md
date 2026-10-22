@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-22 Builder: cdse archive (S2 L2A, L1C, Copernicus DEM; S3 keys from env or ~/.aws/credentials [cdse], 4 workers); setup command python -m majortom.build.credentials cdse
 - 2026-10-21 Builder: HTTP stall detection replaces the 30 s total timeout (cut slow tiles short); cross-source S2 test (pytest -m network): same baseline identical, offsets verified -> docs/evidence/s2_sources.csv
 - 2026-10-21 Builder: Sentinel-2 L1C ranks scenes by the L2A SCL of the same pass (cloud_source per sample); about 1.7x slower than without, measured
 - 2026-10-21 Builder: earth-search archive (S2 L2A Collection 1, S2 L1C, Copernicus DEM); band names per archive; per-sample offset and processing baseline; cop-dem-glo-30 on both archives

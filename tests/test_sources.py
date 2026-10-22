@@ -24,7 +24,18 @@ from majortom import build                                       # noqa: E402
 
 pytestmark = pytest.mark.network
 
-ARCHIVES = ["planetary-computer", "earth-search"]
+
+def available_archives() -> list[str]:
+    """Archives to compare: CDSE only when its keys are set up (it needs credentials)."""
+    from majortom.build.archives import cdse_keys
+    try:
+        cdse_keys()
+        return ["planetary-computer", "earth-search", "cdse"]
+    except PermissionError:
+        return ["planetary-computer", "earth-search"]
+
+
+ARCHIVES = available_archives()
 CASES = {                                                        # place: (lon, lat), clear day in every archive
     "snowbird-2021": ((-111.65, 40.58), "2021-08-25"),           # before the +1000 offset on Planetary Computer
     "snowbird-2024": ((-111.65, 40.58), "2024-08-29"),

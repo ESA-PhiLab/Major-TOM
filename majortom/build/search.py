@@ -94,7 +94,8 @@ def scenes(archive: Archive, source: Source, collection: Collection, bbox: tuple
         query = dict(collections=[source.collection], bbox=bbox, max_items=limit, sortby=sortby)
         if dates:
             query["datetime"] = dates
-        return [it for it in retry(lambda: list(catalog(archive).search(**query).items())) if needed <= set(it.assets)]
+        found = retry(lambda: list(catalog(archive).search(**query).items()), archive.retries)
+        return [it for it in found if needed <= set(it.assets)]
 
     note = "dates ignored: one version" if collection.time == "static" else f"dates {datetime}"
     items = search(datetime if collection.time != "static" else None)
@@ -117,7 +118,7 @@ def same_pass(archive: Archive, source: Source, scene: list[pystac.Item], bbox: 
     times = [acquired(it) for it in scene]
     dates = f"{(min(times) - slack).isoformat()}/{(max(times) + slack).isoformat()}"
     query = dict(collections=[source.collection], bbox=bbox, datetime=dates, max_items=50)
-    found = retry(lambda: list(catalog(archive).search(**query).items()))
+    found = retry(lambda: list(catalog(archive).search(**query).items()), archive.retries)
     want = {(tile_code(it), it.properties.get("platform")) for it in scene}
     return [it for it in found if (tile_code(it), it.properties.get("platform")) in want]
 

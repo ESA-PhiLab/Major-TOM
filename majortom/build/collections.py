@@ -30,17 +30,22 @@ def hls_clouds(fmask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return (fmask & 0b1110) > 0, fmask == 255
 
 
+def processing_baseline(item: pystac.Item) -> str | None:
+    """Sentinel-2 processing baseline, e.g. "05.00": s2:processing_baseline, or processing:version (CDSE)."""
+    return item.properties.get("s2:processing_baseline") or item.properties.get("processing:version")
+
+
 def declared_or_baseline_offset(item: pystac.Item, key: str) -> float | None:
     """Sentinel-2 reflectance offset in stored values: as declared by the archive, else from the baseline.
 
     Declared: raster:bands offset and scale (Earth Search: offset -0.1 at scale 0.0001, i.e. +1000).
-    Not declared (Planetary Computer): processing baseline 04.00 or later adds 1000 (from 2022-01-25).
+    Not declared (Planetary Computer, CDSE): processing baseline 04.00 or later adds 1000 (from 2022-01-25).
     """
     bands = item.assets[key].extra_fields.get("raster:bands") or [{}]
     offset, scale = bands[0].get("offset"), bands[0].get("scale")
     if offset is not None and scale:
         return float(round(-offset / scale))
-    baseline = item.properties.get("s2:processing_baseline")
+    baseline = processing_baseline(item)
     return None if baseline is None else (1000.0 if baseline >= "04.00" else 0.0)
 
 
@@ -97,15 +102,21 @@ S2_L1C = ("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", 
 S2_EARTH_SEARCH = {"B01": "coastal", "B02": "blue", "B03": "green", "B04": "red", "B05": "rededge1",
                    "B06": "rededge2", "B07": "rededge3", "B08": "nir", "B8A": "nir08", "B09": "nir09",
                    "B10": "cirrus", "B11": "swir16", "B12": "swir22", "SCL": "scl"}
+S2_CDSE_L2A = {"B01": "B01_60m", "B02": "B02_10m", "B03": "B03_10m", "B04": "B04_10m", "B05": "B05_20m",
+               "B06": "B06_20m", "B07": "B07_20m", "B08": "B08_10m", "B8A": "B8A_20m", "B09": "B09_60m",
+               "B11": "B11_20m", "B12": "B12_20m", "SCL": "SCL_20m"}     # native resolution of each band
 COLLECTIONS = {
     "sentinel-2-l2a": Collection(S2, clouds=("SCL", s2_clouds), offset=(S2, declared_or_baseline_offset),
                                  sources={"planetary-computer": Source("sentinel-2-l2a"),
-                                          "earth-search": Source("sentinel-2-c1-l2a", S2_EARTH_SEARCH)}),
+                                          "earth-search": Source("sentinel-2-c1-l2a", S2_EARTH_SEARCH),
+                                          "cdse": Source("sentinel-2-l2a", S2_CDSE_L2A)}),
     "sentinel-2-l1c": Collection(S2_L1C, clouds_from="sentinel-2-l2a", offset=(S2_L1C, declared_or_baseline_offset),
-                                 sources={"earth-search": Source("sentinel-2-l1c", S2_EARTH_SEARCH)}),
+                                 sources={"earth-search": Source("sentinel-2-l1c", S2_EARTH_SEARCH),
+                                          "cdse": Source("sentinel-2-l1c")}),
     "cop-dem-glo-30": Collection(("DEM",), time="static", res_m=30,
                                  sources={"planetary-computer": Source("cop-dem-glo-30", {"DEM": "data"}),
-                                          "earth-search": Source("cop-dem-glo-30", {"DEM": "data"})}),
+                                          "earth-search": Source("cop-dem-glo-30", {"DEM": "data"}),
+                                          "cdse": Source("cop-dem-glo-30-dged-cog", {"DEM": "data"})}),
     "landsat-c2-l2": Collection(("coastal", "blue", "green", "red", "nir08", "swir16", "swir22"),
                                 clouds=("qa_pixel", landsat_clouds)),
     "hls2-s30": Collection(("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B10", "B11", "B12"),

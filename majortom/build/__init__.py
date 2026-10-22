@@ -36,7 +36,7 @@ from tqdm.auto import tqdm
 from ..cells import Cell, cells_from_points, cells_in   # noqa: F401  re-exported for convenience
 from ..spec import MARGIN, cell_coverage, window
 from .archives import ARCHIVES, Archive
-from .collections import COLLECTIONS, Collection, Source
+from .collections import COLLECTIONS, Collection, Source, processing_baseline
 from .read import layout, read_asset
 from .search import acquired, item_crs, same_pass, scenes, tiles_for
 
@@ -213,7 +213,7 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
     meta = dict(
         index=int(row.Index), lon=float(row.lon), lat=float(row.lat),
         archive=archive.name, collection=name, source_collection=source.collection,
-        processing_baseline=tiles[0].properties.get("s2:processing_baseline"), offset=offset,
+        processing_baseline=processing_baseline(tiles[0]), offset=offset,
         items=[it.id for it in tiles], datetime=acquired(tiles[0]).floor("us").isoformat(),
         cloud=cloud, cloud_source=cloud_source, cloud_items=cloud_items, nodata=float(nodata),
         crs=win.crs, epsg=int(win.crs.split(":")[1]),
@@ -256,6 +256,7 @@ def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, 
     if archive not in ARCHIVES:
         raise KeyError(f"unknown archive {archive!r}; pick one of {sorted(ARCHIVES)}")
     source = ARCHIVES[archive]
+    source.gdal_env()                                    # missing credentials: one clear error, before any sample
     if collection not in COLLECTIONS:
         raise KeyError(f"unknown collection {collection!r}; pick one of {sorted(COLLECTIONS)}")
     if COLLECTIONS[collection].source(collection, archive) is None:
@@ -278,7 +279,9 @@ def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, 
                 job.result()
             except Exception as error:
                 row = jobs[job]
-                errors.append(dict(index=row.Index, grid_cell=row.grid_cell,
-                                   error=f"{type(error).__name__}: {error}"[:200]))
+                message = f"{type(error).__name__}: {error}"
+                if source.refused and any(s in message for s in ("403", "Access Denied", "AccessDenied")):
+                    message = f"{source.refused}: {message}"
+                errors.append(dict(index=row.Index, grid_cell=row.grid_cell, error=message[:300]))
     print(f"{len(list(out.glob('*.npz'))):,} samples in {out}, {len(errors):,} failed")
     return pd.DataFrame(errors, columns=["index", "grid_cell", "error"])
