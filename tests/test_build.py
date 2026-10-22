@@ -181,3 +181,11 @@ def test_tiles_in_far_utm_zones_are_ignored():                      # footprints
     assert not near_zone("EPSG:32601", "EPSG:32612")
     assert near_zone("EPSG:32660", "EPSG:32601")                       # zones 60 and 1 are neighbours
     assert near_zone("EPSG:4326", "EPSG:32612") and near_zone(None, "EPSG:32612")
+
+
+def test_fallback_prefers_complete_windows_unless_asked_for_clear_ones():
+    complete, clear = Choice(), Choice(fallback="clear")
+    partial_clear, full_cloudy = (0.0, 0.35), (0.20, 0.0)             # (cloud share, no-data share)
+    assert min([partial_clear, full_cloudy], key=lambda s: complete.rank(*s)) == full_cloudy
+    assert min([partial_clear, full_cloudy], key=lambda s: clear.rank(*s)) == partial_clear
+    assert complete.rank(0.0, 0.005) < complete.rank(0.2, 0.0)        # within max_nodata, clouds decide

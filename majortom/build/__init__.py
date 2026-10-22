@@ -15,7 +15,9 @@ Per-sample queries: optional columns in `cells` override the arguments of `downl
 
 Which scene: `prefer` sets the order scenes are tried in ("clearest", "cloudiest", "nearest" to the
 date, "newest"); `cloud` sets the accepted share of cloudy pixels in the window, e.g. (0, 0.05) for
-clear or (0.3, 1) for cloudy samples, or None for any. Both are recorded in every sample.
+clear or (0.3, 1) for cloudy samples, or None for any. When no scene tried meets both `cloud` and
+`max_nodata`, `fallback` picks the best: "complete" (default: least missing data first) or "clear" (clouds
+first). All are recorded in every sample.
 
 Which archive: `archive` names one of ARCHIVES (archives.py); it is recorded in every sample.
 """
@@ -87,16 +89,27 @@ class Choice:
                 date, or the middle of its range) or "newest"
     cloud       accepted share of cloudy pixels in the window, as (low, high); None accepts any
     max_nodata  accepted share of window pixels without data
-    strict      if no scene tried is acceptable: True fails the sample, False takes the one closest to
-                the accepted cloud range (its real cloud share is recorded)
+    strict      if no scene tried is acceptable: True fails the sample, False takes the best of them by
+                `fallback` (its real cloud and no-data shares are recorded)
+    fallback    which scene is best when none is acceptable:
+                "complete"  least missing data beyond max_nodata first, then cloud share closest to the range
+                            (default: a cloud mask can be applied later, missing pixels cannot be recovered)
+                "clear"     cloud share closest to the range first, then least missing data
     """
     prefer: str = "clearest"
     cloud: tuple[float, float] | None = (0.0, 0.05)
     max_nodata: float = 0.01
     strict: bool = False
+    fallback: str = "complete"
 
     def accepts(self, cloud: float | None, nodata: float) -> bool:
         return nodata <= self.max_nodata and self.cloud_gap(cloud) == 0
+
+    def rank(self, cloud: float | None, nodata: float) -> tuple:
+        """Sort key for scenes when none is acceptable: lower is better, by `fallback`."""
+        if self.fallback == "clear":
+            return self.cloud_gap(cloud), nodata
+        return max(nodata - self.max_nodata, 0.0), self.cloud_gap(cloud), nodata
 
     def cloud_gap(self, cloud: float | None) -> float:
         """How far a cloud share is outside the accepted range (0 inside it, or without a range)."""
@@ -190,7 +203,7 @@ def pick_scene(archive: Archive, source: Source, cell, collection, query, margin
     if choice.strict:
         raise LookupError(f"none of {len(tried)} scenes has cloud in {choice.cloud} "
                           f"and no-data <= {choice.max_nodata}")
-    best = min(tried, key=lambda p: (p.nodata > choice.max_nodata, choice.cloud_gap(p.cloud), p.nodata))
+    best = min(tried, key=lambda p: choice.rank(p.cloud, p.nodata))
     return best, timing(start, searched)
 
 
@@ -291,7 +304,8 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
 
 def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, days: float | None = None,
              margin: float = MARGIN, prefer: str = "clearest", cloud: tuple[float, float] | None = (0.0, 0.05),
-             max_nodata: float = 0.01, strict: bool = False, archive: str = "planetary-computer",
+             max_nodata: float = 0.01, strict: bool = False, fallback: str = "complete",
+             archive: str = "planetary-computer",
              outdir: str | Path = "chips", workers: int | None = None, force: bool = False) -> pd.DataFrame:
     """Build one sample per row of `cells` from a Planetary Computer collection.
 
@@ -302,14 +316,18 @@ def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, 
     prefer       order scenes are tried: "clearest", "cloudiest", "nearest" (to the date) or "newest"
     cloud        accepted share of cloudy pixels in the window, (low, high); None accepts any
     max_nodata   accepted share of window pixels without data
-    strict       True: a sample with no acceptable scene fails; False: the closest to the range is used
+    strict       True: a sample with no acceptable scene fails; False: the best of the scenes tried is used
+    fallback     the best when none is acceptable: "complete" (default; least missing data, then clouds) or
+                 "clear" (clouds closest to the range, then least missing data)
     archive      where to search and read, one of ARCHIVES
     workers      parallel samples; None: what the archive allows
     force        True: rebuild every sample. False: reuse a sample on disk if it was built for the same
                  cell, dates, margin and scene choice. Samples in outdir for rows not in `cells` are removed
     Returns the samples that failed, with the reason.
     """
-    choice = Choice(prefer, tuple(cloud) if cloud is not None else None, max_nodata, strict)
+    choice = Choice(prefer, tuple(cloud) if cloud is not None else None, max_nodata, strict, fallback)
+    if fallback not in ("complete", "clear"):
+        raise ValueError(f"fallback must be complete or clear, not {fallback!r}")
     if prefer not in ("clearest", "cloudiest", "nearest", "newest"):
         raise ValueError(f"prefer must be clearest, cloudiest, nearest or newest, not {prefer!r}")
     if archive not in ARCHIVES:

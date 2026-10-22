@@ -43,8 +43,14 @@ def has_credentials(archive: str) -> bool:
     return available(ARCHIVES[archive])
 
 
+# archive gaps at PLACE (docs/ARCHIVES.md): the sample builds but is partial; the test xpasses once a gap is filled
+KNOWN_GAPS = {
+    ("hls2-l30", "planetary-computer"): "Planetary Computer lacks HLS tile T30VUH for most of summer 2024",
+}
 PAIRS = [pytest.param(name, archive, id=f"{name}@{archive}",
-                      marks=pytest.mark.skipif(not has_credentials(archive), reason=f"no {archive} credentials"))
+                      marks=[pytest.mark.skipif(not has_credentials(archive), reason=f"no {archive} credentials")]
+                      + ([pytest.mark.xfail(reason=KNOWN_GAPS[name, archive], strict=False)]
+                         if (name, archive) in KNOWN_GAPS else []))
          for name, collection in COLLECTIONS.items() for archive in collection.archives()]
 
 

@@ -28,6 +28,16 @@ Each sample is written as `chips/<product>/<index>.npz` (one array per band) wit
 
 Asking for dates outside a source's period, or a product an archive does not have, raises an error that names the archives that do.
 
+**Which scene.** `download` tries up to five scenes per sample, in the order of `prefer` (`"clearest"`, `"cloudiest"`, `"nearest"` to the date, `"newest"`), and takes the first whose window meets both `cloud` (accepted cloud share, default `(0, 0.05)`; `None` accepts any) and `max_nodata` (accepted share of missing pixels, default `0.01`). If none does:
+
+| `strict` | `fallback` | Result |
+|---|---|---|
+| `False` (default) | `"complete"` (default) | the scene with the least missing data, then the cloud share closest to the range |
+| `False` | `"clear"` | the scene with the cloud share closest to the range, then the least missing data |
+| `True` | either | the sample fails, with the reason |
+
+`"complete"` is the default because clouds can be masked later (each sample records its cloud share and, where the product has one, its mask), while missing pixels cannot be recovered. All four settings are recorded in every sample's `choice`.
+
 ## 2. Products
 
 Periods as each archive's catalogue declares them (`–` with no end: ongoing); each links to the product's page in that archive. `static`: one version, dates ignored. `—`: not in that archive.
@@ -79,6 +89,7 @@ Band names are the same from every archive (Sentinel-2: `B01`…`B12`, `SCL`; La
 - **Holds:** Sentinel-2 L2A, Landsat 4–9 L2, HLS (from 2020), Sentinel-1 RTC, MODIS, ASTER L1T (2000–2006), DEMs, land cover, biomass, water.
 - **Access:** free, no account. Links are signed automatically.
 - **Notes:** Sentinel-2 values carry +1000 from 2022-01-25 (baseline 04.00) and the archive does not declare it; samples record it as `offset`. Original processing, not reprocessed.
+- **Gaps:** its HLS copy is incomplete. Over Scotland in June–August 2024 it held 188 of the 217 HLS L30 tile-days that NASA's LP DAAC has (Earth Engine held all 217). Where complete coverage matters, use `earthdata` or `earth-engine` for HLS.
 
 ### Earth Search (`earth-search`)
 
