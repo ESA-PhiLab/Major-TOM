@@ -15,4 +15,4 @@ Scripts behind `docs/reports/2026-09-30-refactor-research.md`. They write output
 - `v2_misses.py` — causes of 1056 px misses, CRS rule test, minimal window size, neighbour coverage; writes `v2_misses_cells.parquet` (input to `docs/figures/make_figures_1056.py`).
 - `check_grids.py` — reads CRS, pixel size and origin of Sentinel-2, Landsat, Sentinel-1 RTC and Copernicus DEM products over Snowbird (spec section 4).
 - `s2_sources.csv` — Sentinel-2 L2A from Planetary Computer, Earth Search and CDSE, same acquisitions, offset removed; written by `tests/test_sources.py` (`MAJORTOM_EVIDENCE_DIR=docs/evidence pytest -m network tests/test_sources.py`).
-- `build_speed.py` — reading speed of every product from every archive; writes `build_speed.csv` and `build_speed.md` (Slurm job, about an hour).
+- `build_speed.py` — reading speed of every product from every archive; writes a dated report and CSV to `docs/reports/` (Slurm job, about an hour).

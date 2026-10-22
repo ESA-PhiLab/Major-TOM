@@ -104,6 +104,7 @@ class Archive:
     gdal_env    GDAL settings for reading, fetched per read
     workers     parallel samples the archive allows
     retries     attempts per catalogue search (waits 1, 2, 4, ... s; for rate limits)
+    search_gap  least seconds between two catalogue searches, across threads (rate limits)
     refused     added to a sample's error when reading is refused (HTTP 403), e.g. how to fix the keys
     """
     name: str
@@ -114,6 +115,7 @@ class Archive:
     gdal_env: Callable[[], dict] = public_env
     workers: int = 16
     retries: int = 4
+    search_gap: float = 0.0
     refused: str = ""
 
 
@@ -125,5 +127,5 @@ ARCHIVES = {
                             gdal_env=unsigned_s3_env),
     # ESA's Copernicus Data Space: public catalogue, S3 keys for the files, 4 connections per account
     "cdse": Archive("cdse", "https://stac.dataspace.copernicus.eu/v1", gdal_env=cdse_env, workers=4, retries=6,
-                    refused="CDSE refused the S3 keys (expired or wrong?); see docs/ARCHIVES.md"),
+                    search_gap=1.0, refused="CDSE refused the S3 keys (expired or wrong?); see docs/ARCHIVES.md"),
 }

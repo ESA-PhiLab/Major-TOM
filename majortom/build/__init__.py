@@ -40,7 +40,7 @@ from ..spec import MARGIN, cell_coverage, window
 from .archives import ARCHIVES, Archive
 from .collections import COLLECTIONS, Collection, Source, processing_baseline
 from .read import layout, read_asset
-from .search import acquired, item_crs, same_pass, scenes, tiles_for
+from .search import acquired, item_crs, retries, same_pass, scenes, tiles_for
 
 PROFILE = "native-v0"          # recorded in every sample: native grid if the CRS matches, else resampled
 CANDIDATES = 5                 # scenes examined per sample
@@ -216,6 +216,7 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
     query = interval(_field(row, "datetime") or datetime, days)
     source = collection.source(name, archive.name)
     build_start = time.perf_counter()
+    retries(reset=True)
     if path.exists():
         # reuse a sample on disk only if it was built for this cell, query and choice
         if not force and _same_request(path.with_suffix(".json"), archive, cell, query, margin, choice):
@@ -236,6 +237,7 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
             band_seconds[asset] = time.perf_counter() - read_start
     seconds["bands"] = {band: round(s, 3) for band, s in band_seconds.items()}
     seconds["total"] = round(time.perf_counter() - build_start, 3)
+    seconds["retries"] = retries()                      # waits after failed requests (rate limits, drops)
 
     planes = band_names(arrays)
     offset = None
@@ -254,7 +256,7 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
         grid_cell=cell.name, grid_km=cell.d, window_m=win.side, cell_coverage=cell_coverage(cell, win),
         profile=PROFILE, resampled=[] if native else list(collection.assets),
         query=dict(datetime=query, margin=margin, dates_used=pick.note), choice=asdict(choice),
-        timing=seconds,                                 # seconds: search, scene_choice, bands, total
+        timing=seconds,                                 # seconds: search, scene_choice, bands, total; retries
     )
     # sidecar first, then the arrays atomically: a chip on disk is always a complete pair
     path.with_suffix(".json").write_text(json.dumps(meta))

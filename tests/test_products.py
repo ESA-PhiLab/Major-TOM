@@ -58,6 +58,6 @@ def test_product_builds_from_archive(name, archive, tmp_path):
         assert arrays[band].shape[-2:] == (side, side) and side > 0
     assert meta["window_m"] == pytest.approx(meta["res"] * meta["size"])
     assert meta["nodata"] <= MAX_NODATA, meta["nodata"]
-    assert set(meta["timing"]) == {"search", "scene_choice", "bands", "total"}
+    assert set(meta["timing"]) == {"search", "scene_choice", "bands", "total", "retries"}
     if collection.offset:
         assert all(meta["offset"][b] in (0.0, 1000.0) for b in collection.offset[0] if b in meta["offset"])
