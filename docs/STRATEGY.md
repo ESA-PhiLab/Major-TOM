@@ -110,28 +110,27 @@ Non-goals:
 
 ### WS5 — `majortom.build`
 
-**Status (2026-10-06):** first version, used by the workshop: Planetary Computer, 13 collections, any grid spacing, per-sample dates and margins, scene choice by `prefer` and `cloud` range. Report: `docs/reports/2026-10-06-majortom-build.md`.
+**Status (2026-10-22, updated after review; this section unreviewed):** five archives behind two backends, 33 products from 55 product-archive pairs, all building at the test cell 624U_29L (south Loch Lomond). Reports: `docs/reports/2026-10-06-majortom-build.md`, `docs/reports/2026-10-22-build-speed.md`; gallery: `docs/reports/2026-10-22-product-gallery.png`. Setup and products: `docs/ARCHIVES.md`.
 
-Flow today:
+Flow:
 
-    cells (points or area) -> window (spec) -> scenes (search, ordered by prefer) -> choose (cloud range, no-data)
-      -> CRS and tiles per scene (native coverage) -> read onto the window grid -> .npz + .json per sample
+    cells (points or area) -> window (spec) -> scenes (backend.search, ordered by prefer) -> choose (cloud range,
+      no-data, fallback) -> CRS and tiles per scene -> backend.read_tile onto the window grid -> .npz + .json per sample
 
-**Extending beyond Planetary Computer.** Most of the builder is already archive-agnostic: cells, the window rule, the CRS choice per scene, the scene choice and the writer. Two steps are archive-specific and move behind one small interface:
+**Backends.** The archive-specific steps sit behind one interface in `majortom/build/backends/`:
 
-    class Backend(Protocol):
-        def scenes(self, product, bbox, dates, prefer) -> list[list[Tile]]          # search and order
-        def read(self, tiles, band, window, res, resampling) -> tuple[array, covered]
+    search(archive, collection, **query) -> items        header(archive, item, key) -> (CRS, transform)
+    read_tile(archive, item, key, window, res, method) -> (bands, covered)        session(archive) -> context
 
-| Backend | Search | Read | Access | Notes |
+| Archive | Backend | Search | Read | Access |
 |---|---|---|---|---|
-| Planetary Computer | STAC | GDAL window reads (COG) | free signed URLs | done |
-| AWS Earth Search | STAC | GDAL window reads (COG) | none | band names differ (`red` for B04); offset declared in metadata |
-| CDSE | STAC | GDAL `/vsis3/` window reads (JP2) | account + S3 keys | retry and back-off on HTTP 429; batch searches by tile and date; JP2 costs ~225 requests per window |
-| Google Earth Engine | Earth Engine filters | `computePixels` on the window grid (server-side) | Cloud project + registration | not file-based; one request per window |
-| Major TOM datasets (Hugging Face, source.coop) | metadata parquet | one row group per sample | none | Core v1 samples cropped to v2 windows where possible (SPEC 7.3) |
+| Planetary Computer | stac | STAC | GDAL (COG, netCDF swaths, GCP-placed GRD) | free signed URLs |
+| Earth Search | stac | STAC | GDAL (COG, JPEG 2000, GCP-placed GRD) | none (unsigned S3) |
+| CDSE | stac | STAC | GDAL `/vsis3/` (JPEG 2000, COG, netCDF swaths, GCP-placed GRD) | S3 keys; 4 workers, spaced searches |
+| NASA Earthdata (LP DAAC, PO.DAAC, ASF) | stac | CMR STAC per provider | GDAL (COG) | token; ASF needs one-off approval |
+| Google Earth Engine | earthengine | ImageCollection filters | `computePixels` on the window grid | Cloud project or service account |
 
-Planetary Computer, Earth Search and CDSE share one STAC + GDAL implementation, configured per archive (address, URL signing, band names, offset rule). A product such as "Sentinel-2 L2A" is described once, with its name and band keys in each archive, so a dataset states product and archive separately.
+A product is described once in `collections.py` with one `Source` per archive (collection id, band names, period); samples keep the same band names from every archive. Where two archives hold the same processing, samples are identical pixel for pixel once the recorded offset is removed (Sentinel-2 L2A and L1C, Landsat 5 and 9, HLS L30, Copernicus DEM). Archive gaps found so far: CDSE Landsat (listed but not readable with S3 keys), Planetary Computer HLS (13% of tile-days missing over Scotland, summer 2024).
 
 **Related tools, and why the builder does not depend on them:**
 
@@ -141,19 +140,21 @@ Planetary Computer, Earth Search and CDSE share one STAC + GDAL implementation, 
 | stackstac | STAC items to xarray | same role as odc-stac; less active |
 | aereo | plugin framework writing Major TOM-aligned GeoTIFFs and a parquet index | depends on `majortom-eg`, an unofficial grid (D2), and defines its own windows; we keep the grid and window rule here. Output can stay compatible |
 | phidown | CDSE and PhiSat-2 search and whole-product download | no window reads; useful for discovery or whole-product workflows, not per-cell samples |
-| earthengine-api / xee | Earth Engine access | the Earth Engine backend would call `computePixels` directly: one request per window |
+| earthengine-api / xee | Earth Engine access | the Earth Engine backend uses earthengine-api and calls `computePixels` directly: one request per window |
 | TorchGeo | training-time datasets and samplers | consumes data; does not acquire it |
 
 None of these provides what makes a sample Major TOM: the cell, the window rule, the native-grid CRS choice and the scene choice. That stays in this package; the reading step may use one of them.
 
 **Still to do:**
 
-- `Backend` interface; Earth Search, CDSE and Earth Engine backends; odc-stac reader comparison.
-- Offset: record per sample whether the +1000 L2A offset is in the values (Planetary Computer keeps it without declaring it).
-- Rate limits: retry with back-off on 429/5xx (done for searches), batch searches by tile and date, cache search results.
-- Provenance per sample: processing baseline, offset and scale applied, band descriptions, spec and code version (product ID, archive, CRS, geotransform, scene choice and dates are recorded).
+- odc-stac reader comparison behind the backend interface (exactness, speed).
+- Sentinel-3 swath reads: 90-300 s per sample; cache coordinate blocks per scene.
+- MODIS: Terra and Aqua are mixed in one product per archive.
+- Rate limits: batch searches by tile and date, cache search results.
+- Provenance per sample: band descriptions, spec and code version (product id, archive, CRS, window, scene choice, dates, offset, scaling, baseline, platform and timing are recorded).
 - Writers beyond the notebook layout: COG (352 px blocks), Core-style parquet shards + `metadata.parquet`.
 - v1 → v2: derive v2 samples from Core where croppable (SPEC 7.3).
+- Global geocoded complex Sentinel-1 (CSLC) by processing SLC bursts: GitHub issue, later.
 
 ### WS6 — Code cleanup and embedder
 

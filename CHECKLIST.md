@@ -39,10 +39,19 @@ Workstreams are defined in `docs/STRATEGY.md`.
 ## WS5 — majortom.build
 - [x] First version for the workshop: `majortom.build` on Planetary Computer, 13 collections (WS5 decision gate still open)
 - [x] Scene choice (`prefer`, `cloud` range, `strict`), yearly/static products, pass grouping
-- [x] Record per-sample +1000 offset (declared by the archive, else from the processing baseline)
-- [ ] Catalog / Selector / Reader / Writer interfaces
-- [ ] Earth Search, Planetary Computer, CDSE catalogs
-- [ ] Offset normalisation
+- [x] `fallback` for scene choice: `"complete"` (default) or `"clear"`
+- [x] Record per sample: offset, declared scaling, processing baseline, platform, archive, timing, cloud source
+- [x] Backends behind one interface (`search`, `header`, `read_tile`, `session`): `stac` and `earthengine`
+- [x] Archives: Planetary Computer, Earth Search, CDSE, NASA Earthdata (LP DAAC, PO.DAAC, ASF), Earth Engine
+- [x] Credentials: env or owner-only files, setup command, secret scan in CI (`tests/test_no_secrets.py`)
+- [x] 33 products from 55 product-archive pairs build at cell 624U_29L (`tests/test_products.py`); PC HLS L30 partial there (archive gap)
+- [x] Same data identical across archives where processing matches: S2 L2A/L1C, Landsat 5/9, HLS L30, Copernicus DEM
+- [x] Read paths: native/warped COG and JPEG 2000, ground control points (raw S1 GRD), netCDF swaths (Sentinel-3)
+- [x] Product gallery (`docs/evidence/gallery.py`) and reading-speed report (`docs/evidence/build_speed.py`)
+- [x] Docs: `docs/ARCHIVES.md` (generated products table), `CONTRIBUTING.md`
+- [ ] Sentinel-3 swath reads are slow (90-300 s per sample)
+- [ ] MODIS: Terra and Aqua mixed in one product
+- [ ] Global geocoded complex Sentinel-1 (CSLC): GitHub issue, for later
 - [ ] COG and parquet writers
 - [ ] v1→v2 crop path
 

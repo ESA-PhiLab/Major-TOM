@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-22 CHECKLIST, STRATEGY (builder section, marked updated after review) and CONTEXT updated to the confirmed builder state
 - 2026-10-22 Scene choice: new fallback setting, "complete" (default: least missing data first) or "clear" (clouds first); Planetary Computer HLS gap documented (188 of 217 L30 tile-days over Scotland, summer 2024) and marked as an expected test failure
 - 2026-10-22 Raw Sentinel-1 GRD from PC, Earth Search, CDSE (placed by ground control points; EE terrain-corrected now sentinel-1-grd-tc); Sentinel-3 OLCI swaths from PC and CDSE (L1 radiance, new L2 land product); Earthdata token kept on redirects (ASF); ASF approval steps in docs; gallery at Loch Lomond: 101 of 103 pass (PC HLS L30 missing a tile)
 - 2026-10-22 Test cell moved to 624U_29L (south Loch Lomond; June-August 2024); OPERA RTC-S1, DSWx-HLS, DSWx-S1, DIST-ALERT via Earthdata (one archive over ASF, PO.DAAC, LP DAAC); bands found by asset-name suffix
