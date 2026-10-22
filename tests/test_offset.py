@@ -40,3 +40,9 @@ def test_band_names_are_the_same_from_every_archive():
     assert s2.source("sentinel-2-l2a", "earth-search").key("SCL") == "scl"
     assert COLLECTIONS["landsat-c2-l2"].source("landsat-c2-l2", "earth-search") is None   # requester-pays there
     assert COLLECTIONS["cop-dem-glo-30"].source("cop-dem-glo-30", "planetary-computer").key("DEM") == "data"
+
+
+def test_sentinel_1_rtc_is_on_planetary_computer_only():
+    s1 = COLLECTIONS["sentinel-1-rtc"]
+    assert s1.assets == ("vv", "vh") and s1.clouds is None
+    assert s1.archives() == ["planetary-computer"]

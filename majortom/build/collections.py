@@ -123,6 +123,7 @@ COLLECTIONS = {
                            clouds=("Fmask", hls_clouds)),
     "hls2-l30": Collection(("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B09", "B10", "B11"),
                            clouds=("Fmask", hls_clouds)),
+    "sentinel-1-rtc": Collection(("vv", "vh")),      # backscatter (gamma0, linear, float32), UTM 10 m; no clouds
     "alos-palsar-mosaic": Collection(("HH", "HV"), time="yearly", res_m=25),
     "nasadem": Collection(("elevation",), time="static", res_m=30),
     "alos-dem": Collection(("data",), time="static", res_m=30),

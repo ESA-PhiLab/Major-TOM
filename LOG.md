@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-22 Builder: sentinel-1-rtc (vv, vh) from Planetary Computer, native UTM 10 m
 - 2026-10-22 Cross-source S2 test with CDSE: CDSE = Earth Search where baselines match (2021 05.00, 2024 05.11); table updated
 - 2026-10-22 Builder: CDSE keys passed as a rasterio session (rasterio refuses AWS keys as settings); CRS from asset proj:code (STAC 1.1); overlapping tiles ordered by tile code, so L1C is identical across archives
 - 2026-10-22 Builder: cdse archive (S2 L2A, L1C, Copernicus DEM; S3 keys from env or ~/.aws/credentials [cdse], 4 workers); setup command python -m majortom.build.credentials cdse
