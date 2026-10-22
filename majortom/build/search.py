@@ -55,9 +55,13 @@ def acquired(item: pystac.Item) -> pd.Timestamp:
 
 
 def item_crs(item: pystac.Item) -> str | None:
-    """The tile's CRS from its STAC metadata, without opening a file."""
-    code, epsg = item.properties.get("proj:code"), item.properties.get("proj:epsg")
-    return code or (f"EPSG:{epsg}" if epsg else None)
+    """The tile's CRS from its STAC metadata, without opening a file: the item's, else its assets' (STAC 1.1
+    catalogues such as CDSE put proj:code on each asset)."""
+    for fields in [item.properties, *(asset.extra_fields for asset in item.assets.values())]:
+        code, epsg = fields.get("proj:code"), fields.get("proj:epsg")
+        if code or epsg:
+            return code or f"EPSG:{epsg}"
+    return None
 
 
 ORDER = {                                               # catalogue sort for each preference
@@ -146,7 +150,8 @@ def tiles_for(scene: list[pystac.Item], cell: Cell, margin: float) -> list[tuple
 
     First the projected zones whose tiles cover the whole window, the cell's own zone first, so pixels
     stay native; then zones that cover it only partly. Products in latitude/longitude use the cell's zone
-    and are resampled. Each option uses tiles of one CRS, those containing the whole window first.
+    and are resampled. Each option uses tiles of one CRS, those containing the whole window first, then
+    by tile code.
     Footprints in the catalogue can overstate the data (some are whole tile squares), so the caller
     checks the no-data it actually reads and moves on to the next option if needed.
     """
@@ -160,6 +165,8 @@ def tiles_for(scene: list[pystac.Item], cell: Cell, margin: float) -> list[tuple
         need = shapely.box(*transform_bounds(crs, "EPSG:4326", *window(cell, 10, margin=margin, crs=crs).bounds,
                                              densify_pts=21))
         footprints = {it.id: shapely.make_valid(shape(it.geometry)) for it in by_crs[crs]}   # some are invalid
-        tiles = sorted(by_crs[crs], key=lambda it: not footprints[it.id].contains(need))
+        # tiles containing the window first, then by tile code: the same order from every archive, which
+        # matters where tiles overlap (the first tile's pixels are kept, and L1C tiles differ slightly there)
+        tiles = sorted(by_crs[crs], key=lambda it: (not footprints[it.id].contains(need), tile_code(it) or it.id))
         (covering if shapely.union_all(list(footprints.values())).contains(need) else partial).append((crs, tiles))
     return covering + partial if projected else [(target, scene)]

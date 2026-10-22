@@ -106,3 +106,13 @@ def test_l1c_borrows_clouds_from_the_same_pass_of_l2a(monkeypatch):
     mates = search.same_pass(ARCHIVES["earth-search"], Source("sentinel-2-c1-l2a"), l1c, (0, 0, 1, 1))
     assert [it.id for it in mates] == ["vk", "vl"]                      # same tiles, same satellite
     assert scene_cloud(l1c) == pytest.approx(0.2)                        # fallback: catalogue cloud cover
+
+
+def test_crs_from_assets_when_the_item_has_none():                  # STAC 1.1 catalogues such as CDSE
+    import datetime as dt
+    import pystac
+    from majortom.build.search import item_crs
+
+    item = pystac.Item("x", None, None, dt.datetime(2024, 8, 29), {})
+    item.add_asset("B04_10m", pystac.Asset("s3://eodata/x.jp2", extra_fields={"proj:code": "EPSG:32612"}))
+    assert item_crs(item) == "EPSG:32612"

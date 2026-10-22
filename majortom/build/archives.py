@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Callable
 
 import planetary_computer
+from rasterio.session import Session
 
 from .read import GDAL_OPTIONS
 
@@ -66,15 +67,29 @@ def cdse_keys() -> tuple[str, str]:
     return key, secret
 
 
-def cdse_env() -> dict:
-    """GDAL settings for CDSE's S3 storage. Other AWS settings are blanked so none mix in (e.g. a session token).
+class S3Keys(Session):
+    """S3 keys for rasterio.Env(session=...): rasterio refuses AWS keys as plain settings, and its own
+    AWSSession needs boto3. GDAL gets the keys only while the Env block is open; repr hides them."""
 
-    JPEG 2000 decoding stays in one thread, as for Earth Search: GDAL's decoder threads would not see the keys.
-    """
-    key, secret = cdse_keys()
-    return dict(GDAL_OPTIONS, AWS_ACCESS_KEY_ID=key, AWS_SECRET_ACCESS_KEY=secret, AWS_SESSION_TOKEN="",
-                AWS_S3_ENDPOINT="eodata.dataspace.copernicus.eu", AWS_VIRTUAL_HOSTING="FALSE", AWS_HTTPS="YES",
-                AWS_NO_SIGN_REQUEST="NO", GDAL_NUM_THREADS="1")
+    def __init__(self, key: str, secret: str):
+        self._options = {"AWS_ACCESS_KEY_ID": key, "AWS_SECRET_ACCESS_KEY": secret, "AWS_SESSION_TOKEN": ""}
+
+    @classmethod
+    def hascreds(cls, config: dict) -> bool:
+        return "AWS_ACCESS_KEY_ID" in config and "AWS_SECRET_ACCESS_KEY" in config
+
+    def get_credential_options(self) -> dict:
+        return dict(self._options)
+
+    def __repr__(self) -> str:
+        return "S3Keys(<hidden>)"
+
+
+def cdse_env() -> dict:
+    """GDAL settings for CDSE's S3 storage, keys passed as a session. A session token from the environment is
+    blanked so it cannot mix in. JPEG 2000 decoding stays in one thread, as for Earth Search."""
+    return dict(GDAL_OPTIONS, session=S3Keys(*cdse_keys()), AWS_S3_ENDPOINT="eodata.dataspace.copernicus.eu",
+                AWS_VIRTUAL_HOSTING="FALSE", AWS_HTTPS="YES", AWS_NO_SIGN_REQUEST="NO", GDAL_NUM_THREADS="1")
 
 
 @dataclass(frozen=True)

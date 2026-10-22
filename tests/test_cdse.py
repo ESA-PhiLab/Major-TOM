@@ -44,7 +44,9 @@ def test_settings_stay_out_of_the_process_environment(no_keys):
     credentials.save_cdse("fake-key", "fake-secret")
     before = dict(os.environ)
     env = archives.cdse_env()
-    assert env["AWS_S3_ENDPOINT"] == "eodata.dataspace.copernicus.eu" and env["AWS_SESSION_TOKEN"] == ""
+    assert env["AWS_S3_ENDPOINT"] == "eodata.dataspace.copernicus.eu"
+    assert env["session"].get_credential_options()["AWS_SESSION_TOKEN"] == ""
+    assert "fake" not in repr(env)                               # the keys never show in a printout
     assert dict(os.environ) == before                            # keys only in the returned settings
 
 

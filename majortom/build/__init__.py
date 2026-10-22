@@ -213,7 +213,7 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
     meta = dict(
         index=int(row.Index), lon=float(row.lon), lat=float(row.lat),
         archive=archive.name, collection=name, source_collection=source.collection,
-        processing_baseline=processing_baseline(tiles[0]), offset=offset,
+        processing_baseline=processing_baseline(tiles[0]) if collection.offset else None, offset=offset,
         items=[it.id for it in tiles], datetime=acquired(tiles[0]).floor("us").isoformat(),
         cloud=cloud, cloud_source=cloud_source, cloud_items=cloud_items, nodata=float(nodata),
         crs=win.crs, epsg=int(win.crs.split(":")[1]),
