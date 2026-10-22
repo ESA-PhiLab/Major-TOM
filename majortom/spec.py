@@ -82,6 +82,21 @@ def window(cell: Cell, lattice: float, origin: tuple[float, float] | None = None
     return Window(crs, x - side / 2, y + side / 2, side)
 
 
+CORE_NATIVE = ("Core-S2L2A", "Core-S2L1C", "Core-S1RTC")   # pixels copied unchanged from the source
+
+
+def correct_core_transform(transform: Affine, dataset: str) -> Affine:
+    """The grid a Core sample's pixels were read on (docs/reports/2026-10-22-core-pixel-match.md).
+
+    Core stored the unrounded origin; native datasets were read at that origin rounded to the
+    band's own pixel grid. Core-DEM was resampled, so its stored transform is kept.
+    """
+    if dataset not in CORE_NATIVE:
+        return transform
+    rx, ry = transform.a, -transform.e
+    return Affine(rx, 0.0, rx * round(transform.c / rx), 0.0, -ry, ry * round(transform.f / ry))
+
+
 def cell_polygon(cell: Cell, crs: str, n: int = 32) -> shapely.Polygon:
     """The cell's outline in `crs`, with edges densified so that curved edges are followed."""
     s = np.linspace(0, 1, n, endpoint=False)

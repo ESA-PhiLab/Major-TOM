@@ -24,13 +24,24 @@ Samples are spread over processing versions, hemispheres and UTM zone edges. Eac
 |---|---|---|---|
 | Core-S2L2A | 12 | 4 (12 bands), all 100% equal | 6 version gone, reprocessed source; 1 found only in another zone; 1 no version on CDSE |
 | Core-S2L1C | 12 | 4 (12 bands), all 100% equal | 8 version gone, reprocessed source |
-| Core-S1RTC | 12 | 8, all 100% equal | 4 resampled from the same product: best shift within ±5 m |
+| Core-S1RTC | 12 | 8, all 100% equal | 4 from an older version of the same product: best shift = rounding distance (below) |
 | Core-DEM | 12 | (resampled from latitude/longitude) | RMSE ≤ 2.5 m on the stored grid; best shifts scatter within ±15 m |
 
 Every exact copy holds the source pixels unchanged, read at the stored origin **rounded to the band's own pixel grid**. The stored origin is the unrounded value: errors up to half a pixel (B04 ≤ 5 m, B11 ≤ 10 m, B01 ≤ 30 m; S1 ≤ 5 m). The value shift is 0 for every band: Core keeps the source values, offset included.
 
     rounded_col = rounded_row = True   for all 24 S2 bands and 8 S1 samples matched exactly
     equal_share = 1.0                  same samples
+
+## Sentinel-1 RTC: the other 4 samples
+
+No exact copy exists for 4 Core-S1RTC samples: Planetary Computer has regenerated those RTC files (values correlate 0.93-0.99, ratio about 0.99, not equal). Source grids are not the cause: all 12 source files have origins on multiples of 10 m. The best whole-metre shift of each equals the distance from its stored origin to the 10 m grid:
+
+    151D_179R   best shift ( +2, -1) m | stored origin -> 10 m grid ( +2.2, -1.5) m
+    337U_1099L  best shift ( -1, +5) m | stored origin -> 10 m grid ( -1.4, +5.0) m
+    342U_1210R  best shift ( -3, -3) m | stored origin -> 10 m grid ( -2.7, -2.8) m
+    437D_1269R  best shift ( -4, +1) m | stored origin -> 10 m grid ( -4.4, +1.1) m
+
+They are native copies at the rounded origin of the older file version. The rounding rule holds for all 12.
 
 ## Source versions
 
@@ -50,9 +61,9 @@ Core-DEM was resampled from the latitude/longitude Copernicus DEM. The best shif
 
 ## Implications for `correct_core_transform`
 
-- Native samples (Core-S2L2A, Core-S2L1C, most Core-S1RTC): replace the stored origin with the origin rounded to the band's pixel grid. Exact for every matched sample.
-- Resampled Core-S1RTC samples (4 of 12) and Core-DEM: keep the stored transform. Residual shifts are within half a pixel and have no rule to correct.
-- A per-sample flag is needed to tell native from resampled Core-S1RTC samples. Not derivable from metadata yet.
+- Core-S2L2A, Core-S2L1C, Core-S1RTC (all samples): replace the stored origin with the origin rounded to the band's pixel grid. Exact for every matched sample. Implemented: `majortom/spec.py` `correct_core_transform`.
+- Core-DEM: keep the stored transform. Residual shifts are within half a pixel and have no rule to correct.
+- No per-sample flag is needed.
 
 ## Decisions
 

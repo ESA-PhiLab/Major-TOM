@@ -24,7 +24,7 @@ Major TOM (Terrestrial Observation Metaset) is a standard for large EO datasets:
 
 - Refactor in progress on `refactor/v1`. Plan: `docs/STRATEGY.md`; progress: `CHECKLIST.md`.
 - `majortom.build`: five archives (Planetary Computer, Earth Search, CDSE, NASA Earthdata, Earth Engine), 33 products, all building at the test cell 624U_29L.
-- Known defect: every Core sample has a fractional geotransform (sub-pixel error). See `docs/reports/2026-09-30-refactor-research.md`. Next: pixel match of the Core datasets against their sources.
+- Known defect: every Core sample has a fractional geotransform (sub-pixel error). Pixel match done ([report](docs/reports/2026-10-22-core-pixel-match.md)); `majortom.spec.correct_core_transform` gives the corrected grid. Readers do not apply it yet.
 - `main` has a stash (`stash@{0}`) with the embedding reproducibility check and the embedder import re-enabled.
 
 ## Development environment

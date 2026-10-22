@@ -27,7 +27,8 @@ Workstreams are defined in `docs/STRATEGY.md`.
 ## WS3 — Spec and Core correction
 - [x] Pixel match on 12 samples per Core dataset: native samples are exact copies at the stored origin rounded to the band grid ([report](docs/reports/2026-10-22-core-pixel-match.md))
 - [x] `docs/SPEC.md` drafted (any spacing, source profiles) and reviewed (Miko, 2026-10-15)
-- [ ] `sample_window`, `correct_core_transform`, `crop_1068_to_1056`
+- [x] `correct_core_transform` (`majortom/spec.py`): rounded origin for Core-S2L2A, S2L1C, S1RTC (all samples, no flag needed); Core-DEM unchanged
+- [ ] `sample_window`, `crop_1068_to_1056`
 - [ ] Readers apply correction by default
 - [ ] Decide exception-zone rule
 
