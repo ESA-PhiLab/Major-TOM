@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-22 Builder: Earth Engine backend (backends/earthengine.py; computePixels); S2 L2A/L1C, Landsat L2 (4-9) and new L1 (8-9), HLS, new dynamic-world and sentinel-1-grd; S2, Landsat 5/9 and HLS L30 identical to Planetary Computer; far-zone tiles ignored for every archive
 - 2026-10-22 Builder restructured: backends/ (stac.py: STAC API + GDAL for PC, Earth Search, CDSE, Earthdata) behind search/header/read_tile/session; credential lookup in credentials.py; no change in output (rebuilds, 25 pairs, S2 table identical)
 - 2026-10-22 Earthdata reads fixed (bearer auth, no HEAD: a HEAD-signed redirect broke reads); HLS identical to Planetary Computer for 2024, but ~12x slower per sample
 - 2026-10-22 Builder: earthdata archive (NASA LP DAAC: HLS L30 from 2013, S30 from 2015) with a token from EARTHDATA_TOKEN or ~/.config/majortom/earthdata-token; CRS and tile from MGRS ids

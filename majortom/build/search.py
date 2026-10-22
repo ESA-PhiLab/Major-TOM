@@ -30,7 +30,7 @@ def acquired(item: pystac.Item) -> pd.Timestamp:
     return when.tz_localize("UTC") if when.tzinfo is None else when.tz_convert("UTC")
 
 
-MGRS_IN_ID = re.compile(r"(?:^|[._])T(\d{2})([C-HJ-NP-X])([A-HJ-NP-Z]{2})(?:[._]|$)")   # e.g. HLS.S30.T12TVK.2024...
+MGRS_IN_ID = re.compile(r"(?:^|[._/])T(\d{2})([C-HJ-NP-X])([A-HJ-NP-Z]{2})(?:[._]|$)")   # HLS.S30.T12TVK.2024...
 
 
 def item_crs(item: pystac.Item) -> str | None:
@@ -101,11 +101,15 @@ def tile_code(item: pystac.Item) -> str | None:
 
 def same_pass(archive: Archive, source: Source, scene: list[pystac.Item], bbox: tuple[float, float, float, float],
               slack: pd.Timedelta = pd.Timedelta(seconds=60)) -> list[pystac.Item]:
-    """Tiles of another product from the same pass as `scene`: same tile, platform and time (within `slack`)."""
+    """Tiles of another product from the same pass as `scene`: same tile and time (within `slack`), and the same
+    platform where both name one (Dynamic World does not)."""
     times = [acquired(it) for it in scene]
     dates = f"{(min(times) - slack).isoformat()}/{(max(times) + slack).isoformat()}"
     found = backend(archive).search(archive, source.collection, bbox=bbox, datetime=dates, max_items=50)
     want = {(tile_code(it), it.properties.get("platform")) for it in scene}
+    tiles = {tile for tile, _ in want}
+    if any(platform is None for _, platform in want):                  # match on tile alone
+        return [it for it in found if tile_code(it) in tiles]
     return [it for it in found if (tile_code(it), it.properties.get("platform")) in want]
 
 
@@ -127,6 +131,16 @@ def passes(items: list[pystac.Item], gap: pd.Timedelta = pd.Timedelta(minutes=5)
     return groups
 
 
+def near_zone(crs: str | None, target: str, zones: int = 2) -> bool:
+    """Whether a UTM CRS is within `zones` zones of the cell's (other CRSs: always). A tile in a far zone holds
+    no window of this cell; catalogues return such tiles when a footprint crossing 180° covers the globe."""
+    def zone(code):
+        epsg = int(code.split(":")[1]) if code and code.startswith("EPSG:") else 0
+        return epsg % 100 if 32601 <= epsg <= 32660 or 32701 <= epsg <= 32760 else None
+    a, b = zone(crs), zone(target)
+    return a is None or b is None or min(abs(a - b), 60 - abs(a - b)) <= zones
+
+
 def tiles_for(scene: list[pystac.Item], cell: Cell, margin: float) -> list[tuple[str, list[pystac.Item]]]:
     """Ways to read one scene, best first: (window CRS, tiles) (docs/SPEC.md sections 3.1 and 6.4).
 
@@ -140,7 +154,10 @@ def tiles_for(scene: list[pystac.Item], cell: Cell, margin: float) -> list[tuple
     target = cell_crs(cell)
     by_crs: dict[str | None, list[pystac.Item]] = {}
     for item in scene:
-        by_crs.setdefault(item_crs(item), []).append(item)
+        crs = item_crs(item)
+        if not near_zone(crs, target):                  # broken footprints (across 180°) match everywhere
+            continue
+        by_crs.setdefault(crs, []).append(item)
     projected = sorted((c for c in by_crs if c and CRS.from_user_input(c).is_projected), key=lambda c: c != target)
     covering, partial = [], []
     for crs in projected:

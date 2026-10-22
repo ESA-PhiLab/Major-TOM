@@ -28,6 +28,7 @@ embed = ["majortom[torch]", "timm", "torchgeo", "open-clip-torch", "transformers
          "matplotlib"]
 viz = ["matplotlib"]
 build = ["pystac-client", "planetary-computer", "requests"]   # first version; WS5 decision gate still open
+gee = ["earthengine-api>=1.7"]                                 # majortom.build archive "earth-engine"
 all = ["majortom[embed,viz,build]"]
 
 [project.urls]

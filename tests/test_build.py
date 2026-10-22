@@ -172,3 +172,12 @@ def test_crs_and_tile_from_an_mgrs_tile_in_the_id():                 # NASA HLS 
     assert item_crs(item("HLS.L30.T34HBH.2024240T181919.v2.0")) == "EPSG:32734"       # band H: south
     assert tile_code(item("HLS.S30.T12TVK.2024240T181919.v2.0")) == "MGRS-12TVK"
     assert item_crs(item("Copernicus_DSM_COG_10_N40_00_W112_00_DEM")) is None
+
+
+def test_tiles_in_far_utm_zones_are_ignored():                      # footprints across 180° match everywhere
+    from majortom.build.search import near_zone
+
+    assert near_zone("EPSG:32612", "EPSG:32612") and near_zone("EPSG:32611", "EPSG:32612")
+    assert not near_zone("EPSG:32601", "EPSG:32612")
+    assert near_zone("EPSG:32660", "EPSG:32601")                       # zones 60 and 1 are neighbours
+    assert near_zone("EPSG:4326", "EPSG:32612") and near_zone(None, "EPSG:32612")

@@ -88,7 +88,8 @@ def test_earthdata_token_setup_and_lookup(no_token, monkeypatch, capsys):
     assert "fake-token" not in out.out + out.err
     assert stat.S_IMODE(no_token.stat().st_mode) == 0o600 and stat.S_IMODE(no_token.parent.stat().st_mode) == 0o700
     env = stac.earthdata_env()
-    assert (env["GDAL_HTTP_AUTH"], env["GDAL_HTTP_BEARER"], env["CPL_VSIL_CURL_USE_HEAD"]) == ("BEARER", "fake-token", "NO")
+    assert (env["GDAL_HTTP_AUTH"], env["GDAL_HTTP_BEARER"]) == ("BEARER", "fake-token")
+    assert env["CPL_VSIL_CURL_USE_HEAD"] == "NO"
     monkeypatch.setenv("EARTHDATA_TOKEN", "env-token")
     assert credentials.earthdata_token() == "env-token"
 

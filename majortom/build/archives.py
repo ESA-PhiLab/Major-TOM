@@ -5,7 +5,8 @@
              ->  workers, ...      what the archive allows: parallel samples, retries, search spacing
 
 An Archive holds no credentials: they are looked up (credentials.py) when a backend session starts, and live
-only inside it. Set them up once with `python -m majortom.build.credentials cdse` (or `earthdata`).
+only inside it. Set them up once with `python -m majortom.build.credentials cdse` (or `earthdata`,
+`earth-engine`).
 """
 from __future__ import annotations
 
@@ -22,7 +23,7 @@ class Archive:
     """Where samples are searched and read.
 
     name        recorded in every sample
-    backend     access method: a module in backends/ ("stac")
+    backend     access method: a module in backends/ ("stac", "earthengine")
     stac_url    STAC API address
     modifier    applied to every item found, e.g. signing its links
     sorts       the API sorts results (sortby), whether or not it declares it
@@ -59,4 +60,7 @@ ARCHIVES = {
     "earthdata": Archive("earthdata", "https://cmr.earthdata.nasa.gov/stac/LPCLOUD", gdal_env=earthdata_env,
                          workers=8, refused="Earthdata refused the token (tokens expire after 60 days); generate "
                                             "a new one and run `python -m majortom.build.credentials earthdata`"),
+    # Google Earth Engine: a registered Cloud project; reads with computePixels, so no files or STAC
+    "earth-engine": Archive("earth-engine", backend="earthengine", workers=8,
+                            refused="Earth Engine refused the request (project not registered, or quota?)"),
 }

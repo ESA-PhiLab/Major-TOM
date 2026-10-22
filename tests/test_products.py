@@ -24,6 +24,8 @@ DATES = {                                                        # dates with da
     "sentinel-2-l2a": "2024-07-01/2024-08-31", "sentinel-2-l1c": "2024-07-01/2024-08-31",
     "landsat-c2-l2": "2024-07-01/2024-08-31", "hls2-s30": "2024-07-01/2024-08-31",
     "hls2-l30": "2024-07-01/2024-08-31", "sentinel-1-rtc": "2023-06-01/2023-06-30",
+    "landsat-c2-l1": "2024-07-01/2024-08-31", "dynamic-world": "2024-07-01/2024-08-31",
+    "sentinel-1-grd": "2023-06-01/2023-06-30",
     "alos-palsar-mosaic": "2020", "alos-fnf-mosaic": "2020", "esa-worldcover": "2021",
     "io-lulc-annual-v02": "2022", "esa-cci-lc": "2020",
 }
@@ -64,13 +66,27 @@ def test_product_builds_from_archive(name, archive, tmp_path):
 
 @pytest.mark.parametrize("name, archive", PAIRS)
 def test_period_matches_the_catalogue(name, archive):
-    from majortom.build.backends import retry
-    from majortom.build.backends.stac import catalog
-
     source = COLLECTIONS[name].source(name, archive)
     if source.period is None:
         pytest.skip("static product: one version, no period")
-    entry = retry(lambda: catalog(ARCHIVES[archive]).get_collection(source.collection), 6)
-    start, end = entry.extent.temporal.intervals[0]
-    assert start.date().isoformat() == source.period[0]
-    assert (end.date().isoformat() if end else None) in (source.period[1], None)   # ongoing: the catalogue may say so
+    start, end = declared_period(ARCHIVES[archive], source.collection)
+    assert start == source.period[0]
+    assert source.period[1] is None or end in (source.period[1], None)   # ongoing: catalogues give the latest date
+
+
+def declared_period(archive, collection: str) -> tuple[str, str | None]:
+    """First and last day the archive's catalogue declares; a merged Earth Engine search: the earliest start."""
+    import requests
+    from majortom.build.backends import retry
+
+    if archive.backend == "earthengine":                 # Earth Engine's public STAC files, one per collection
+        periods = []
+        for cid in collection.split("+"):
+            url = (f"https://storage.googleapis.com/earthengine-stac/catalog/{cid.split('/')[0]}/"
+                   f"{cid.replace('/', '_')}.json")
+            periods.append(retry(lambda: requests.get(url, timeout=30).json())["extent"]["temporal"]["interval"][0])
+        return min(p[0][:10] for p in periods), None
+    from majortom.build.backends.stac import catalog
+    entry = retry(lambda: catalog(archive).get_collection(collection), 6)
+    first, last = entry.extent.temporal.intervals[0]
+    return first.date().isoformat(), (last.date().isoformat() if last else None)

@@ -125,30 +125,103 @@ S2_CDSE_L2A = {"B01": "B01_60m", "B02": "B02_10m", "B03": "B03_10m", "B04": "B04
                "B06": "B06_20m", "B07": "B07_20m", "B08": "B08_10m", "B8A": "B8A_20m", "B09": "B09_60m",
                "B11": "B11_20m", "B12": "B12_20m", "SCL": "SCL_20m"}     # native resolution of each band
 S2_PERIOD = ("2015-06-27", None)
+
+
+@dataclass(frozen=True)
+class EarthEngine:
+    """How one Earth Engine image collection names things, for backends/earthengine.py.
+
+    bands      band name we save -> Earth Engine band
+    cloud      property with the scene's cloud cover in percent, if any
+    platform   property naming the satellite; values are lower-cased with "_" as "-" (LANDSAT_9 -> landsat-9)
+    prefix     put before the platform value (Sentinel-1 gives only "A", "B", "C")
+    tile       property with the MGRS tile, or the (path, row) properties of a WRS-2 scene
+    scaling    band -> (scale, offset): physical = stored x scale + offset; Earth Engine records none per band
+    stored     (factor, dtype): Earth Engine values x factor give the integers other archives store (HLS: Earth
+               Engine keeps reflectance, the others reflectance x 10 000), so samples match across archives
+    zone_index image ids start with the MGRS tile ("T12TVK_..."): the search keeps the window's UTM zone +-1 on
+               the server, since some footprints cross 180° and match everywhere (HLS)
+    """
+    bands: dict[str, str]
+    cloud: str | None = None
+    platform: str | None = None
+    prefix: str = ""
+    tile: str | tuple[str, str] | None = None
+    scaling: dict[str, tuple[float, float]] = field(default_factory=dict)
+    stored: tuple[float, str] | None = None
+    zone_index: bool = False
+
+
+S2_EE = {b: "B" + b[1:].lstrip("0") if b != "B8A" else "B8A" for b in S2_L1C} | {"SCL": "SCL"}
+S2_EE_SCALE = {b: (0.0001, 0.0) for b in S2_L1C}         # harmonized: the +1000 offset is already removed
+TM_EE = {"blue": "SR_B1", "green": "SR_B2", "red": "SR_B3", "nir08": "SR_B4", "swir16": "SR_B5", "swir22": "SR_B7",
+         "qa_pixel": "QA_PIXEL"}                           # Landsat 4-7
+OLI_EE = {"coastal": "SR_B1", "blue": "SR_B2", "green": "SR_B3", "red": "SR_B4", "nir08": "SR_B5", "swir16": "SR_B6",
+          "swir22": "SR_B7", "qa_pixel": "QA_PIXEL"}       # Landsat 8-9
+LANDSAT_SR_SCALE = {b: (2.75e-05, -0.2) for b in ("coastal", "blue", "green", "red", "nir08", "swir16", "swir22")}
+OLI_L1 = ("B1", "B2", "B3", "B4", "B5", "B6", "B7", "B9", "B10", "B11")
+HLS_EE = {f"B{i:02d}": f"B{i}" for i in range(1, 13)} | {"B8A": "B8A", "Fmask": "Fmask"}
+DYNAMIC_WORLD = ("water", "trees", "grass", "flooded_vegetation", "crops", "shrub_and_scrub", "built", "bare",
+                 "snow_and_ice", "label")
+EARTH_ENGINE = {
+    "COPERNICUS/S2_SR_HARMONIZED": EarthEngine(S2_EE, "CLOUDY_PIXEL_PERCENTAGE", "SPACECRAFT_NAME", tile="MGRS_TILE",
+                                               scaling=S2_EE_SCALE),
+    "COPERNICUS/S2_HARMONIZED": EarthEngine(S2_EE, "CLOUDY_PIXEL_PERCENTAGE", "SPACECRAFT_NAME", tile="MGRS_TILE",
+                                            scaling=S2_EE_SCALE),
+    **{f"LANDSAT/{m}/C02/T1_L2": EarthEngine(TM_EE, "CLOUD_COVER", "SPACECRAFT_ID", tile=("WRS_PATH", "WRS_ROW"),
+                                              scaling=LANDSAT_SR_SCALE) for m in ("LT04", "LT05", "LE07")},
+    **{f"LANDSAT/{m}/C02/T1_L2": EarthEngine(OLI_EE, "CLOUD_COVER", "SPACECRAFT_ID", tile=("WRS_PATH", "WRS_ROW"),
+                                              scaling=LANDSAT_SR_SCALE) for m in ("LC08", "LC09")},
+    **{f"LANDSAT/{m}/C02/T1": EarthEngine({b: b for b in OLI_L1} | {"B8": "B8", "qa_pixel": "QA_PIXEL"}, "CLOUD_COVER",
+                                           "SPACECRAFT_ID", tile=("WRS_PATH", "WRS_ROW")) for m in ("LC08", "LC09")},
+    # L30 B10/B11 are thermal on Earth Engine in another scaling: not mapped (optional in hls2-l30)
+    "NASA/HLS/HLSL30/v002": EarthEngine({b: v for b, v in HLS_EE.items() if b not in ("B10", "B11")}, "CLOUD_COVERAGE",
+                                        stored=(10000, "int16"), zone_index=True),
+    "NASA/HLS/HLSS30/v002": EarthEngine(HLS_EE, "CLOUD_COVERAGE", stored=(10000, "int16"), zone_index=True),
+    "GOOGLE/DYNAMICWORLD/V1": EarthEngine({b: b for b in DYNAMIC_WORLD}),
+    "COPERNICUS/S1_GRD": EarthEngine({"vv": "VV", "vh": "VH"}, platform="platform_number", prefix="sentinel-1"),
+}
 COLLECTIONS = {
     "sentinel-2-l2a": Collection(S2, clouds=("SCL", s2_clouds), offset=(S2, declared_or_baseline_offset),
                                  sources={"planetary-computer": Source("sentinel-2-l2a", period=S2_PERIOD),
                                           "earth-search": Source("sentinel-2-c1-l2a", S2_EARTH_SEARCH, S2_PERIOD),
-                                          "cdse": Source("sentinel-2-l2a", S2_CDSE_L2A, S2_PERIOD)}),
+                                          "cdse": Source("sentinel-2-l2a", S2_CDSE_L2A, S2_PERIOD),
+                                          "earth-engine": Source("COPERNICUS/S2_SR_HARMONIZED",
+                                                                 period=("2017-03-28", None))}),
     "sentinel-2-l1c": Collection(S2_L1C, clouds_from="sentinel-2-l2a", offset=(S2_L1C, declared_or_baseline_offset),
                                  sources={"earth-search": Source("sentinel-2-l1c", S2_EARTH_SEARCH, S2_PERIOD),
-                                          "cdse": Source("sentinel-2-l1c", period=S2_PERIOD)}),
+                                          "cdse": Source("sentinel-2-l1c", period=S2_PERIOD),
+                                          "earth-engine": Source("COPERNICUS/S2_HARMONIZED", period=S2_PERIOD)}),
     "cop-dem-glo-30": Collection(("DEM",), time="static", res_m=30, kind="elevation",
                                  sources={"planetary-computer": Source("cop-dem-glo-30", {"DEM": "data"}),
                                           "earth-search": Source("cop-dem-glo-30", {"DEM": "data"}),
                                           "cdse": Source("cop-dem-glo-30-dged-cog", {"DEM": "data"})}),
     "landsat-c2-l2": Collection(("blue", "green", "red", "nir08", "swir16", "swir22"), optional=("coastal",),
-                                clouds=("qa_pixel", landsat_clouds), period=("1982-08-22", None)),   # Landsat 4-9
+                                clouds=("qa_pixel", landsat_clouds),                                  # Landsat 4-9
+                                sources={"planetary-computer": Source("landsat-c2-l2", period=("1982-08-22", None)),
+                                         "earth-engine": Source("+".join(f"LANDSAT/{m}/C02/T1_L2" for m in (
+                                             "LT04", "LT05", "LE07", "LC08", "LC09")), period=("1982-08-22", None))}),
+    "landsat-c2-l1": Collection(OLI_L1, optional=("B8",), clouds=("qa_pixel", landsat_clouds),       # Landsat 8-9
+                                sources={"earth-engine": Source("LANDSAT/LC08/C02/T1+LANDSAT/LC09/C02/T1",
+                                                                period=("2013-03-18", None))}),
     "hls2-s30": Collection(("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B10", "B11", "B12"),
                            clouds=("Fmask", hls_clouds),
                            sources={"planetary-computer": Source("hls2-s30", period=("2020-01-01", None)),
-                                    "earthdata": Source("HLSS30_2.0", period=("2015-11-28", None))}),
-    "hls2-l30": Collection(("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B09", "B10", "B11"),
-                           clouds=("Fmask", hls_clouds),
+                                    "earthdata": Source("HLSS30_2.0", period=("2015-11-28", None)),
+                                    "earth-engine": Source("NASA/HLS/HLSS30/v002", period=("2015-11-28", None))}),
+    "hls2-l30": Collection(("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B09"), optional=("B10", "B11"),
+                           clouds=("Fmask", hls_clouds),                                  # B10, B11: thermal
                            sources={"planetary-computer": Source("hls2-l30", period=("2020-01-01", None)),
-                                    "earthdata": Source("HLSL30_2.0", period=("2013-04-11", None))}),
+                                    "earthdata": Source("HLSL30_2.0", period=("2013-04-11", None)),
+                                    "earth-engine": Source("NASA/HLS/HLSL30/v002", period=("2013-04-11", None))}),
+    "dynamic-world": Collection(DYNAMIC_WORLD, resampling="nearest", kind="land cover",    # per Sentinel-2 scene
+                                clouds_from="sentinel-2-l2a",                 # it masks clouds: rank by the L2A SCL
+                                sources={"earth-engine": Source("GOOGLE/DYNAMICWORLD/V1",
+                                                                period=("2015-06-27", None))}),
     "sentinel-1-rtc": Collection(("vv", "vh"), kind="radar",       # backscatter (gamma0, linear), UTM 10 m; no clouds
                                  period=("2014-10-10", None)),
+    "sentinel-1-grd": Collection(("vv", "vh"), kind="radar",   # terrain-corrected by Earth Engine; backscatter in dB
+                                 sources={"earth-engine": Source("COPERNICUS/S1_GRD", period=("2014-10-03", None))}),
     "alos-palsar-mosaic": Collection(("HH", "HV"), time="yearly", res_m=25, kind="radar",
                                      period=("2015-01-01", "2021-12-31")),
     "nasadem": Collection(("elevation",), time="static", res_m=30, kind="elevation"),

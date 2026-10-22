@@ -1,17 +1,22 @@
-"""Set up archive credentials once: `python -m majortom.build.credentials cdse` (or `earthdata`).
+"""Set up archive credentials once: `python -m majortom.build.credentials cdse` (or `earthdata`, `earth-engine`).
 
-    cdse       prompt (hidden)  ->  [cdse] section of the AWS credentials file (owner-only, 600)  ->  one test read
-    earthdata  prompt (hidden)  ->  ~/.config/majortom/earthdata-token (owner-only, 600)          ->  one test read
+    cdse          prompt (hidden)  ->  [cdse] section of the AWS credentials file (owner-only, 600)  ->  one test read
+    earthdata     prompt (hidden)  ->  ~/.config/majortom/earthdata-token (owner-only, 600)          ->  one test read
+    earth-engine  project, and a service-account key file's path (or your `earthengine authenticate` login)
+                  ->  ~/.config/majortom/earth-engine.json (owner-only; the path, never the key)
+                  ->  one test read
 
-Nothing is printed back. The environment (CDSE_S3_ACCESS_KEY / CDSE_S3_SECRET_KEY, EARTHDATA_TOKEN) still takes
-precedence, e.g. in Slurm jobs or Colab. On shared machines file permissions keep out other users, not
-administrators: use these revocable keys and tokens, never a main password. See docs/ARCHIVES.md.
+Nothing secret is printed back. The environment (CDSE_S3_ACCESS_KEY / CDSE_S3_SECRET_KEY, EARTHDATA_TOKEN,
+EE_PROJECT / EE_SERVICE_ACCOUNT_KEY) still takes precedence, e.g. in Slurm jobs or Colab. On shared machines file
+permissions keep out other users, not administrators: use these revocable keys and tokens, never a main
+password. See docs/ARCHIVES.md.
 """
 from __future__ import annotations
 
 import argparse
 import configparser
 import getpass
+import json
 import os
 import sys
 from pathlib import Path
@@ -22,6 +27,9 @@ CDSE_SETUP = ("CDSE needs S3 keys (not your login). Create them at "
 EARTHDATA_SETUP = ("NASA Earthdata needs a token (not your password). Generate one at "
                    "https://urs.earthdata.nasa.gov (Generate Token; it lasts 60 days), then run "
                    "`python -m majortom.build.credentials earthdata`, or set EARTHDATA_TOKEN")
+EE_SETUP = ("Earth Engine needs a Cloud project registered for Earth Engine, and either your login "
+            "(`earthengine authenticate`) or a service-account key file. Run "
+            "`python -m majortom.build.credentials earth-engine`, or set EE_PROJECT (and EE_SERVICE_ACCOUNT_KEY)")
 
 
 # looking credentials up (backends call these when a session starts) -------------------------------------------
@@ -50,8 +58,12 @@ def cdse_keys() -> tuple[str, str]:
     return key, secret
 
 
+def config_dir() -> Path:
+    return Path(os.environ.get("MAJORTOM_CONFIG", "~/.config/majortom")).expanduser()
+
+
 def earthdata_token_file() -> Path:
-    return Path(os.environ.get("MAJORTOM_CONFIG", "~/.config/majortom")).expanduser() / "earthdata-token"
+    return config_dir() / "earthdata-token"
 
 
 def earthdata_token() -> str:
@@ -62,6 +74,19 @@ def earthdata_token() -> str:
     if not token:
         raise PermissionError(EARTHDATA_SETUP)
     return token
+
+
+def earth_engine_settings() -> tuple[str, str | None]:
+    """(project, service-account key file or None for your own login): environment, else the saved settings."""
+    saved = config_dir() / "earth-engine.json"
+    stored = json.loads(saved.read_text()) if saved.exists() else {}
+    project = os.environ.get("EE_PROJECT") or stored.get("project")
+    key_file = os.environ.get("EE_SERVICE_ACCOUNT_KEY") or stored.get("key_file")
+    if not project:
+        raise PermissionError(EE_SETUP)
+    if key_file and not Path(key_file).expanduser().exists():
+        raise PermissionError(f"Earth Engine key file not found: {key_file}. {EE_SETUP}")
+    return project, (str(Path(key_file).expanduser()) if key_file else None)
 
 
 # setting them up once ----------------------------------------------------------------------------------------
@@ -92,6 +117,16 @@ def save_earthdata(token: str) -> None:
     os.chmod(path, 0o600)
 
 
+def save_earth_engine(project: str, key_file: str | None) -> None:
+    """Write the project and the key file's path (not the key) to an owner-only settings file."""
+    path = config_dir() / "earth-engine.json"
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as handle:
+        json.dump({"project": project, "key_file": key_file}, handle)
+    os.chmod(path, 0o600)
+
+
 def check(archive_name: str, collection: str, asset: str) -> str:
     """Open one file header of `collection` with the saved credentials; returns what was read."""
     from .archives import ARCHIVES
@@ -112,7 +147,7 @@ def check_cdse() -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("archive", choices=["cdse", "earthdata"])
+    parser.add_argument("archive", choices=["cdse", "earthdata", "earth-engine"])
     parser.add_argument("--no-check", action="store_true", help="skip the test read")
     args = parser.parse_args(argv)
     if args.archive == "cdse":
@@ -125,6 +160,17 @@ def main(argv: list[str] | None = None) -> int:
         save_cdse(key, secret)
         print(f"saved to the [cdse] section of {credentials_file()} (owner-only)")
         test = check_cdse
+    elif args.archive == "earth-engine":
+        print("Earth Engine: a Cloud project registered for Earth Engine, and a service-account key file "
+              "(leave empty to use your `earthengine authenticate` login)")
+        project = input("project: ").strip()
+        key_file = input("service-account key file (path, optional): ").strip() or None
+        if not project:
+            print("a project is needed; nothing saved", file=sys.stderr)
+            return 1
+        save_earth_engine(project, key_file)
+        print(f"saved to {config_dir() / 'earth-engine.json'} (owner-only; the key file stays where it is)")
+        test = lambda: check("earth-engine", "COPERNICUS/S2_SR_HARMONIZED", "B04")    # noqa: E731
     else:
         print("NASA Earthdata token (https://urs.earthdata.nasa.gov > Generate Token; it lasts 60 days)")
         token = getpass.getpass("token: ").strip()

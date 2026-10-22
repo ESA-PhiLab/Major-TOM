@@ -6,6 +6,7 @@
     session(archive)                                  context in which reads run; credentials exist only inside it
 
     stac         STAC API + GDAL: Planetary Computer, Earth Search, CDSE, NASA Earthdata
+    earthengine  Google Earth Engine: computePixels onto the window grid
 
 Scene choice, window layout and stitching tiles are the same for every backend (search.py, read.py). A new
 archive reachable by STAC and GDAL is only an Archive entry (archives.py); another access method is one more
@@ -32,11 +33,11 @@ def backend(archive: Archive) -> ModuleType:
 
 
 def available(archive: Archive) -> bool:
-    """Whether the archive's credentials, if it needs any, are set up."""
+    """Whether the archive can be used here: its client installed and its credentials, if any, set up."""
     try:
         with backend(archive).session(archive):
             return True
-    except PermissionError:
+    except (PermissionError, ImportError):
         return False
 
 
