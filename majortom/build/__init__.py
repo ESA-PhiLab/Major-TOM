@@ -31,7 +31,6 @@ from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
-import rasterio
 from rasterio.warp import transform_bounds
 from tqdm.auto import tqdm
 
@@ -39,8 +38,9 @@ from ..cells import Cell, cells_from_points, cells_in   # noqa: F401  re-exporte
 from ..spec import MARGIN, cell_coverage, window
 from .archives import ARCHIVES, Archive
 from .collections import COLLECTIONS, Collection, Source, declared_scaling, processing_baseline
+from .backends import backend, retries
 from .read import layout, read_asset
-from .search import acquired, item_crs, retries, same_pass, scenes, tiles_for
+from .search import acquired, item_crs, same_pass, scenes, tiles_for
 
 PROFILE = "native-v0"          # recorded in every sample: native grid if the CRS matches, else resampled
 CANDIDATES = 5                 # scenes examined per sample
@@ -125,7 +125,7 @@ def borrowed_clouds(archive: Archive, collection: Collection, tiles, crs: str, w
     if not mates:
         return scene_cloud(tiles), "scene", []
     key = where.key(other.clouds[0])
-    data, seen = read_asset(mates, key, win, res, "nearest")
+    data, seen = read_asset(archive, mates, key, win, res, "nearest")
     clouds, fill = other.clouds[1](data[0])
     valid = covered & seen & ~fill
     return (float(clouds[valid].mean()) if valid.any() else 1.0), collection.clouds_from, [it.id for it in mates]
@@ -163,10 +163,10 @@ def pick_scene(archive: Archive, source: Source, cell, collection, query, margin
         for crs, tiles in tiles_for(scene, cell, margin):   # same scene, another zone if this one is empty
             bands = present(collection, source, tiles)
             grid_assets = bands + ([mask_asset] if own_mask else [])
-            win, res, native = layout(cell, tiles[0], collection, source, grid_assets, margin, crs)
+            win, res, native = layout(archive, cell, tiles[0], collection, source, grid_assets, margin, crs)
             method = "nearest" if own_mask else collection.resampling   # without a mask: the data
             read_start = time.perf_counter()
-            data, covered = read_asset(tiles, source.key(mask_asset), win, res[mask_asset], method)
+            data, covered = read_asset(archive, tiles, source.key(mask_asset), win, res[mask_asset], method)
             read_seconds = time.perf_counter() - read_start
             cloud, cloud_source, cloud_items = None, None, []
             if own_mask:                                # the mask also marks no-data pixels inside files
@@ -242,7 +242,7 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
         path.unlink()                                   # never leave an old sample under this index
         path.with_suffix(".json").unlink(missing_ok=True)
 
-    with rasterio.Env(**archive.gdal_env()):             # credentials, if any, live only inside this block
+    with backend(archive).session(archive):             # credentials, if any, live only inside this block
         pick, seconds = pick_scene(archive, source, cell, collection, query, margin, choice)
         tiles, win, res, native, cloud, nodata = pick.tiles, pick.win, pick.res, pick.native, pick.cloud, pick.nodata
         arrays, band_seconds = {}, {}
@@ -251,7 +251,7 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
                 arrays[asset], band_seconds[asset] = pick.first, pick.first_seconds
                 continue
             read_start = time.perf_counter()
-            arrays[asset] = read_asset(tiles, source.key(asset), win, res[asset], collection.resampling)[0]
+            arrays[asset] = read_asset(archive, tiles, source.key(asset), win, res[asset], collection.resampling)[0]
             band_seconds[asset] = time.perf_counter() - read_start
     seconds["bands"] = {band: round(s, 3) for band, s in band_seconds.items()}
     seconds["total"] = round(time.perf_counter() - build_start, 3)
@@ -313,7 +313,8 @@ def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, 
     if archive not in ARCHIVES:
         raise KeyError(f"unknown archive {archive!r}; pick one of {sorted(ARCHIVES)}")
     source = ARCHIVES[archive]
-    source.gdal_env()                                    # missing credentials: one clear error, before any sample
+    with backend(source).session(source):                # missing credentials: one clear error, before any sample
+        pass
     if collection not in COLLECTIONS:
         raise KeyError(f"unknown collection {collection!r}; pick one of {sorted(COLLECTIONS)}")
     product = COLLECTIONS[collection]

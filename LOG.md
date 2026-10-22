@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-22 Builder restructured: backends/ (stac.py: STAC API + GDAL for PC, Earth Search, CDSE, Earthdata) behind search/header/read_tile/session; credential lookup in credentials.py; no change in output (rebuilds, 25 pairs, S2 table identical)
 - 2026-10-22 Earthdata reads fixed (bearer auth, no HEAD: a HEAD-signed redirect broke reads); HLS identical to Planetary Computer for 2024, but ~12x slower per sample
 - 2026-10-22 Builder: earthdata archive (NASA LP DAAC: HLS L30 from 2013, S30 from 2015) with a token from EARTHDATA_TOKEN or ~/.config/majortom/earthdata-token; CRS and tile from MGRS ids
 - 2026-10-22 First reading-speed report: 21 product-archive pairs, no failures -> [report](docs/reports/2026-10-22-build-speed.md)

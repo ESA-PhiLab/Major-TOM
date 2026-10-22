@@ -1,45 +1,37 @@
-"""Read one scene into a sample window.
+"""Read one scene into a sample window, from any archive.
 
-Every read puts a file onto the window's pixel grid through a warped view (WarpedVRT):
-- product already in the cell's CRS, window on its pixel grid: nearest neighbour, i.e. an exact copy;
-- otherwise (latitude/longitude products, another UTM zone): resampled with the collection's method.
-The view also says which window pixels the file covers, which is used to stitch tiles and count no-data.
+    layout      the window and pixel size per band, from each asset's grid (backend.header)
+    read_asset  one asset stitched from a scene's tiles (backend.read_tile per tile): earlier tiles win where
+                tiles overlap, and the covered pixels give the no-data share
+
+Each backend puts a tile onto the window's pixel grid unchanged where the product is already on it (native),
+else resampled with the collection's method.
 """
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pystac
-import rasterio
 from rasterio.crs import CRS
-from rasterio.enums import Resampling
-from rasterio.vrt import WarpedVRT
 
 from ..cells import Cell
 from ..spec import Window, window
+from .backends import backend
 from .collections import Collection, Source
-from .search import retry
 
-GDAL_OPTIONS = dict(                       # cloud-native reads: one request per header, HTTP/2, retries
-    GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR", GDAL_INGESTED_BYTES_AT_OPEN="32768",
-    GDAL_HTTP_VERSION="2", GDAL_HTTP_MULTIPLEX="YES", GDAL_HTTP_MERGE_CONSECUTIVE_RANGES="YES",
-    GDAL_HTTP_MAX_RETRY="5", GDAL_HTTP_RETRY_DELAY="1",
-    # give up on stalled transfers, not slow ones: a limit on total time (GDAL_HTTP_TIMEOUT) cut 1.4 MB tiles
-    # from a distant bucket short, and GDAL decoded the partial tile (TIFFFillTile "got ... bytes")
-    GDAL_HTTP_CONNECTTIMEOUT="30", GDAL_HTTP_LOW_SPEED_TIME="60", GDAL_HTTP_LOW_SPEED_LIMIT="1024",
-)
+if TYPE_CHECKING:
+    from .archives import Archive
 
 
-def layout(cell: Cell, item: pystac.Item, collection: Collection, source: Source, assets: list[str],
-           margin: float, crs: str) -> tuple[Window, dict[str, float], bool]:
+def layout(archive: Archive, cell: Cell, item: pystac.Item, collection: Collection, source: Source,
+           assets: list[str], margin: float, crs: str) -> tuple[Window, dict[str, float], bool]:
     """The window in `crs` and the pixel size per asset (band name) for this cell and product.
 
     If the product is in `crs`, the lattice is its own coarsest pixel grid, so pixels are copied
     unchanged (native). Otherwise the lattice is the coarsest target pixel size and the data are resampled.
     """
-    headers = {}
-    for asset in assets:
-        with rasterio.open(item.assets[source.key(asset)].href) as src:
-            headers[asset] = (src.crs, src.transform)
+    headers = {asset: backend(archive).header(archive, item, source.key(asset)) for asset in assets}
     native = all(c == CRS.from_user_input(crs) for c, _ in headers.values())
     if native:
         res = {a: abs(t.a) for a, (_, t) in headers.items()}
@@ -57,7 +49,7 @@ def _metres(crs: CRS, transform) -> float:
     return abs(transform.a)
 
 
-def read_asset(tiles: list[pystac.Item], asset: str, win: Window, res: float,
+def read_asset(archive: Archive, tiles: list[pystac.Item], asset: str, win: Window, res: float,
                resampling: str) -> tuple[np.ndarray, np.ndarray]:
     """One asset (the archive's key) on the window grid, stitched from a scene's tiles.
 
@@ -66,14 +58,7 @@ def read_asset(tiles: list[pystac.Item], asset: str, win: Window, res: float,
     n = win.pixels(res)
     data, covered = None, np.zeros((n, n), bool)
     for item in tiles:
-        with rasterio.open(item.assets[asset].href) as src:
-            same_crs = src.crs == CRS.from_user_input(win.crs)
-            method = Resampling.nearest if same_crs else Resampling[resampling]
-            with WarpedVRT(src, crs=win.crs, transform=win.transform(res), width=n, height=n,
-                           resampling=method, add_alpha=True,
-                           init_dest_nodata=False, INIT_DEST=0) as vrt:   # empty pixels 0; coverage from alpha
-                tile = retry(vrt.read)                       # bands, then alpha (0 = not covered)
-        values, alpha = tile[:-1], tile[-1] > 0
+        values, alpha = backend(archive).read_tile(archive, item, asset, win, res, resampling)
         if data is None:
             data = np.zeros_like(values)
         new = alpha & ~covered                               # earlier tiles win where tiles overlap

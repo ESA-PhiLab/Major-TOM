@@ -1,19 +1,15 @@
-"""Find scenes over a window in an archive's STAC catalogue.
+"""Find scenes over a window, in any archive: order, passes, zones and the same pass in another product.
 
-A scene is all tiles of one acquisition (same time); tiles of one scene can be stitched together.
+A scene is all tiles of one acquisition (same time); tiles of one scene can be stitched together. The search
+itself is the archive's backend (backends/); everything here works on the STAC items it returns.
 """
 from __future__ import annotations
 
 import re
-import threading
-import time
-from functools import lru_cache
-from typing import TYPE_CHECKING, Callable, TypeVar
+from typing import TYPE_CHECKING
 
 import pandas as pd
 import pystac
-import pystac_client
-import requests
 import shapely
 from rasterio.crs import CRS
 from rasterio.warp import transform_bounds
@@ -21,60 +17,11 @@ from shapely.geometry import shape
 
 from ..cells import Cell
 from ..spec import cell_crs, window
+from .backends import backend
 from .collections import Collection, Source
 
 if TYPE_CHECKING:
     from .archives import Archive
-
-T = TypeVar("T")
-PAGE = 100                                              # items per page: one request per search (CDSE pages by 10)
-_counts = threading.local()                             # retries in this thread, for the sample's timing
-_gates: dict[str, tuple[threading.Lock, list[float]]] = {}
-_gates_lock = threading.Lock()
-
-
-def retry(fn: Callable[[], T], attempts: int = 4) -> T:
-    """Call `fn`, retrying with waits of 1, 2, 4 s (rate limits, dropped connections). Retries are counted."""
-    for i in range(attempts):
-        try:
-            return fn()
-        except Exception:
-            if i == attempts - 1:
-                raise
-            _counts.retries = retries() + 1
-            time.sleep(2 ** i)
-
-
-def retries(reset: bool = False) -> int:
-    """Retries made in this thread so far; reset=True starts the count again."""
-    if reset:
-        _counts.retries = 0
-    return getattr(_counts, "retries", 0)
-
-
-def search_items(archive: Archive, **query) -> list[pystac.Item]:
-    """Run one catalogue search with retries, at most one per `archive.search_gap` seconds across threads."""
-    def run() -> list[pystac.Item]:
-        if archive.search_gap:
-            with _gates_lock:
-                gate = _gates.setdefault(archive.name, (threading.Lock(), [0.0]))
-            with gate[0]:                                # one search at a time, spaced by the gap
-                wait = gate[1][0] + archive.search_gap - time.monotonic()
-                if wait > 0:
-                    time.sleep(wait)
-                gate[1][0] = time.monotonic()
-        return list(catalog(archive).search(limit=min(PAGE, query.get("max_items") or PAGE), **query).items())
-    return retry(run, archive.retries)
-
-
-@lru_cache(maxsize=None)
-def catalog(archive: Archive) -> pystac_client.Client:
-    """The archive's catalogue client, one per archive (Planetary Computer signs the asset links)."""
-    client = pystac_client.Client.open(archive.stac_url, modifier=archive.modifier, timeout=30)
-    if archive.sorts:
-        client.add_conforms_to("SORT")                  # Planetary Computer sorts but does not declare it
-    client._stac_io.session.mount("https://", requests.adapters.HTTPAdapter(pool_maxsize=32))
-    return client
 
 
 def acquired(item: pystac.Item) -> pd.Timestamp:
@@ -130,11 +77,10 @@ def scenes(archive: Archive, source: Source, collection: Collection, bbox: tuple
     needed = {source.key(band) for band in bands}                    # this archive's asset keys
 
     def search(dates: str | None) -> list[pystac.Item]:
-        sortby = [dict(order, field=archive.sort_prefix + order["field"]) for order in ORDER[prefer]]
-        query = dict(collections=[source.collection], bbox=bbox, max_items=limit, sortby=sortby)
+        query = dict(bbox=bbox, max_items=limit, sortby=ORDER[prefer])
         if dates:
             query["datetime"] = dates
-        return [it for it in search_items(archive, **query) if needed <= set(it.assets)]
+        return [it for it in backend(archive).search(archive, source.collection, **query) if needed <= set(it.assets)]
 
     note = "dates ignored: one version" if collection.time == "static" else f"dates {datetime}"
     items = search(datetime if collection.time != "static" else None)
@@ -158,8 +104,7 @@ def same_pass(archive: Archive, source: Source, scene: list[pystac.Item], bbox: 
     """Tiles of another product from the same pass as `scene`: same tile, platform and time (within `slack`)."""
     times = [acquired(it) for it in scene]
     dates = f"{(min(times) - slack).isoformat()}/{(max(times) + slack).isoformat()}"
-    query = dict(collections=[source.collection], bbox=bbox, datetime=dates, max_items=50)
-    found = search_items(archive, **query)
+    found = backend(archive).search(archive, source.collection, bbox=bbox, datetime=dates, max_items=50)
     want = {(tile_code(it), it.properties.get("platform")) for it in scene}
     return [it for it in found if (tile_code(it), it.properties.get("platform")) in want]
 

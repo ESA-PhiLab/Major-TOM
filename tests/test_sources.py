@@ -27,12 +27,9 @@ pytestmark = pytest.mark.network
 
 def available_archives() -> list[str]:
     """Archives to compare: CDSE only when its keys are set up (it needs credentials)."""
-    from majortom.build.archives import cdse_keys
-    try:
-        cdse_keys()
-        return ["planetary-computer", "earth-search", "cdse"]
-    except PermissionError:
-        return ["planetary-computer", "earth-search"]
+    from majortom.build.archives import ARCHIVES
+    from majortom.build.backends import available
+    return ["planetary-computer", "earth-search"] + (["cdse"] if available(ARCHIVES["cdse"]) else [])
 
 
 ARCHIVES = available_archives()

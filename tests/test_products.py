@@ -32,11 +32,8 @@ MAX_NODATA = 0.05
 
 def has_credentials(archive: str) -> bool:
     """Whether the archive's credentials, if it needs any, are set up."""
-    try:
-        ARCHIVES[archive].gdal_env()
-        return True
-    except PermissionError:
-        return False
+    from majortom.build.backends import available
+    return available(ARCHIVES[archive])
 
 
 PAIRS = [pytest.param(name, archive, id=f"{name}@{archive}",
@@ -67,7 +64,8 @@ def test_product_builds_from_archive(name, archive, tmp_path):
 
 @pytest.mark.parametrize("name, archive", PAIRS)
 def test_period_matches_the_catalogue(name, archive):
-    from majortom.build.search import catalog, retry
+    from majortom.build.backends import retry
+    from majortom.build.backends.stac import catalog
 
     source = COLLECTIONS[name].source(name, archive)
     if source.period is None:

@@ -100,7 +100,8 @@ def test_l1c_borrows_clouds_from_the_same_pass_of_l2a(monkeypatch):
         def search(self, **query):
             return type("Search", (), {"items": lambda self: iter(l2a)})()
 
-    monkeypatch.setattr(search, "catalog", lambda archive: Catalog())
+    from majortom.build.backends import stac
+    monkeypatch.setattr(stac, "catalog", lambda archive: Catalog())
     l1c = [tile("l1c-vk", "MGRS-12TVK", "sentinel-2a", 0, cloud=10), tile("l1c-vl", "MGRS-12TVL", "sentinel-2a", -15,
                                                                            cloud=30)]
     mates = search.same_pass(ARCHIVES["earth-search"], Source("sentinel-2-c1-l2a"), l1c, (0, 0, 1, 1))

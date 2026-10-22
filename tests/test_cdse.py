@@ -5,7 +5,8 @@ import stat
 import pytest
 
 pytest.importorskip("pystac_client")
-from majortom.build import archives, credentials                 # noqa: E402
+from majortom.build import credentials                           # noqa: E402
+from majortom.build.backends import stac                         # noqa: E402
 from majortom.build.collections import COLLECTIONS, processing_baseline   # noqa: E402
 
 
@@ -20,7 +21,7 @@ def no_keys(monkeypatch, tmp_path):
 
 def test_missing_keys_say_how_to_set_them_up(no_keys):
     with pytest.raises(PermissionError, match="CDSE_S3_ACCESS_KEY") as error:
-        archives.cdse_keys()
+        credentials.cdse_keys()
     assert "majortom.build.credentials" in str(error.value)
 
 
@@ -28,8 +29,8 @@ def test_saved_profile_is_owner_only_and_keeps_other_sections(no_keys):
     no_keys.parent.mkdir()
     no_keys.write_text("[default]\naws_access_key_id = other\naws_secret_access_key = other\n")
     credentials.save_cdse("fake-key", "fake-secret")
-    assert archives.cdse_keys() == ("fake-key", "fake-secret")
-    assert archives.profile_keys("default") == ("other", "other")
+    assert credentials.cdse_keys() == ("fake-key", "fake-secret")
+    assert credentials.profile_keys("default") == ("other", "other")
     assert stat.S_IMODE(no_keys.stat().st_mode) == 0o600
 
 
@@ -37,13 +38,13 @@ def test_environment_wins_over_the_profile(no_keys, monkeypatch):
     credentials.save_cdse("file-key", "file-secret")
     monkeypatch.setenv("CDSE_S3_ACCESS_KEY", "env-key")
     monkeypatch.setenv("CDSE_S3_SECRET_KEY", "env-secret")
-    assert archives.cdse_keys() == ("env-key", "env-secret")
+    assert credentials.cdse_keys() == ("env-key", "env-secret")
 
 
 def test_settings_stay_out_of_the_process_environment(no_keys):
     credentials.save_cdse("fake-key", "fake-secret")
     before = dict(os.environ)
-    env = archives.cdse_env()
+    env = stac.cdse_env()
     assert env["AWS_S3_ENDPOINT"] == "eodata.dataspace.copernicus.eu"
     assert env["session"].get_credential_options()["AWS_SESSION_TOKEN"] == ""
     assert "fake" not in repr(env)                               # the keys never show in a printout
@@ -80,16 +81,16 @@ def no_token(monkeypatch, tmp_path):
 
 def test_earthdata_token_setup_and_lookup(no_token, monkeypatch, capsys):
     with pytest.raises(PermissionError, match="EARTHDATA_TOKEN"):
-        archives.earthdata_token()
+        credentials.earthdata_token()
     monkeypatch.setattr(credentials.getpass, "getpass", lambda prompt: "fake-token")
     assert credentials.main(["earthdata", "--no-check"]) == 0
     out = capsys.readouterr()
     assert "fake-token" not in out.out + out.err
     assert stat.S_IMODE(no_token.stat().st_mode) == 0o600 and stat.S_IMODE(no_token.parent.stat().st_mode) == 0o700
-    env = archives.earthdata_env()
+    env = stac.earthdata_env()
     assert (env["GDAL_HTTP_AUTH"], env["GDAL_HTTP_BEARER"], env["CPL_VSIL_CURL_USE_HEAD"]) == ("BEARER", "fake-token", "NO")
     monkeypatch.setenv("EARTHDATA_TOKEN", "env-token")
-    assert archives.earthdata_token() == "env-token"
+    assert credentials.earthdata_token() == "env-token"
 
 
 def test_hls_from_earthdata_covers_the_years_before_planetary_computer():

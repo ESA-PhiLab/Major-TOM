@@ -14,11 +14,59 @@ import configparser
 import getpass
 import os
 import sys
+from pathlib import Path
 
-from .archives import ARCHIVES, credentials_file, earthdata_token_file
+CDSE_SETUP = ("CDSE needs S3 keys (not your login). Create them at "
+              "https://eodata-s3keysmanager.dataspace.copernicus.eu, then run "
+              "`python -m majortom.build.credentials cdse`, or set CDSE_S3_ACCESS_KEY and CDSE_S3_SECRET_KEY")
+EARTHDATA_SETUP = ("NASA Earthdata needs a token (not your password). Generate one at "
+                   "https://urs.earthdata.nasa.gov (Generate Token; it lasts 60 days), then run "
+                   "`python -m majortom.build.credentials earthdata`, or set EARTHDATA_TOKEN")
 
-SNOWBIRD = dict(bbox=(-111.7, 40.55, -111.6, 40.6), max_items=1, datetime="2024-08-29T00:00:00Z/2024-08-29T23:59:59Z")
-TEST_SEARCH = dict(collections=["sentinel-2-l2a"], **SNOWBIRD)
+
+# looking credentials up (backends call these when a session starts) -------------------------------------------
+
+def credentials_file() -> Path:
+    """The AWS-style credentials file: AWS_SHARED_CREDENTIALS_FILE, else ~/.aws/credentials."""
+    return Path(os.environ.get("AWS_SHARED_CREDENTIALS_FILE", "~/.aws/credentials")).expanduser()
+
+
+def profile_keys(section: str) -> tuple[str | None, str | None]:
+    """(access key, secret key) from one section of the credentials file, or (None, None)."""
+    config = configparser.ConfigParser()
+    config.read(credentials_file())
+    if not config.has_section(section):
+        return None, None
+    return config[section].get("aws_access_key_id"), config[section].get("aws_secret_access_key")
+
+
+def cdse_keys() -> tuple[str, str]:
+    """CDSE S3 keys: from the environment, else the [cdse] profile. Never logged or stored."""
+    key, secret = os.environ.get("CDSE_S3_ACCESS_KEY"), os.environ.get("CDSE_S3_SECRET_KEY")
+    if not (key and secret):
+        key, secret = profile_keys("cdse")
+    if not (key and secret):
+        raise PermissionError(CDSE_SETUP)
+    return key, secret
+
+
+def earthdata_token_file() -> Path:
+    return Path(os.environ.get("MAJORTOM_CONFIG", "~/.config/majortom")).expanduser() / "earthdata-token"
+
+
+def earthdata_token() -> str:
+    """The Earthdata token: from the environment, else the owner-only token file. Never logged or stored."""
+    token = os.environ.get("EARTHDATA_TOKEN")
+    if not token and earthdata_token_file().exists():
+        token = earthdata_token_file().read_text().strip()
+    if not token:
+        raise PermissionError(EARTHDATA_SETUP)
+    return token
+
+
+# setting them up once ----------------------------------------------------------------------------------------
+
+SNOWBIRD = dict(bbox=(-111.7, 40.55, -111.6, 40.6), max_items=1)
 
 
 def save_cdse(key: str, secret: str) -> None:
@@ -46,26 +94,20 @@ def save_earthdata(token: str) -> None:
 
 def check(archive_name: str, collection: str, asset: str) -> str:
     """Open one file header of `collection` with the saved credentials; returns what was read."""
-    import rasterio
-
-    from .search import search_items
+    from .archives import ARCHIVES
+    from .backends import backend
 
     archive = ARCHIVES[archive_name]
-    item = search_items(archive, collections=[collection], **dict(SNOWBIRD, datetime="2024-08-01/2024-08-31"))[0]
-    with rasterio.Env(**archive.gdal_env()), rasterio.open(item.assets[asset].href) as src:
-        return f"{item.id}: {src.width} x {src.height} px"
+    method = backend(archive)
+    item = method.search(archive, collection, **dict(SNOWBIRD, datetime="2024-08-01/2024-08-31"))[0]
+    with method.session(archive):
+        crs, transform = method.header(archive, item, asset)
+    return f"{item.id}: {crs}, {abs(transform.a):g} m pixels"
 
 
 def check_cdse() -> str:
     """Open one CDSE file header with the saved keys; returns what was read."""
-    import rasterio
-
-    from .search import catalog
-
-    archive = ARCHIVES["cdse"]
-    item = next(catalog(archive).search(**TEST_SEARCH).items())
-    with rasterio.Env(**archive.gdal_env()), rasterio.open(item.assets["SCL_60m"].href) as src:
-        return f"{item.id}: {src.width} x {src.height} px"
+    return check("cdse", "sentinel-2-l2a", "SCL_60m")
 
 
 def main(argv: list[str] | None = None) -> int:
