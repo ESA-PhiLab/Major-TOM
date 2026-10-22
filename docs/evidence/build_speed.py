@@ -166,6 +166,7 @@ def report(rows: pd.DataFrame, errors: pd.DataFrame, context: dict, n_cells: int
         ".npz + .json.",
         "- Dates per product: as in `tests/test_products.py`; cloud=None, so any scene is accepted.",
         "- Each pair runs alone, one after another; archives are not loaded at the same time.",
+        "- Search times depend on each archive's load at run time; compare runs, not single numbers.",
         "",
     ])
 
