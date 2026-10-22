@@ -140,9 +140,13 @@ COLLECTIONS = {
     "landsat-c2-l2": Collection(("blue", "green", "red", "nir08", "swir16", "swir22"), optional=("coastal",),
                                 clouds=("qa_pixel", landsat_clouds), period=("1982-08-22", None)),   # Landsat 4-9
     "hls2-s30": Collection(("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B10", "B11", "B12"),
-                           clouds=("Fmask", hls_clouds), period=("2020-01-01", None)),   # Planetary Computer: 2020-
+                           clouds=("Fmask", hls_clouds),
+                           sources={"planetary-computer": Source("hls2-s30", period=("2020-01-01", None)),
+                                    "earthdata": Source("HLSS30_2.0", period=("2015-11-28", None))}),
     "hls2-l30": Collection(("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B09", "B10", "B11"),
-                           clouds=("Fmask", hls_clouds), period=("2020-01-01", None)),
+                           clouds=("Fmask", hls_clouds),
+                           sources={"planetary-computer": Source("hls2-l30", period=("2020-01-01", None)),
+                                    "earthdata": Source("HLSL30_2.0", period=("2013-04-11", None))}),
     "sentinel-1-rtc": Collection(("vv", "vh"), kind="radar",       # backscatter (gamma0, linear), UTM 10 m; no clouds
                                  period=("2014-10-10", None)),
     "alos-palsar-mosaic": Collection(("HH", "HV"), time="yearly", res_m=25, kind="radar",

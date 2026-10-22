@@ -2,7 +2,8 @@
 
     (product, archive) pairs from COLLECTIONS  ->  one sample at Snowbird  ->  bands, shapes, no-data, records
 
-Run with `pytest -m network tests/test_products.py`; CDSE pairs need its keys and are skipped without them.
+Run with `pytest -m network tests/test_products.py`; pairs whose archive needs credentials (CDSE keys, an
+Earthdata token) are skipped when those are not set up.
 docs/evidence/build_speed.py uses the same places and dates to measure reading speed.
 """
 import json
@@ -13,7 +14,7 @@ import pytest
 
 pytest.importorskip("pystac_client")
 from majortom import build                                       # noqa: E402
-from majortom.build.archives import cdse_keys                    # noqa: E402
+from majortom.build.archives import ARCHIVES                     # noqa: E402
 from majortom.build.collections import COLLECTIONS               # noqa: E402
 
 pytestmark = pytest.mark.network
@@ -29,16 +30,17 @@ DATES = {                                                        # dates with da
 MAX_NODATA = 0.05
 
 
-def has_cdse_keys() -> bool:
+def has_credentials(archive: str) -> bool:
+    """Whether the archive's credentials, if it needs any, are set up."""
     try:
-        cdse_keys()
+        ARCHIVES[archive].gdal_env()
         return True
     except PermissionError:
         return False
 
 
 PAIRS = [pytest.param(name, archive, id=f"{name}@{archive}",
-                      marks=pytest.mark.skipif(archive == "cdse" and not has_cdse_keys(), reason="no CDSE keys"))
+                      marks=pytest.mark.skipif(not has_credentials(archive), reason=f"no {archive} credentials"))
          for name, collection in COLLECTIONS.items() for archive in collection.archives()]
 
 
@@ -65,7 +67,6 @@ def test_product_builds_from_archive(name, archive, tmp_path):
 
 @pytest.mark.parametrize("name, archive", PAIRS)
 def test_period_matches_the_catalogue(name, archive):
-    from majortom.build.archives import ARCHIVES
     from majortom.build.search import catalog, retry
 
     source = COLLECTIONS[name].source(name, archive)

@@ -7,8 +7,9 @@ An Archive holds no credentials: gdal_env() fetches them when a read starts, and
 inside a rasterio.Env block, so they never reach os.environ, sample metadata or error messages.
 
 CDSE keys are looked up in this order: CDSE_S3_ACCESS_KEY / CDSE_S3_SECRET_KEY, then the [cdse] section of
-the AWS credentials file (~/.aws/credentials, or AWS_SHARED_CREDENTIALS_FILE). Set them up once with
-`python -m majortom.build.credentials cdse`.
+the AWS credentials file (~/.aws/credentials, or AWS_SHARED_CREDENTIALS_FILE). The NASA Earthdata token:
+EARTHDATA_TOKEN, then ~/.config/majortom/earthdata-token. Set either up once with
+`python -m majortom.build.credentials cdse` (or `earthdata`).
 """
 from __future__ import annotations
 
@@ -92,6 +93,30 @@ def cdse_env() -> dict:
                 AWS_VIRTUAL_HOSTING="FALSE", AWS_HTTPS="YES", AWS_NO_SIGN_REQUEST="NO", GDAL_NUM_THREADS="1")
 
 
+EARTHDATA_SETUP = ("NASA Earthdata needs a token (not your password). Generate one at "
+                   "https://urs.earthdata.nasa.gov (Generate Token; it lasts 60 days), then run "
+                   "`python -m majortom.build.credentials earthdata`, or set EARTHDATA_TOKEN")
+
+
+def earthdata_token_file() -> Path:
+    return Path(os.environ.get("MAJORTOM_CONFIG", "~/.config/majortom")).expanduser() / "earthdata-token"
+
+
+def earthdata_token() -> str:
+    """The Earthdata token: from the environment, else the owner-only token file. Never logged or stored."""
+    token = os.environ.get("EARTHDATA_TOKEN")
+    if not token and earthdata_token_file().exists():
+        token = earthdata_token_file().read_text().strip()
+    if not token:
+        raise PermissionError(EARTHDATA_SETUP)
+    return token
+
+
+def earthdata_env() -> dict:
+    """GDAL settings for NASA Earthdata files: the token as a bearer header, sent only while the Env is open."""
+    return dict(GDAL_OPTIONS, GDAL_HTTP_HEADERS=f"Authorization: Bearer {earthdata_token()}")
+
+
 @dataclass(frozen=True)
 class Archive:
     """Where samples are searched and read.
@@ -128,4 +153,8 @@ ARCHIVES = {
     # ESA's Copernicus Data Space: public catalogue, S3 keys for the files, 4 connections per account
     "cdse": Archive("cdse", "https://stac.dataspace.copernicus.eu/v1", gdal_env=cdse_env, workers=4, retries=6,
                     search_gap=1.0, refused="CDSE refused the S3 keys (expired or wrong?); see docs/ARCHIVES.md"),
+    # NASA Earthdata, LP DAAC's catalogue (HLS); public search, a token for the files
+    "earthdata": Archive("earthdata", "https://cmr.earthdata.nasa.gov/stac/LPCLOUD", gdal_env=earthdata_env,
+                         workers=8, refused="Earthdata refused the token (tokens expire after 60 days); generate "
+                                            "a new one and run `python -m majortom.build.credentials earthdata`"),
 }

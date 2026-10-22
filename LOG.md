@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-22 Builder: earthdata archive (NASA LP DAAC: HLS L30 from 2013, S30 from 2015) with a token from EARTHDATA_TOKEN or ~/.config/majortom/earthdata-token; CRS and tile from MGRS ids
 - 2026-10-22 First reading-speed report: 21 product-archive pairs, no failures -> [report](docs/reports/2026-10-22-build-speed.md)
 - 2026-10-22 Builder: Landsat 4-7 now found (coastal optional; was dropping TM/ETM+ scenes); every sample records platform and declared scaling; sources declare their period, dates outside it are refused
 - 2026-10-22 Builder: one request per search (page size 100), CDSE searches spaced 1 s apart, retries counted per sample (CDSE 8/8 instead of 1/8); benchmark writes a dated report to docs/reports/

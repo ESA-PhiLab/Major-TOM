@@ -343,7 +343,7 @@ def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, 
             except Exception as error:
                 row = jobs[job]
                 message = f"{type(error).__name__}: {error}"
-                if source.refused and any(s in message for s in ("403", "Access Denied", "AccessDenied")):
+                if source.refused and any(s in message for s in ("401", "403", "Access Denied", "AccessDenied")):
                     message = f"{source.refused}: {message}"
                 errors.append(dict(index=row.Index, grid_cell=row.grid_cell, error=message[:300]))
     print(f"{len(list(out.glob('*.npz'))):,} samples in {out}, {len(errors):,} failed")

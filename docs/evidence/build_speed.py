@@ -34,7 +34,7 @@ import requests
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tests"))
-from test_products import DATES, has_cdse_keys                   # noqa: E402
+from test_products import DATES, has_credentials                 # noqa: E402
 
 from majortom import build                                       # noqa: E402
 from majortom.build.archives import ARCHIVES                     # noqa: E402
@@ -46,6 +46,7 @@ STORAGE = {                                                      # one file host
     "planetary-computer": "https://sentinel2l2a01.blob.core.windows.net",
     "earth-search": "https://e84-earth-search-sentinel-data.s3.us-west-2.amazonaws.com",
     "cdse": "https://eodata.dataspace.copernicus.eu",
+    "earthdata": "https://data.lpdaac.earthdatacloud.nasa.gov",
 }
 
 
@@ -180,7 +181,7 @@ def main() -> None:
     context = dict(date=start.date().isoformat(), start=start.strftime("%Y-%m-%d %H:%M"),
                    country=("not stated" if args.region == "none" else args.region or country()),
                    cpus=len(os.sched_getaffinity(0)), software=software(), network={})
-    archives = [a for a in ARCHIVES if a != "cdse" or has_cdse_keys()]
+    archives = [a for a in ARCHIVES if has_credentials(a)]
     context["network"] = {a: dict(catalogue=round_trip(ARCHIVES[a].stac_url), storage=round_trip(STORAGE[a]))
                           for a in archives}
     cells = build.cells_in(AREA, d=10).reset_index(drop=True).head(args.cells)

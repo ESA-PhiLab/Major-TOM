@@ -157,3 +157,17 @@ def test_declared_scaling_is_recorded_as_given():
     it.add_asset("qa_pixel", pystac.Asset("x", extra_fields={"raster:bands": [{"unit": "bit index"}]}))
     assert declared_scaling(it, "red") == {"scale": 2.75e-05, "offset": -0.2}
     assert declared_scaling(it, "qa_pixel") is None
+
+
+def test_crs_and_tile_from_an_mgrs_tile_in_the_id():                 # NASA HLS records give no CRS
+    import datetime as dt
+    import pystac
+    from majortom.build.search import item_crs, tile_code
+
+    def item(name):
+        return pystac.Item(name, None, None, dt.datetime(2024, 8, 27), {})
+
+    assert item_crs(item("HLS.S30.T12TVK.2024240T181919.v2.0")) == "EPSG:32612"
+    assert item_crs(item("HLS.L30.T34HBH.2024240T181919.v2.0")) == "EPSG:32734"       # band H: south
+    assert tile_code(item("HLS.S30.T12TVK.2024240T181919.v2.0")) == "MGRS-12TVK"
+    assert item_crs(item("Copernicus_DSM_COG_10_N40_00_W112_00_DEM")) is None

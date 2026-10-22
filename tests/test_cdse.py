@@ -68,3 +68,33 @@ def test_cdse_band_names_and_baseline():
     assert COLLECTIONS["sentinel-2-l1c"].source("sentinel-2-l1c", "cdse").key("B10") == "B10"
     item = pystac.Item("x", None, None, dt.datetime(2021, 8, 25), {"processing:version": "05.00"})
     assert processing_baseline(item) == "05.00"
+
+
+@pytest.fixture
+def no_token(monkeypatch, tmp_path):
+    """No Earthdata token in the environment; the token file lives in tmp_path."""
+    monkeypatch.delenv("EARTHDATA_TOKEN", raising=False)
+    monkeypatch.setenv("MAJORTOM_CONFIG", str(tmp_path / "majortom"))
+    return tmp_path / "majortom" / "earthdata-token"
+
+
+def test_earthdata_token_setup_and_lookup(no_token, monkeypatch, capsys):
+    with pytest.raises(PermissionError, match="EARTHDATA_TOKEN"):
+        archives.earthdata_token()
+    monkeypatch.setattr(credentials.getpass, "getpass", lambda prompt: "fake-token")
+    assert credentials.main(["earthdata", "--no-check"]) == 0
+    out = capsys.readouterr()
+    assert "fake-token" not in out.out + out.err
+    assert stat.S_IMODE(no_token.stat().st_mode) == 0o600 and stat.S_IMODE(no_token.parent.stat().st_mode) == 0o700
+    assert archives.earthdata_env()["GDAL_HTTP_HEADERS"] == "Authorization: Bearer fake-token"
+    monkeypatch.setenv("EARTHDATA_TOKEN", "env-token")
+    assert archives.earthdata_token() == "env-token"
+
+
+def test_hls_from_earthdata_covers_the_years_before_planetary_computer():
+    from majortom.build import outside
+
+    hls = COLLECTIONS["hls2-l30"]
+    assert hls.source("hls2-l30", "earthdata").collection == "HLSL30_2.0"
+    assert outside(hls.source("hls2-l30", "planetary-computer").period, "2016-07-01/2016-08-31")
+    assert not outside(hls.source("hls2-l30", "earthdata").period, "2016-07-01/2016-08-31")

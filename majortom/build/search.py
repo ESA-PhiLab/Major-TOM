@@ -4,6 +4,7 @@ A scene is all tiles of one acquisition (same time); tiles of one scene can be s
 """
 from __future__ import annotations
 
+import re
 import threading
 import time
 from functools import lru_cache
@@ -82,13 +83,20 @@ def acquired(item: pystac.Item) -> pd.Timestamp:
     return when.tz_localize("UTC") if when.tzinfo is None else when.tz_convert("UTC")
 
 
+MGRS_IN_ID = re.compile(r"(?:^|[._])T(\d{2})([C-HJ-NP-X])([A-HJ-NP-Z]{2})(?:[._]|$)")   # e.g. HLS.S30.T12TVK.2024...
+
+
 def item_crs(item: pystac.Item) -> str | None:
     """The tile's CRS from its STAC metadata, without opening a file: the item's, else its assets' (STAC 1.1
-    catalogues such as CDSE put proj:code on each asset)."""
+    catalogues such as CDSE put proj:code on each asset), else the UTM zone of an MGRS tile in its id (NASA's
+    HLS records give no CRS)."""
     for fields in [item.properties, *(asset.extra_fields for asset in item.assets.values())]:
         code, epsg = fields.get("proj:code"), fields.get("proj:epsg")
         if code or epsg:
             return code or f"EPSG:{epsg}"
+    match = MGRS_IN_ID.search(item.id)
+    if match:                                           # latitude bands N and later are north of the equator
+        return f"EPSG:{(32600 if match.group(2) >= 'N' else 32700) + int(match.group(1))}"
     return None
 
 
@@ -140,7 +148,9 @@ def scenes(archive: Archive, source: Source, collection: Collection, bbox: tuple
 
 def tile_code(item: pystac.Item) -> str | None:
     """The product tile an item covers (Sentinel-2: its MGRS square)."""
-    return item.properties.get("grid:code") or item.properties.get("s2:mgrs_tile")
+    code = item.properties.get("grid:code") or item.properties.get("s2:mgrs_tile")
+    match = None if code else MGRS_IN_ID.search(item.id)
+    return f"MGRS-{''.join(match.groups())}" if match else code
 
 
 def same_pass(archive: Archive, source: Source, scene: list[pystac.Item], bbox: tuple[float, float, float, float],
