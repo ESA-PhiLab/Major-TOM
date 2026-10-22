@@ -1,6 +1,6 @@
 """Every product from every archive builds a sample (online).
 
-    (product, archive) pairs from COLLECTIONS  ->  one sample at Snowbird  ->  bands, shapes, no-data, records
+    (product, archive) pairs from COLLECTIONS  ->  one sample at Loch Lomond  ->  bands, shapes, no-data, records
 
 Run with `pytest -m network tests/test_products.py`; pairs whose archive needs credentials (CDSE keys, an
 Earthdata token, Earth Engine) are skipped when those are not set up. With MAJORTOM_EVIDENCE_DIR set, the
@@ -20,13 +20,14 @@ from majortom.build.collections import COLLECTIONS               # noqa: E402
 
 pytestmark = pytest.mark.network
 
-SNOWBIRD = (-111.65, 40.58)
-AUGUST = "2024-08-01/2024-08-31"                                # one month for every product that allows it
-DATES = {                                                        # dates with data at Snowbird; static: None
-    **{name: AUGUST for name in ("sentinel-2-l2a", "sentinel-2-l1c", "landsat-c2-l2", "landsat-c2-l1", "hls2-s30",
+PLACE = (-4.58, 56.09)            # cell 624U_29L: south Loch Lomond, its islands, Conic Hill, Luss and the A82
+SUMMER = "2024-06-01/2024-08-31"                                 # one window for every product that allows it
+DATES = {                                                        # dates with data at PLACE; static: None
+    **{name: SUMMER for name in ("sentinel-2-l2a", "sentinel-2-l1c", "landsat-c2-l2", "landsat-c2-l1", "hls2-s30",
                                  "hls2-l30", "sentinel-1-rtc", "sentinel-1-grd", "dynamic-world", "modis-09a1",
                                  "modis-09q1", "modis-43a4", "modis-11a2", "modis-13q1", "viirs-dnb-monthly",
-                                 "sentinel-3-olci-l1")},
+                                 "sentinel-3-olci-l1", "opera-rtc-s1", "opera-dswx-hls", "opera-dswx-s1",
+                                 "opera-dist-alert-hls")},
     "aster-l1t": "2004-07-01/2004-09-30",                        # Planetary Computer: 2000-2006 only
     "alos-palsar-mosaic": "2020", "alos-fnf-mosaic": "2020", "esa-worldcover": "2021",   # yearly: nearest version
     "io-lulc-annual-v02": "2022", "esa-cci-lc": "2020",
@@ -54,7 +55,7 @@ def test_product_builds_from_archive(name, archive, tmp_path):
     collection = COLLECTIONS[name]
     if os.environ.get("MAJORTOM_EVIDENCE_DIR"):                  # keep the sample for the gallery
         tmp_path = Path(os.environ["MAJORTOM_EVIDENCE_DIR"]) / "samples" / archive
-    cells = build.cells_from_points(pd.DataFrame({"lon": [SNOWBIRD[0]], "lat": [SNOWBIRD[1]]}), d=10)
+    cells = build.cells_from_points(pd.DataFrame({"lon": [PLACE[0]], "lat": [PLACE[1]]}), d=10)
     ranked = collection.clouds or collection.clouds_from          # with a cloud ranking: a clear scene, as users
     errors = build.download(cells, name, DATES.get(name), archive=archive, outdir=tmp_path,
                             **({} if ranked else {"cloud": None}))
@@ -97,6 +98,7 @@ def declared_period(archive, collection: str) -> tuple[str, str | None]:
             periods.append(retry(lambda: requests.get(url, timeout=30).json())["extent"]["temporal"]["interval"][0])
         return min(p[0][:10] for p in periods), None
     from majortom.build.backends.stac import catalog
-    entry = retry(lambda: catalog(archive).get_collection(collection), 6)
+    provider, collection = collection.split("/", 1) if archive.providers else (None, collection)
+    entry = retry(lambda: catalog(archive, provider).get_collection(collection), 6)
     first, last = entry.extent.temporal.intervals[0]
     return first.date().isoformat(), (last.date().isoformat() if last else None)

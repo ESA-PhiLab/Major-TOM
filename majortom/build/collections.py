@@ -30,10 +30,21 @@ def hls_clouds(fmask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return (fmask & 0b1110) > 0, fmask == 255
 
 
+def find_asset(item: pystac.Item, name: str) -> str | None:
+    """The item's asset key for `name`: the exact key, else the one key ending in "_name" or "/name" (OPERA keys
+    carry the item id), preferring an https link over an s3:// copy (readable only inside AWS)."""
+    if name in item.assets:
+        return name
+    keys = [k for k in item.assets if k.endswith(f"_{name}") or k.endswith(f"/{name}")]
+    https = [k for k in keys if not item.assets[k].href.startswith("s3://")]
+    found = https or keys
+    return found[0] if len(found) == 1 else None
+
+
 def declared_band(item: pystac.Item, key: str) -> dict:
     """The raster:bands entry for an asset key ("ASSET#n": band n of a multi-band asset), or {}."""
     asset, _, n = key.partition("#")
-    fields = item.assets[asset].extra_fields
+    fields = item.assets[find_asset(item, asset)].extra_fields
     bands = fields.get("raster:bands") or fields.get("bands") or []
     index = int(n) - 1 if n else 0
     return bands[index] if index < len(bands) else {}
@@ -143,6 +154,7 @@ S2_CDSE_L2A = {"B01": "B01_60m", "B02": "B02_10m", "B03": "B03_10m", "B04": "B04
                "B06": "B06_20m", "B07": "B07_20m", "B08": "B08_10m", "B8A": "B8A_20m", "B09": "B09_60m",
                "B11": "B11_20m", "B12": "B12_20m", "SCL": "SCL_20m"}     # native resolution of each band
 S2_PERIOD = ("2015-06-27", None)
+DSWX = {"WTR": "B01_WTR", "BWTR": "B02_BWTR", "CONF": "B03_CONF"}   # OPERA DSWx: band numbers in the asset names
 
 
 @dataclass(frozen=True)
@@ -250,12 +262,12 @@ COLLECTIONS = {
     "hls2-s30": Collection(("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B10", "B11", "B12"),
                            clouds=("Fmask", hls_clouds),
                            sources={"planetary-computer": Source("hls2-s30", period=("2020-01-01", None)),
-                                    "earthdata": Source("HLSS30_2.0", period=("2015-11-28", None)),
+                                    "earthdata": Source("LPCLOUD/HLSS30_2.0", period=("2015-11-28", None)),
                                     "earth-engine": Source("NASA/HLS/HLSS30/v002", period=("2015-11-28", None))}),
     "hls2-l30": Collection(("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B09"), optional=("B10", "B11"),
                            clouds=("Fmask", hls_clouds),                                  # B10, B11: thermal
                            sources={"planetary-computer": Source("hls2-l30", period=("2020-01-01", None)),
-                                    "earthdata": Source("HLSL30_2.0", period=("2013-04-11", None)),
+                                    "earthdata": Source("LPCLOUD/HLSL30_2.0", period=("2013-04-11", None)),
                                     "earth-engine": Source("NASA/HLS/HLSL30/v002", period=("2013-04-11", None))}),
     "dynamic-world": Collection(DYNAMIC_WORLD, resampling="nearest", kind="land cover",    # per Sentinel-2 scene
                                 clouds_from="sentinel-2-l2a",                 # it masks clouds: rank by the L2A SCL
@@ -300,6 +312,19 @@ COLLECTIONS = {
                                  period=("2014-10-10", None)),
     "sentinel-1-grd": Collection(("vv", "vh"), kind="radar",   # terrain-corrected by Earth Engine; backscatter in dB
                                  sources={"earth-engine": Source("COPERNICUS/S1_GRD", period=("2014-10-03", None))}),
+    # OPERA (NASA JPL): analysis-ready products from Sentinel-1 and HLS, UTM 30 m; asset keys found by suffix
+    "opera-rtc-s1": Collection(("VV", "VH"), kind="radar",          # gamma0 backscatter, linear; one burst per item
+                               sources={"earthdata": Source("ASF/OPERA_L2_RTC-S1_V1_1", period=("2016-04-14", None))}),
+    "opera-dswx-hls": Collection(("WTR", "BWTR", "CONF"), kind="water", resampling="nearest",   # water classes
+                                 sources={"earthdata": Source("POCLOUD/OPERA_L3_DSWX-HLS_V1_1.0", DSWX,
+                                                              period=("2016-01-01", None))}),
+    "opera-dswx-s1": Collection(("WTR", "BWTR", "CONF"), kind="water", resampling="nearest",
+                                sources={"earthdata": Source("POCLOUD/OPERA_L3_DSWX-S1_V1_1.0", DSWX,
+                                                             period=("2023-12-01", None))}),
+    "opera-dist-alert-hls": Collection(("VEG-DIST-STATUS", "VEG-IND", "VEG-ANOM"), kind="land cover",   # disturbance
+                                       resampling="nearest",
+                                       sources={"earthdata": Source("LPCLOUD/OPERA_L3_DIST-ALERT-HLS_V1_1",
+                                                                    period=("2023-01-01", None))}),
     "alos-palsar-mosaic": Collection(("HH", "HV"), time="yearly", res_m=25, kind="radar",
                                      period=("2015-01-01", "2021-12-31")),
     "nasadem": Collection(("elevation",), time="static", res_m=30, kind="elevation"),

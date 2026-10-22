@@ -27,6 +27,7 @@ from rasterio.enums import Resampling
 from rasterio.session import Session
 from rasterio.vrt import WarpedVRT
 
+from ..collections import find_asset
 from ..credentials import cdse_keys, earthdata_token
 from . import retry
 
@@ -101,9 +102,10 @@ def earthdata_env() -> dict:
 # the four backend functions -----------------------------------------------------------------------------------
 
 @lru_cache(maxsize=None)
-def catalog(archive: Archive) -> pystac_client.Client:
-    """The archive's catalogue client, one per archive (Planetary Computer signs the asset links)."""
-    client = pystac_client.Client.open(archive.stac_url, modifier=archive.modifier, timeout=30)
+def catalog(archive: Archive, provider: str | None = None) -> pystac_client.Client:
+    """The archive's catalogue client, one per archive and provider (Planetary Computer signs the asset links)."""
+    url = f"{archive.stac_url}/{provider}" if provider else archive.stac_url
+    client = pystac_client.Client.open(url, modifier=archive.modifier, timeout=30)
     if archive.sorts:
         client.add_conforms_to("SORT")                  # Planetary Computer sorts but does not declare it
     client._stac_io.session.mount("https://", requests.adapters.HTTPAdapter(pool_maxsize=32))
@@ -114,6 +116,7 @@ def search(archive: Archive, collection: str, sortby: list[dict] | None = None, 
     """One catalogue search with retries, at most one per `archive.search_gap` seconds across threads."""
     if sortby:
         query["sortby"] = [dict(order, field=archive.sort_prefix + order["field"]) for order in sortby]
+    provider, collection = collection.split("/", 1) if archive.providers else (None, collection)
 
     def run() -> list[pystac.Item]:
         if archive.search_gap:
@@ -125,7 +128,7 @@ def search(archive: Archive, collection: str, sortby: list[dict] | None = None, 
                     time.sleep(wait)
                 gate[1][0] = time.monotonic()
         limit = min(PAGE, query.get("max_items") or PAGE)
-        return list(catalog(archive).search(collections=[collection], limit=limit, **query).items())
+        return list(catalog(archive, provider).search(collections=[collection], limit=limit, **query).items())
     return retry(run, archive.retries)
 
 
@@ -137,7 +140,7 @@ def _split(key: str) -> tuple[str, int | None]:
 
 def header(archive: Archive, item: pystac.Item, key: str) -> tuple[CRS, rasterio.Affine]:
     """CRS and geotransform of one asset, from its file header."""
-    with rasterio.open(item.assets[_split(key)[0]].href) as src:
+    with rasterio.open(item.assets[find_asset(item, _split(key)[0])].href) as src:
         return src.crs, src.transform
 
 
@@ -146,7 +149,7 @@ def read_tile(archive: Archive, item: pystac.Item, key: str, win: Window, res: f
     """One file onto the window grid: (bands, covered pixels). Pixels outside the file are 0."""
     n = win.pixels(res)
     asset, band = _split(key)
-    with rasterio.open(item.assets[asset].href) as src:
+    with rasterio.open(item.assets[find_asset(item, asset)].href) as src:
         same_crs = src.crs == CRS.from_user_input(win.crs)
         resampling = Resampling.nearest if same_crs else Resampling[method]
         with WarpedVRT(src, crs=win.crs, transform=win.transform(res), width=n, height=n,

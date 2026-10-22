@@ -179,7 +179,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         save_earthdata(token)
         print(f"saved to {earthdata_token_file()} (owner-only)")
-        test = lambda: check("earthdata", "HLSS30_2.0", "B04")    # noqa: E731
+        test = lambda: check("earthdata", "LPCLOUD/HLSS30_2.0", "B04")    # noqa: E731
     if not args.no_check:
         try:
             print("test read ok:", test())

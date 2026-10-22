@@ -1,6 +1,6 @@
 """Reading speed of every product from every archive, published as a dated report in docs/reports/.
 
-    (product, archive) pairs  ->  N cells near Snowbird each (dates from tests/test_products.py)
+    (product, archive) pairs  ->  N cells around Loch Lomond each (dates from tests/test_products.py)
       -> wall time per pair (samples/hour at the archive's workers), failures with their reasons
       -> each sample's timing: search, scene choice, seconds per band (pixel size from the array), retries
       -> docs/reports/<date>-build-speed.md (one table per kind) + <date>-build-speed.csv (one row per band)
@@ -40,7 +40,7 @@ from majortom import build                                       # noqa: E402
 from majortom.build.archives import ARCHIVES                     # noqa: E402
 from majortom.build.collections import COLLECTIONS               # noqa: E402
 
-AREA = (-111.9, 40.45, -111.45, 40.8)                            # Wasatch, around Snowbird
+AREA = (-4.85, 55.98, -4.35, 56.25)                              # around Loch Lomond, Scotland
 REPORTS = ROOT / "docs" / "reports"
 STORAGE = {                                                      # one file host per archive, for round-trips
     "planetary-computer": "https://sentinel2l2a01.blob.core.windows.net",
@@ -130,7 +130,7 @@ def report(rows: pd.DataFrame, errors: pd.DataFrame, context: dict, n_cells: int
         "",
         f"# {context['date']} — majortom.build reading speed",
         "",
-        f"Every product from every archive, {n_cells} cells each near Snowbird (Wasatch, Utah). "
+        f"Every product from every archive, {n_cells} cells each around Loch Lomond (Scotland). "
         f"Raw rows: [{csv_name}]({csv_name}).",
         "",
         "## Where and when",

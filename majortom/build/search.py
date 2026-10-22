@@ -18,7 +18,7 @@ from shapely.geometry import shape
 from ..cells import Cell
 from ..spec import cell_crs, window
 from .backends import backend
-from .collections import Collection, Source
+from .collections import Collection, Source, find_asset
 
 if TYPE_CHECKING:
     from .archives import Archive
@@ -80,7 +80,8 @@ def scenes(archive: Archive, source: Source, collection: Collection, bbox: tuple
         query = dict(bbox=bbox, max_items=limit, sortby=ORDER[prefer])
         if dates:
             query["datetime"] = dates
-        return [it for it in backend(archive).search(archive, source.collection, **query) if needed <= set(it.assets)]
+        found = backend(archive).search(archive, source.collection, **query)
+        return [it for it in found if all(find_asset(it, name) for name in needed)]
 
     note = "dates ignored: one version" if collection.time == "static" else f"dates {datetime}"
     items = search(datetime if collection.time != "static" else None)

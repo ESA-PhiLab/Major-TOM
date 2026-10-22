@@ -48,6 +48,7 @@ Periods as each archive's catalogue declares them (`–` with no end: ongoing); 
 | `sentinel-2-l2a` | optical | 12 | [2015-06 –](https://planetarycomputer.microsoft.com/dataset/sentinel-2-l2a) | [2015-06 –](https://radiantearth.github.io/stac-browser/#/external/earth-search.aws.element84.com/v1/collections/sentinel-2-c1-l2a) | [2015-06 –](https://browser.stac.dataspace.copernicus.eu/collections/sentinel-2-l2a) | — | [2017-03 –](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED) |
 | `sentinel-3-olci-l1` | optical | 21 | — | — | — | — | [2016-10 –](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S3_OLCI) |
 | `alos-palsar-mosaic` | radar | 2 | [2015-01 – 2021-12](https://planetarycomputer.microsoft.com/dataset/alos-palsar-mosaic) | — | — | — | — |
+| `opera-rtc-s1` | radar | 2 | — | — | — | [2016-04 –](https://www.earthdata.nasa.gov/data/catalog/asf-opera-l2-rtc-s1-v1-1) | — |
 | `sentinel-1-grd` | radar | 2 | — | — | — | — | [2014-10 –](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S1_GRD) |
 | `sentinel-1-rtc` | radar | 2 | [2014-10 –](https://planetarycomputer.microsoft.com/dataset/sentinel-1-rtc) | — | — | — | — |
 | `alos-dem` | elevation | 1 | [static](https://planetarycomputer.microsoft.com/dataset/alos-dem) | — | — | — | — |
@@ -58,10 +59,13 @@ Periods as each archive's catalogue declares them (`–` with no end: ongoing); 
 | `esa-cci-lc` | land cover | 5 | [1992-01 – 2020-12](https://planetarycomputer.microsoft.com/dataset/esa-cci-lc) | — | — | — | — |
 | `esa-worldcover` | land cover | 2 | [2020-01 – 2021-12](https://planetarycomputer.microsoft.com/dataset/esa-worldcover) | — | — | — | — |
 | `io-lulc-annual-v02` | land cover | 1 | [2017-01 – 2024-01](https://planetarycomputer.microsoft.com/dataset/io-lulc-annual-v02) | — | — | — | — |
+| `opera-dist-alert-hls` | land cover | 3 | — | — | — | [2023-01 –](https://www.earthdata.nasa.gov/data/catalog/lpcloud-opera-l3-dist-alert-hls-v1-1) | — |
 | `modis-11a2` | temperature | 2 | [2000-02 –](https://planetarycomputer.microsoft.com/dataset/modis-11A2-061) | — | — | — | [2000-02 –](https://developers.google.com/earth-engine/datasets/catalog/MODIS_061_MYD11A2) |
 | `viirs-dnb-monthly` | night lights | 2 | — | — | — | — | [2014-01 –](https://developers.google.com/earth-engine/datasets/catalog/NOAA_VIIRS_DNB_MONTHLY_V1_VCMSLCFG) |
 | `hgb` | biomass | 4 | [static](https://planetarycomputer.microsoft.com/dataset/hgb) | — | — | — | — |
 | `jrc-gsw` | water | 6 | [static](https://planetarycomputer.microsoft.com/dataset/jrc-gsw) | — | — | — | — |
+| `opera-dswx-hls` | water | 3 | — | — | — | [2016-01 –](https://www.earthdata.nasa.gov/data/catalog/pocloud-opera-l3-dswx-hls-v1-1.0) | — |
+| `opera-dswx-s1` | water | 3 | — | — | — | [2023-12 –](https://www.earthdata.nasa.gov/data/catalog/pocloud-opera-l3-dswx-s1-v1-1.0) | — |
 <!-- end of products table -->
 
 Band names are the same from every archive (Sentinel-2: `B01`…`B12`, `SCL`; Landsat: `blue`…`swir22`, `qa_pixel`), so a sample from one archive can replace one from another. Optional bands (Landsat `coastal`, ASTER VNIR and SWIR, HLS L30 thermal) are saved where a scene has them.
@@ -91,9 +95,9 @@ Element 84's catalogue of the AWS Open Data buckets.
 
 ### NASA Earthdata (`earthdata`)
 
-- **Holds:** HLS L30 (from 2013) and S30 (from 2015), from LP DAAC.
-- **Access:** a token (not your password). Generate one at <https://urs.earthdata.nasa.gov> (Generate Token; valid 60 days), then run `python -m majortom.build.credentials earthdata`.
-- **Notes:** identical to Planetary Computer's HLS where both have it, but about 12× slower per sample. Use it for 2013–2019.
+- **Holds:** HLS L30 (from 2013) and S30 (from 2015) and OPERA DIST-ALERT from LP DAAC; OPERA DSWx-HLS and DSWx-S1 from PO.DAAC; OPERA RTC-S1 from ASF. Collections are named `PROVIDER/ID`.
+- **Access:** a token (not your password). Generate one at <https://urs.earthdata.nasa.gov> (Generate Token; valid 60 days), then run `python -m majortom.build.credentials earthdata`. **ASF** also needs a one-off approval: open any ASF download link (e.g. on <https://search.asf.alaska.edu>) while logged in, and accept its licence; until then RTC-S1 reads are refused.
+- **Notes:** HLS is identical to Planetary Computer's where both have it, but about 12× slower per sample; use it for 2013–2019. OPERA asset names carry the item id, so bands are matched by the end of the name.
 
 ### Google Earth Engine (`earth-engine`)
 

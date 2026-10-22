@@ -98,6 +98,6 @@ def test_hls_from_earthdata_covers_the_years_before_planetary_computer():
     from majortom.build import outside
 
     hls = COLLECTIONS["hls2-l30"]
-    assert hls.source("hls2-l30", "earthdata").collection == "HLSL30_2.0"
+    assert hls.source("hls2-l30", "earthdata").collection == "LPCLOUD/HLSL30_2.0"
     assert outside(hls.source("hls2-l30", "planetary-computer").period, "2016-07-01/2016-08-31")
     assert not outside(hls.source("hls2-l30", "earthdata").period, "2016-07-01/2016-08-31")

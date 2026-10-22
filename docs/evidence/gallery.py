@@ -41,9 +41,11 @@ ONE = {                                                            # one band an
     "modis-09q1": ("sur_refl_b02", "gray"), "modis-13q1": ("NDVI", "YlGn"), "modis-11a2": ("LST_Day_1km", "inferno"),
     "sentinel-1-rtc": ("vv", "gray"), "sentinel-1-grd": ("vv", "gray"), "alos-palsar-mosaic": ("HH", "gray"),
     "cop-dem-glo-30": ("DEM", "terrain"), "nasadem": ("elevation", "terrain"), "alos-dem": ("data", "terrain"),
-    "hgb": ("aboveground", "YlGn"), "jrc-gsw": ("occurrence", "Blues"), "viirs-dnb-monthly": ("avg_rad", "magma"),
+    "opera-rtc-s1": ("VV", "gray"), "hgb": ("aboveground", "YlGn"), "jrc-gsw": ("occurrence", "Blues"),
+    "viirs-dnb-monthly": ("avg_rad", "magma"),
 }
-CLASSES = {"dynamic-world": "label", "esa-worldcover": "map", "io-lulc-annual-v02": "data", "esa-cci-lc": "lccs_class",
+CLASSES = {"opera-dswx-hls": "WTR", "opera-dswx-s1": "WTR", "opera-dist-alert-hls": "VEG-DIST-STATUS",
+           "dynamic-world": "label", "esa-worldcover": "map", "io-lulc-annual-v02": "data", "esa-cci-lc": "lccs_class",
            "alos-fnf-mosaic": "C"}
 
 
@@ -58,7 +60,7 @@ def physical(meta: dict, arrays, band: str) -> np.ndarray:
         values = values * (scaling.get("scale") or 1) + (scaling.get("offset") or 0)
     elif offset is not None:                                     # Sentinel-2 without declared scaling
         values = (values - offset) * 0.0001
-    if band in ("vv", "vh") and meta["collection"] == "sentinel-1-rtc":   # linear backscatter -> dB, as GRD
+    if band.lower() in ("vv", "vh") and meta["collection"] in ("sentinel-1-rtc", "opera-rtc-s1"):   # linear -> dB
         values = 10 * np.log10(np.clip(values, 1e-5, None))
     if meta["collection"] == "alos-palsar-mosaic":                       # DN -> gamma0 dB (JAXA formula)
         values = 10 * np.log10(np.clip(values, 1, None) ** 2) - 83
@@ -122,7 +124,8 @@ def main(samples: Path, date: str) -> Path:
                 ax.xaxis.set_label_position("top")
             if c == 0:
                 ax.set_ylabel(f"{name}\n({COLLECTIONS[name].kind})", fontsize=8)
-    fig.suptitle(f"majortom.build products at Snowbird, cell 451U_945L ({date})", fontsize=12)
+    cells = sorted({json.loads(p.read_text())["grid_cell"] for p in (samples / "samples").glob("*/*/000000.json")})
+    fig.suptitle(f"majortom.build products, cell {', '.join(cells)} ({date})", fontsize=12)
     fig.tight_layout(rect=(0, 0, 1, 0.995))
     out = REPORTS / f"{date}-product-gallery.png"
     fig.savefig(out, dpi=70)

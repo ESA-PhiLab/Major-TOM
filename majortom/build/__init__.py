@@ -37,7 +37,7 @@ from tqdm.auto import tqdm
 from ..cells import Cell, cells_from_points, cells_in   # noqa: F401  re-exported for convenience
 from ..spec import MARGIN, cell_coverage, window
 from .archives import ARCHIVES, Archive
-from .collections import COLLECTIONS, Collection, Source, declared_scaling, processing_baseline
+from .collections import COLLECTIONS, Collection, Source, declared_scaling, find_asset, processing_baseline
 from .backends import backend, retries
 from .read import layout, read_asset
 from .search import acquired, item_crs, same_pass, scenes, tiles_for
@@ -201,7 +201,7 @@ def timing(start: float, searched: float) -> dict:
 
 def present(collection: Collection, source: Source, tiles) -> list[str]:
     """Bands to save from these tiles: all required ones, and the optional ones every tile has."""
-    extra = [b for b in collection.optional if all(source.asset(b) in it.assets for it in tiles)]
+    extra = [b for b in collection.optional if all(find_asset(it, source.asset(b)) for it in tiles)]
     return list(collection.assets) + extra
 
 

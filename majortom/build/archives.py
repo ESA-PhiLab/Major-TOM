@@ -34,6 +34,8 @@ class Archive:
     search_gap  least seconds between two catalogue searches, across threads (rate limits)
     refused     added to a sample's error when reading is refused (HTTP 401/403), e.g. how to fix the keys
     page        the archive's web page for a collection id, for docs/ARCHIVES.md
+    providers   collections are "PROVIDER/ID", each provider a catalogue under stac_url (NASA's CMR: ASF, PO.DAAC,
+                LP DAAC)
     """
     name: str
     stac_url: str = ""
@@ -47,6 +49,7 @@ class Archive:
     search_gap: float = 0.0
     refused: str = ""
     page: Callable[[str], str] | None = None
+    providers: bool = False
 
 
 ARCHIVES = {
@@ -61,12 +64,15 @@ ARCHIVES = {
     "cdse": Archive("cdse", "https://stac.dataspace.copernicus.eu/v1", gdal_env=cdse_env, workers=4, retries=6,
                     search_gap=1.0, refused="CDSE refused the S3 keys (expired or wrong?); see docs/ARCHIVES.md",
                     page=lambda c: f"https://browser.stac.dataspace.copernicus.eu/collections/{c}"),
-    # NASA Earthdata, LP DAAC's catalogue (HLS); public search, a token for the files
-    "earthdata": Archive("earthdata", "https://cmr.earthdata.nasa.gov/stac/LPCLOUD", gdal_env=earthdata_env,
-                         workers=8, refused="Earthdata refused the token (tokens expire after 60 days); generate "
-                                            "a new one and run `python -m majortom.build.credentials earthdata`",
-                         page=lambda c: "https://www.earthdata.nasa.gov/data/catalog/lpcloud-"
-                         + c.lower().replace("_", "-")),
+    # NASA Earthdata: the catalogues of LP DAAC (HLS, OPERA DIST), PO.DAAC (OPERA DSWx), ASF (OPERA RTC-S1); public
+    # search, one token for the files
+    "earthdata": Archive("earthdata", "https://cmr.earthdata.nasa.gov/stac", providers=True, gdal_env=earthdata_env,
+                         workers=8, refused="Earthdata refused the token: it expired (60 days; run `python -m "
+                                            "majortom.build.credentials earthdata` with a new one), or this data "
+                                            "centre needs one-off approval in the browser (ASF: open the file link "
+                                            "while logged in to urs.earthdata.nasa.gov)",
+                         page=lambda c: "https://www.earthdata.nasa.gov/data/catalog/"
+                         + c.lower().replace("/", "-").replace("_", "-")),
     # Google Earth Engine: a registered Cloud project; reads with computePixels, so no files or STAC
     "earth-engine": Archive("earth-engine", backend="earthengine", workers=8,
                             refused="Earth Engine refused the request (project not registered, or quota?)",
