@@ -76,6 +76,8 @@ class Collection:
                 the catalogue's whole-scene cloud cover is used. Recorded per sample (cloud_source)
     sources     archive name -> Source; None: Planetary Computer, under the product's own name
     offset      bands whose stored values carry an offset, and the function giving it (item, asset key)
+    kind        what the product measures, for grouping in docs and benchmarks: "optical", "radar",
+                "elevation", "land cover", "biomass" or "water"
     """
     assets: tuple[str, ...]
     time: str = "scene"
@@ -85,6 +87,7 @@ class Collection:
     clouds_from: str | None = None
     sources: dict[str, Source] | None = None
     offset: tuple[tuple[str, ...], Callable[[pystac.Item, str], float | None]] | None = None
+    kind: str = "optical"
 
     def source(self, name: str, archive: str) -> Source | None:
         """Where `archive` keeps this product (`name` is the product's name), or None."""
@@ -113,7 +116,7 @@ COLLECTIONS = {
     "sentinel-2-l1c": Collection(S2_L1C, clouds_from="sentinel-2-l2a", offset=(S2_L1C, declared_or_baseline_offset),
                                  sources={"earth-search": Source("sentinel-2-l1c", S2_EARTH_SEARCH),
                                           "cdse": Source("sentinel-2-l1c")}),
-    "cop-dem-glo-30": Collection(("DEM",), time="static", res_m=30,
+    "cop-dem-glo-30": Collection(("DEM",), time="static", res_m=30, kind="elevation",
                                  sources={"planetary-computer": Source("cop-dem-glo-30", {"DEM": "data"}),
                                           "earth-search": Source("cop-dem-glo-30", {"DEM": "data"}),
                                           "cdse": Source("cop-dem-glo-30-dged-cog", {"DEM": "data"})}),
@@ -123,18 +126,18 @@ COLLECTIONS = {
                            clouds=("Fmask", hls_clouds)),
     "hls2-l30": Collection(("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B09", "B10", "B11"),
                            clouds=("Fmask", hls_clouds)),
-    "sentinel-1-rtc": Collection(("vv", "vh")),      # backscatter (gamma0, linear, float32), UTM 10 m; no clouds
-    "alos-palsar-mosaic": Collection(("HH", "HV"), time="yearly", res_m=25),
-    "nasadem": Collection(("elevation",), time="static", res_m=30),
-    "alos-dem": Collection(("data",), time="static", res_m=30),
+    "sentinel-1-rtc": Collection(("vv", "vh"), kind="radar"),   # backscatter (gamma0, linear), UTM 10 m; no clouds
+    "alos-palsar-mosaic": Collection(("HH", "HV"), time="yearly", res_m=25, kind="radar"),
+    "nasadem": Collection(("elevation",), time="static", res_m=30, kind="elevation"),
+    "alos-dem": Collection(("data",), time="static", res_m=30, kind="elevation"),
     "hgb": Collection(("aboveground", "belowground", "aboveground_uncertainty", "belowground_uncertainty"),
-                      time="static", res_m=300),
-    "alos-fnf-mosaic": Collection(("C",), time="yearly", resampling="nearest", res_m=25),
+                      time="static", res_m=300, kind="biomass"),
+    "alos-fnf-mosaic": Collection(("C",), time="yearly", resampling="nearest", res_m=25, kind="land cover"),
     "esa-worldcover": Collection(("map", "input_quality"), time="yearly", resampling="nearest",
-                                 res_m={"map": 10, "input_quality": 60}),
-    "io-lulc-annual-v02": Collection(("data",), time="yearly", resampling="nearest", res_m=10),
+                                 res_m={"map": 10, "input_quality": 60}, kind="land cover"),
+    "io-lulc-annual-v02": Collection(("data",), time="yearly", resampling="nearest", res_m=10, kind="land cover"),
     "esa-cci-lc": Collection(("lccs_class", "change_count", "observation_count", "current_pixel_state",
-                              "processed_flag"), time="yearly", resampling="nearest", res_m=300),
+                              "processed_flag"), time="yearly", resampling="nearest", res_m=300, kind="land cover"),
     "jrc-gsw": Collection(("occurrence", "change", "seasonality", "recurrence", "transitions", "extent"),
-                          time="static", resampling="nearest", res_m=30),
+                          time="static", resampling="nearest", res_m=30, kind="water"),
 }
