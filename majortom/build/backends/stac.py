@@ -3,7 +3,8 @@
     search     STAC item search: one request per search (page size), retries, spacing for rate limits
     header     opens the asset's file header with GDAL
     read_tile  the file through a warped view (WarpedVRT) onto the window grid: nearest neighbour where the
-               file is already in the window's CRS (an exact copy), else the collection's resampling
+               file is already in the window's CRS (an exact copy), else the collection's resampling; files
+               with ground control points instead of a grid (raw Sentinel-1 GRD) are placed by those
     session    rasterio.Env with the archive's GDAL settings: credentials exist only inside it
 
 The GDAL settings per archive (public, unsigned S3, CDSE keys, Earthdata token) are defined here and named by
@@ -26,6 +27,7 @@ from rasterio.crs import CRS
 from rasterio.enums import Resampling
 from rasterio.session import Session
 from rasterio.vrt import WarpedVRT
+from rasterio.warp import reproject
 
 from ..collections import find_asset
 from ..credentials import cdse_keys, earthdata_token
@@ -93,10 +95,11 @@ def earthdata_env() -> dict:
     """GDAL settings for NASA Earthdata files: the token as bearer authentication, only while the Env is open.
 
     No HEAD request: Earthdata answers a HEAD with a link signed for HEAD only, and GDAL would reuse it for the
-    data reads (they then fail as "not recognized as being in a supported file format").
+    data reads (they then fail as "not recognized as being in a supported file format"). The token is kept on
+    redirects: ASF sends reads on to a second host (cumulus.asf.alaska.edu) that needs it too.
     """
     return dict(GDAL_OPTIONS, GDAL_HTTP_AUTH="BEARER", GDAL_HTTP_BEARER=earthdata_token(),
-                CPL_VSIL_CURL_USE_HEAD="NO")
+                CPL_VSIL_CURL_USE_HEAD="NO", CPL_VSIL_CURL_AUTHORIZATION_HEADER_ALLOWED_IF_REDIRECT="YES")
 
 
 # the four backend functions -----------------------------------------------------------------------------------
@@ -132,15 +135,20 @@ def search(archive: Archive, collection: str, sortby: list[dict] | None = None, 
     return retry(run, archive.retries)
 
 
-def _split(key: str) -> tuple[str, int | None]:
-    """An asset key, or "ASSET#n" for band n (1-based) of a multi-band file (ASTER's VNIR, SWIR, TIR)."""
+def _split(key: str) -> tuple[str, int | None, str | None]:
+    """An asset key; "ASSET#n" for band n (1-based) of a multi-band file (ASTER's VNIR, SWIR, TIR);
+    "ASSET:VARIABLE" for a variable of a netCDF swath placed by latitude and longitude (Sentinel-3)."""
+    key, _, variable = key.partition(":")
     asset, _, band = key.partition("#")
-    return asset, (int(band) if band else None)
+    return asset, (int(band) if band else None), (variable or None)
 
 
 def header(archive: Archive, item: pystac.Item, key: str) -> tuple[CRS, rasterio.Affine]:
-    """CRS and geotransform of one asset, from its file header."""
-    with rasterio.open(item.assets[find_asset(item, _split(key)[0])].href) as src:
+    """CRS and geotransform of one asset, from its file header (a swath: latitude/longitude, no grid)."""
+    asset, _, variable = _split(key)
+    if variable:
+        return CRS.from_epsg(4326), rasterio.Affine.identity()
+    with rasterio.open(item.assets[find_asset(item, asset)].href) as src:
         return src.crs, src.transform
 
 
@@ -148,8 +156,12 @@ def read_tile(archive: Archive, item: pystac.Item, key: str, win: Window, res: f
               method: str) -> tuple[np.ndarray, np.ndarray]:
     """One file onto the window grid: (bands, covered pixels). Pixels outside the file are 0."""
     n = win.pixels(res)
-    asset, band = _split(key)
+    asset, band, variable = _split(key)
+    if variable:
+        return _read_swath(item, asset, variable, win, res, n, Resampling[method])
     with rasterio.open(item.assets[find_asset(item, asset)].href) as src:
+        if src.crs is None and src.gcps[0]:
+            return _read_by_gcps(src, band, win, res, n, Resampling[method])
         same_crs = src.crs == CRS.from_user_input(win.crs)
         resampling = Resampling.nearest if same_crs else Resampling[method]
         with WarpedVRT(src, crs=win.crs, transform=win.transform(res), width=n, height=n,
@@ -158,6 +170,80 @@ def read_tile(archive: Archive, item: pystac.Item, key: str, win: Window, res: f
             indexes = None if band is None else [band, vrt.count]   # one band and the alpha band
             tile = retry(lambda: vrt.read(indexes))      # bands, then alpha (0 = not covered)
     return tile[:-1], tile[-1] > 0
+
+
+def _read_by_gcps(src, band: int | None, win: Window, res: float, n: int,
+                  resampling: Resampling) -> tuple[np.ndarray, np.ndarray]:
+    """A file placed by ground control points (raw Sentinel-1 GRD) onto the window grid: no terrain correction.
+
+    GDAL reads only the part of the file the window needs. 0 is "no data" in these files, so it marks coverage.
+    """
+    gcps, gcps_crs = src.gcps
+    bands = [band] if band else list(range(1, src.count + 1))
+    out = np.zeros((len(bands), n, n), src.dtypes[0])
+    for i, b in enumerate(bands):
+        retry(lambda: reproject(rasterio.band(src, b), out[i], gcps=gcps, src_crs=gcps_crs, src_nodata=0,
+                                dst_transform=win.transform(res), dst_crs=win.crs, dst_nodata=0,
+                                resampling=resampling))
+    return out, (out != 0).any(axis=0)
+
+
+def _gdal_path(href: str, variable: str) -> str:
+    """GDAL's name for one variable of a remote netCDF-4 (HDF5) file."""
+    path = "/vsis3/" + href[5:] if href.startswith("s3://") else f"/vsicurl/{href}"
+    return f'HDF5:"{path}"://{variable}'
+
+
+@lru_cache(maxsize=32)                                 # the bands of one sample share the scene's coordinates
+def _read_scaled(href: str, variable: str, block: tuple[int, int, int, int] | None = None
+                 ) -> tuple[np.ndarray, float | None]:
+    """A variable, or a block of it (col, row, width, height), with its CF scale and offset applied (fill: NaN)."""
+    from rasterio.windows import Window as Block
+
+    with rasterio.open(_gdal_path(href, variable)) as src:
+        raw = retry(lambda: src.read(1, window=Block(*block) if block else None))
+        fill = src.nodata
+        values = raw.astype("float32") * src.scales[0] + src.offsets[0]
+        if fill is not None:
+            values[raw == fill] = np.nan
+    return values, fill
+
+
+def _read_swath(item: pystac.Item, asset: str, variable: str, win: Window, res: float, n: int,
+                resampling: Resampling) -> tuple[np.ndarray, np.ndarray]:
+    """A Sentinel-3 swath variable onto the window grid, placed by its latitude and longitude arrays.
+
+    The tie-point coordinates (every 64th column) locate the block of rows and columns around the window; only
+    that block of the variable and of the full-resolution coordinates is read. Values are physical (CF scale and
+    offset applied); pixels without data, or outside the swath, are NaN and not covered.
+    """
+    from rasterio.warp import transform_bounds
+
+    west, south, east, north = transform_bounds(win.crs, "EPSG:4326", *win.bounds, densify_pts=21)
+    pad = 0.05
+    tie = item.assets[find_asset(item, "tie-geo-coordinates")].href
+    tie_lat, _ = _read_scaled(tie, "latitude")
+    tie_lon, _ = _read_scaled(tie, "longitude")
+    rows, cols = np.nonzero((tie_lat > south - pad) & (tie_lat < north + pad) &
+                            (tie_lon > west - pad) & (tie_lon < east + pad))
+    out = np.full((1, n, n), np.nan, "float32")
+    if not rows.size:
+        return out, np.zeros((n, n), bool)
+    geo, data = item.assets[find_asset(item, "geo-coordinates")].href, item.assets[find_asset(item, asset)].href
+    with rasterio.open(_gdal_path(geo, "latitude")) as src:
+        height, width = src.height, src.width
+    step = width // (tie_lat.shape[1] - 1) if tie_lat.shape[1] > 1 else 1
+    r0, r1 = max(rows.min() - 2, 0), min(rows.max() + 3, height)
+    c0, c1 = max((cols.min() - 1) * step, 0), min((cols.max() + 2) * step, width)
+    block = (int(c0), int(r0), int(c1 - c0), int(r1 - r0))
+    lat, _ = _read_scaled(geo, "latitude", block)
+    lon, _ = _read_scaled(geo, "longitude", block)
+    values, _ = _read_scaled(data, variable, block)
+    located = np.stack([lon, lat]).astype("float64")    # GDAL needs float64 coordinates, longitude first
+    retry(lambda: reproject(values, out[0], src_geoloc_array=located, src_crs=CRS.from_epsg(4326),
+                            src_nodata=np.nan, dst_transform=win.transform(res), dst_crs=CRS.from_user_input(win.crs),
+                            dst_nodata=np.nan, resampling=resampling))
+    return out, np.isfinite(out[0])
 
 
 @contextmanager

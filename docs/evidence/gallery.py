@@ -38,8 +38,10 @@ RGB = {                                                            # red, green,
     "sentinel-3-olci-l1": ("Oa08_radiance", "Oa06_radiance", "Oa03_radiance"),
 }
 ONE = {                                                            # one band and a colour map per product
+    "sentinel-3-olci-l2-lfr": ("OTCI", "YlGn"),                    # OLCI terrestrial chlorophyll index
     "modis-09q1": ("sur_refl_b02", "gray"), "modis-13q1": ("NDVI", "YlGn"), "modis-11a2": ("LST_Day_1km", "inferno"),
-    "sentinel-1-rtc": ("vv", "gray"), "sentinel-1-grd": ("vv", "gray"), "alos-palsar-mosaic": ("HH", "gray"),
+    "sentinel-1-rtc": ("vv", "gray"), "sentinel-1-grd": ("vv", "gray"), "sentinel-1-grd-tc": ("vv", "gray"),
+    "alos-palsar-mosaic": ("HH", "gray"),
     "cop-dem-glo-30": ("DEM", "terrain"), "nasadem": ("elevation", "terrain"), "alos-dem": ("data", "terrain"),
     "opera-rtc-s1": ("VV", "gray"), "hgb": ("aboveground", "YlGn"), "jrc-gsw": ("occurrence", "Blues"),
     "viirs-dnb-monthly": ("avg_rad", "magma"),
@@ -62,6 +64,8 @@ def physical(meta: dict, arrays, band: str) -> np.ndarray:
         values = (values - offset) * 0.0001
     if band.lower() in ("vv", "vh") and meta["collection"] in ("sentinel-1-rtc", "opera-rtc-s1"):   # linear -> dB
         values = 10 * np.log10(np.clip(values, 1e-5, None))
+    elif meta["collection"] == "sentinel-1-grd":                         # amplitude DN -> 20 log10, uncalibrated
+        values = 20 * np.log10(np.clip(values, 1, None))
     if meta["collection"] == "alos-palsar-mosaic":                       # DN -> gamma0 dB (JAXA formula)
         values = 10 * np.log10(np.clip(values, 1, None) ** 2) - 83
     return values
@@ -76,8 +80,10 @@ def image(name: str, meta: dict, arrays) -> tuple[np.ndarray, str | None]:
     if name in ONE:
         band, cmap = ONE[name]
         return physical(meta, arrays, band), cmap
-    if name in CLASSES:
-        return physical(meta, arrays, CLASSES[name]), "tab20"
+    if name in CLASSES:                                          # classes: one colour per class present
+        values = physical(meta, arrays, CLASSES[name])
+        _, index = np.unique(values, return_inverse=True)
+        return index.reshape(values.shape).astype(float), "tab20"
     return physical(meta, arrays, meta["bands"][0]), "gray"
 
 
@@ -109,7 +115,7 @@ def main(samples: Path, date: str) -> Path:
             ax.set_xticks([]), ax.set_yticks([])
             if archive in found:
                 meta, im, cmap = found[archive]
-                low, high = limits[cmap]
+                low, high = (0, 19) if cmap == "tab20" else limits[cmap]
                 shown = np.clip((im - low) / (high - low or 1), 0, 1)
                 ax.imshow(shown if cmap is None else im, cmap=cmap, vmin=None if cmap is None else low,
                           vmax=None if cmap is None else high, interpolation="nearest")

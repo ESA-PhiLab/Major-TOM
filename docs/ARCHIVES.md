@@ -46,10 +46,12 @@ Periods as each archive's catalogue declares them (`–` with no end: ongoing); 
 | `modis-43a4` | optical | 7 | [2000-02 –](https://planetarycomputer.microsoft.com/dataset/modis-43A4-061) | — | — | — | [2000-02 –](https://developers.google.com/earth-engine/datasets/catalog/MODIS_061_MCD43A4) |
 | `sentinel-2-l1c` | optical | 13 | — | [2015-06 –](https://radiantearth.github.io/stac-browser/#/external/earth-search.aws.element84.com/v1/collections/sentinel-2-l1c) | [2015-06 –](https://browser.stac.dataspace.copernicus.eu/collections/sentinel-2-l1c) | — | [2015-06 –](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_HARMONIZED) |
 | `sentinel-2-l2a` | optical | 12 | [2015-06 –](https://planetarycomputer.microsoft.com/dataset/sentinel-2-l2a) | [2015-06 –](https://radiantearth.github.io/stac-browser/#/external/earth-search.aws.element84.com/v1/collections/sentinel-2-c1-l2a) | [2015-06 –](https://browser.stac.dataspace.copernicus.eu/collections/sentinel-2-l2a) | — | [2017-03 –](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S2_SR_HARMONIZED) |
-| `sentinel-3-olci-l1` | optical | 21 | — | — | — | — | [2016-10 –](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S3_OLCI) |
+| `sentinel-3-olci-l1` | optical | 21 | — | — | [2020-04 –](https://browser.stac.dataspace.copernicus.eu/collections/sentinel-3-olci-1-efr-ntc) | — | [2016-10 –](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S3_OLCI) |
+| `sentinel-3-olci-l2-lfr` | optical | 3 | [2016-04 –](https://planetarycomputer.microsoft.com/dataset/sentinel-3-olci-lfr-l2-netcdf) | — | [2016-04 –](https://browser.stac.dataspace.copernicus.eu/collections/sentinel-3-olci-2-lfr-ntc) | — | — |
 | `alos-palsar-mosaic` | radar | 2 | [2015-01 – 2021-12](https://planetarycomputer.microsoft.com/dataset/alos-palsar-mosaic) | — | — | — | — |
 | `opera-rtc-s1` | radar | 2 | — | — | — | [2016-04 –](https://www.earthdata.nasa.gov/data/catalog/asf-opera-l2-rtc-s1-v1-1) | — |
-| `sentinel-1-grd` | radar | 2 | — | — | — | — | [2014-10 –](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S1_GRD) |
+| `sentinel-1-grd` | radar | 2 | [2014-10 –](https://planetarycomputer.microsoft.com/dataset/sentinel-1-grd) | [2014-10 –](https://radiantearth.github.io/stac-browser/#/external/earth-search.aws.element84.com/v1/collections/sentinel-1-grd) | [2014-10 –](https://browser.stac.dataspace.copernicus.eu/collections/sentinel-1-grd) | — | — |
+| `sentinel-1-grd-tc` | radar | 2 | — | — | — | — | [2014-10 –](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S1_GRD) |
 | `sentinel-1-rtc` | radar | 2 | [2014-10 –](https://planetarycomputer.microsoft.com/dataset/sentinel-1-rtc) | — | — | — | — |
 | `alos-dem` | elevation | 1 | [static](https://planetarycomputer.microsoft.com/dataset/alos-dem) | — | — | — | — |
 | `cop-dem-glo-30` | elevation | 1 | [static](https://planetarycomputer.microsoft.com/dataset/cop-dem-glo-30) | [static](https://radiantearth.github.io/stac-browser/#/external/earth-search.aws.element84.com/v1/collections/cop-dem-glo-30) | [static](https://browser.stac.dataspace.copernicus.eu/collections/cop-dem-glo-30-dged-cog) | — | — |
@@ -96,8 +98,13 @@ Element 84's catalogue of the AWS Open Data buckets.
 ### NASA Earthdata (`earthdata`)
 
 - **Holds:** HLS L30 (from 2013) and S30 (from 2015) and OPERA DIST-ALERT from LP DAAC; OPERA DSWx-HLS and DSWx-S1 from PO.DAAC; OPERA RTC-S1 from ASF. Collections are named `PROVIDER/ID`.
-- **Access:** a token (not your password). Generate one at <https://urs.earthdata.nasa.gov> (Generate Token; valid 60 days), then run `python -m majortom.build.credentials earthdata`. **ASF** also needs a one-off approval: open any ASF download link (e.g. on <https://search.asf.alaska.edu>) while logged in, and accept its licence; until then RTC-S1 reads are refused.
-- **Notes:** HLS is identical to Planetary Computer's where both have it, but about 12× slower per sample; use it for 2013–2019. OPERA asset names carry the item id, so bands are matched by the end of the name.
+- **Access:** a token (not your password). Generate one at <https://urs.earthdata.nasa.gov> (Generate Token; valid 60 days), then run `python -m majortom.build.credentials earthdata`.
+- **ASF (OPERA RTC-S1) needs a one-off approval** of its download application for your account; until then its reads are refused (401):
+  1. Log in at <https://urs.earthdata.nasa.gov>.
+  2. In the same browser, open an ASF file link, for example <https://datapool.asf.alaska.edu/RTC/OPERA-S1/OPERA_L2_RTC-S1_T030-062622-IW1_20240604T175938Z_20240604T203842Z_S1A_30_v1.0_VV.tif> (any Sentinel-1 download on <https://search.asf.alaska.edu> works too).
+  3. Authorise **Alaska Satellite Facility Data Access** and accept its licence when asked. When the file starts downloading, approval is done; cancel the download.
+  4. The same token then works for ASF; nothing to set up again.
+- **Notes:** HLS is identical to Planetary Computer's where both have it, but about 12× slower per sample; use it for 2013–2019. OPERA asset names carry the item id, so bands are matched by the end of the name. ASF redirects reads to a second host that needs the token as well, so the token is sent on through NASA's redirects.
 
 ### Google Earth Engine (`earth-engine`)
 
@@ -142,7 +149,7 @@ Rough guide at 16 workers (4 for CDSE): HLS and Copernicus DEM several thousand 
 | Message | Cause and fix |
 |---|---|
 | `PermissionError: CDSE needs S3 keys` (or Earthdata, Earth Engine) | Credentials not set up: run the setup command for that archive. |
-| `... refused the S3 keys` / `refused the token` (401, 403) | Keys or token expired or wrong: create new ones and run the setup command again. |
+| `... refused the S3 keys` / `refused the token` (401, 403) | Keys or token expired or wrong: create new ones and run the setup command again. For OPERA RTC-S1, ASF also needs the one-off approval in section 3 (NASA Earthdata). |
 | `429` in an error | The catalogue rate-limited the search: retries wait 1, 2, 4 … s; CDSE searches are spaced automatically. Rerun later. |
 | `not recognized as being in a supported file format` | The server sent a web page instead of the file (a login or a refused link). For Earthdata: check the token. |
 | `has <product> for (...), not <dates>` | The source has no data for those dates; the message lists archives that do. |

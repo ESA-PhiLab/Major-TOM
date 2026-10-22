@@ -47,7 +47,10 @@ STORAGE = {                                                      # one file host
     "earth-search": "https://e84-earth-search-sentinel-data.s3.us-west-2.amazonaws.com",
     "cdse": "https://eodata.dataspace.copernicus.eu",
     "earthdata": "https://data.lpdaac.earthdatacloud.nasa.gov",
+    "earth-engine": "https://earthengine-highvolume.googleapis.com",
 }
+CATALOGUE = {"earth-engine": "https://earthengine.googleapis.com"}   # no STAC address
+SMALL = {"earth-engine": 2}       # cells per pair for archives whose quota is shared (Earth Engine: wiki-eo, small)
 
 
 def country() -> str:
@@ -167,6 +170,8 @@ def report(rows: pd.DataFrame, errors: pd.DataFrame, context: dict, n_cells: int
         ".npz + .json.",
         "- Dates per product: as in `tests/test_products.py`; cloud=None, so any scene is accepted.",
         "- Each pair runs alone, one after another; archives are not loaded at the same time.",
+        f"- Earth Engine pairs use {SMALL['earth-engine']} cells each (a shared project quota); samples/hour are "
+        "per those cells.",
         "- Search times depend on each archive's load at run time; compare runs, not single numbers.",
         "",
     ])
@@ -182,7 +187,8 @@ def main() -> None:
                    country=("not stated" if args.region == "none" else args.region or country()),
                    cpus=len(os.sched_getaffinity(0)), software=software(), network={})
     archives = [a for a in ARCHIVES if has_credentials(a)]
-    context["network"] = {a: dict(catalogue=round_trip(ARCHIVES[a].stac_url), storage=round_trip(STORAGE[a]))
+    context["network"] = {a: dict(catalogue=round_trip(CATALOGUE.get(a, ARCHIVES[a].stac_url)),
+                                  storage=round_trip(STORAGE[a]))
                           for a in archives}
     cells = build.cells_in(AREA, d=10).reset_index(drop=True).head(args.cells)
     rows, errors = [], []
@@ -192,7 +198,8 @@ def main() -> None:
                 if archive not in archives:
                     print(f"skip {name}@{archive}: no credentials", flush=True)
                     continue
-                pair_rows, pair_errors = run_pair(name, archive, cells, Path(tmp) / archive)
+                pair_cells = cells.head(SMALL.get(archive, len(cells)))
+                pair_rows, pair_errors = run_pair(name, archive, pair_cells, Path(tmp) / archive)
                 print(f"{name}@{archive}: {len(pair_rows)} band reads, {len(pair_errors)} failed", flush=True)
                 rows += pair_rows
                 errors.append(pair_errors)

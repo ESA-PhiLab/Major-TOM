@@ -43,7 +43,7 @@ def find_asset(item: pystac.Item, name: str) -> str | None:
 
 def declared_band(item: pystac.Item, key: str) -> dict:
     """The raster:bands entry for an asset key ("ASSET#n": band n of a multi-band asset), or {}."""
-    asset, _, n = key.partition("#")
+    asset, _, n = key.partition(":")[0].partition("#")
     fields = item.assets[find_asset(item, asset)].extra_fields
     bands = fields.get("raster:bands") or fields.get("bands") or []
     index = int(n) - 1 if n else 0
@@ -88,8 +88,9 @@ class Source:
         return self.assets.get(band, band)
 
     def asset(self, band: str) -> str:
-        """The item asset holding `band` (a key "VNIR#2" is band 2 of asset VNIR)."""
-        return self.key(band).partition("#")[0]
+        """The item asset holding `band` (a key "VNIR#2" is band 2 of asset VNIR; "otci:OTCI" variable OTCI of
+        the netCDF asset otci)."""
+        return self.key(band).partition("#")[0].partition(":")[0]
 
 
 @dataclass(frozen=True)
@@ -155,6 +156,7 @@ S2_CDSE_L2A = {"B01": "B01_60m", "B02": "B02_10m", "B03": "B03_10m", "B04": "B04
                "B11": "B11_20m", "B12": "B12_20m", "SCL": "SCL_20m"}     # native resolution of each band
 S2_PERIOD = ("2015-06-27", None)
 DSWX = {"WTR": "B01_WTR", "BWTR": "B02_BWTR", "CONF": "B03_CONF"}   # OPERA DSWx: band numbers in the asset names
+LFR = {"GIFAPAR": "gifapar:GIFAPAR", "OTCI": "otci:OTCI", "IWV": "iwv:IWV"}   # netCDF asset : variable
 
 
 @dataclass(frozen=True)
@@ -305,13 +307,26 @@ COLLECTIONS = {
     "viirs-dnb-monthly": Collection(("avg_rad", "cf_cvg"), res_m=500, kind="night lights",   # nW/cm2/sr, cloud-free
                                     sources={"earth-engine": Source("NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG",
                                                                     period=("2014-01-01", None))}),
+    # Sentinel-3 OLCI: swaths; CDSE and Planetary Computer files are netCDF placed by their latitude and longitude
     "sentinel-3-olci-l1": Collection(OLCI, res_m=300, native=False, fill=0,   # top-of-atmosphere radiance
-                                     sources={"earth-engine": Source("COPERNICUS/S3/OLCI",
-                                                                     period=("2016-10-18", None))}),
+                                     sources={"earth-engine": Source("COPERNICUS/S3/OLCI", period=("2016-10-18", None)),
+                                              "cdse": Source("sentinel-3-olci-1-efr-ntc",
+                                                             {b: f"{b}Data:{b}" for b in OLCI},
+                                                             period=("2020-04-16", None))}),
+    "sentinel-3-olci-l2-lfr": Collection(("GIFAPAR", "OTCI", "IWV"), res_m=300, native=False,   # land products
+                                         sources={"planetary-computer": Source("sentinel-3-olci-lfr-l2-netcdf", LFR,
+                                                                               period=("2016-04-25", None)),
+                                                  "cdse": Source("sentinel-3-olci-2-lfr-ntc", LFR,
+                                                                 period=("2016-04-25", None))}),
     "sentinel-1-rtc": Collection(("vv", "vh"), kind="radar",       # backscatter (gamma0, linear), UTM 10 m; no clouds
                                  period=("2014-10-10", None)),
-    "sentinel-1-grd": Collection(("vv", "vh"), kind="radar",   # terrain-corrected by Earth Engine; backscatter in dB
-                                 sources={"earth-engine": Source("COPERNICUS/S1_GRD", period=("2014-10-03", None))}),
+    # raw GRD: amplitude digital numbers, placed with the files' ground control points (no terrain correction)
+    "sentinel-1-grd": Collection(("vv", "vh"), kind="radar", res_m=10, native=False,
+                                 sources={"planetary-computer": Source("sentinel-1-grd", period=("2014-10-10", None)),
+                                          "earth-search": Source("sentinel-1-grd", period=("2014-10-10", None)),
+                                          "cdse": Source("sentinel-1-grd", period=("2014-10-04", None))}),
+    "sentinel-1-grd-tc": Collection(("vv", "vh"), kind="radar",  # terrain-corrected by Earth Engine; backscatter in dB
+                                    sources={"earth-engine": Source("COPERNICUS/S1_GRD", period=("2014-10-03", None))}),
     # OPERA (NASA JPL): analysis-ready products from Sentinel-1 and HLS, UTM 30 m; asset keys found by suffix
     "opera-rtc-s1": Collection(("VV", "VH"), kind="radar",          # gamma0 backscatter, linear; one burst per item
                                sources={"earthdata": Source("ASF/OPERA_L2_RTC-S1_V1_1", period=("2016-04-14", None))}),

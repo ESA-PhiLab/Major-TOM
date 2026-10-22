@@ -179,6 +179,8 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         save_earthdata(token)
         print(f"saved to {earthdata_token_file()} (owner-only)")
+        print("For OPERA RTC-S1 (ASF), approve ASF once: while logged in to urs.earthdata.nasa.gov, open an ASF "
+              "file link (see docs/ARCHIVES.md) and accept 'Alaska Satellite Facility Data Access' and its licence.")
         test = lambda: check("earthdata", "LPCLOUD/HLSS30_2.0", "B04")    # noqa: E731
     if not args.no_check:
         try:

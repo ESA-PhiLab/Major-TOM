@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-22 Raw Sentinel-1 GRD from PC, Earth Search, CDSE (placed by ground control points; EE terrain-corrected now sentinel-1-grd-tc); Sentinel-3 OLCI swaths from PC and CDSE (L1 radiance, new L2 land product); Earthdata token kept on redirects (ASF); ASF approval steps in docs; gallery at Loch Lomond: 101 of 103 pass (PC HLS L30 missing a tile)
 - 2026-10-22 Test cell moved to 624U_29L (south Loch Lomond; June-August 2024); OPERA RTC-S1, DSWx-HLS, DSWx-S1, DIST-ALERT via Earthdata (one archive over ASF, PO.DAAC, LP DAAC); bands found by asset-name suffix
 - 2026-10-22 Products: MODIS (09A1, 09Q1, 43A4, 11A2, 13Q1), ASTER L1T, VIIRS monthly, Sentinel-3 OLCI (27 products, 45 pairs, all build); L1C swath edges now count as no data; product gallery -> [image](docs/reports/2026-10-22-product-gallery.png); docs/ARCHIVES.md and CONTRIBUTING.md
 - 2026-10-22 Builder: Earth Engine backend (backends/earthengine.py; computePixels); S2 L2A/L1C, Landsat L2 (4-9) and new L1 (8-9), HLS, new dynamic-world and sentinel-1-grd; S2, Landsat 5/9 and HLS L30 identical to Planetary Computer; far-zone tiles ignored for every archive

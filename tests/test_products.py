@@ -24,16 +24,17 @@ PLACE = (-4.58, 56.09)            # cell 624U_29L: south Loch Lomond, its island
 SUMMER = "2024-06-01/2024-08-31"                                 # one window for every product that allows it
 DATES = {                                                        # dates with data at PLACE; static: None
     **{name: SUMMER for name in ("sentinel-2-l2a", "sentinel-2-l1c", "landsat-c2-l2", "landsat-c2-l1", "hls2-s30",
-                                 "hls2-l30", "sentinel-1-rtc", "sentinel-1-grd", "dynamic-world", "modis-09a1",
-                                 "modis-09q1", "modis-43a4", "modis-11a2", "modis-13q1", "viirs-dnb-monthly",
-                                 "sentinel-3-olci-l1", "opera-rtc-s1", "opera-dswx-hls", "opera-dswx-s1",
-                                 "opera-dist-alert-hls")},
+                                 "hls2-l30", "sentinel-1-rtc", "sentinel-1-grd", "sentinel-1-grd-tc",
+                                 "dynamic-world", "modis-09a1", "modis-09q1", "modis-43a4", "modis-11a2",
+                                 "modis-13q1", "viirs-dnb-monthly", "sentinel-3-olci-l1", "opera-rtc-s1",
+                                 "opera-dswx-hls", "opera-dswx-s1", "opera-dist-alert-hls", "sentinel-3-olci-l2-lfr")},
     "aster-l1t": "2004-07-01/2004-09-30",                        # Planetary Computer: 2000-2006 only
     "alos-palsar-mosaic": "2020", "alos-fnf-mosaic": "2020", "esa-worldcover": "2021",   # yearly: nearest version
     "io-lulc-annual-v02": "2022", "esa-cci-lc": "2020",
 }
 MAX_NODATA = 0.05
-MASKED = {"dynamic-world": 0.4}                                  # masks cloud and shadow pixels itself (mountains)
+MASKED = {"dynamic-world": 0.4,                                  # masks cloud and shadow pixels itself (mountains)
+          "sentinel-3-olci-l2-lfr": 0.9}                         # masks clouds itself; one cloudy Scottish summer
 
 
 def has_credentials(archive: str) -> bool:
