@@ -25,7 +25,7 @@ Workstreams are defined in `docs/STRATEGY.md`.
 - [ ] Tests vs paper formulas and Core `grid_cell` values
 
 ## WS3 — Spec and Core correction
-- [ ] Repeat pixel-match on ~10 products
+- [x] Pixel match on 12 samples per Core dataset: native samples are exact copies at the stored origin rounded to the band grid ([report](docs/reports/2026-10-22-core-pixel-match.md))
 - [x] `docs/SPEC.md` drafted (any spacing, source profiles) and reviewed (Miko, 2026-10-15)
 - [ ] `sample_window`, `correct_core_transform`, `crop_1068_to_1056`
 - [ ] Readers apply correction by default

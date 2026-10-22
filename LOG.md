@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-22 Core pixel match, 48 samples: S2 and most S1 are exact copies at the stored origin rounded to the band grid; most S2 source versions replaced on CDSE -> [report](docs/reports/2026-10-22-core-pixel-match.md)
 - 2026-10-22 Sentinel-3 swaths 83 -> 24 s per sample (GDAL download cache); MODIS Terra/Aqua told apart, platform filter on download; producer page per product in the products table
 - 2026-10-22 CHECKLIST, STRATEGY (builder section, marked updated after review) and CONTEXT updated to the confirmed builder state
 - 2026-10-22 Scene choice: new fallback setting, "complete" (default: least missing data first) or "clear" (clouds first); Planetary Computer HLS gap documented (188 of 217 L30 tile-days over Scotland, summer 2024) and marked as an expected test failure
