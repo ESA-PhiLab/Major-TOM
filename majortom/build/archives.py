@@ -113,8 +113,13 @@ def earthdata_token() -> str:
 
 
 def earthdata_env() -> dict:
-    """GDAL settings for NASA Earthdata files: the token as a bearer header, sent only while the Env is open."""
-    return dict(GDAL_OPTIONS, GDAL_HTTP_HEADERS=f"Authorization: Bearer {earthdata_token()}")
+    """GDAL settings for NASA Earthdata files: the token as bearer authentication, only while the Env is open.
+
+    No HEAD request: Earthdata answers a HEAD with a link signed for HEAD only, and GDAL would reuse it for the
+    data reads (they then fail as "not recognized as being in a supported file format").
+    """
+    return dict(GDAL_OPTIONS, GDAL_HTTP_AUTH="BEARER", GDAL_HTTP_BEARER=earthdata_token(),
+                CPL_VSIL_CURL_USE_HEAD="NO")
 
 
 @dataclass(frozen=True)
