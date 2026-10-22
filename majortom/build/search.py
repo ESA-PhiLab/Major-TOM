@@ -74,7 +74,7 @@ def scenes(archive: Archive, source: Source, collection: Collection, bbox: tuple
     if not (collection.clouds or collection.clouds_from) and prefer in ("clearest", "cloudiest"):
         prefer = "newest"
     bands = set(collection.assets) | ({collection.clouds[0]} if collection.clouds else set())
-    needed = {source.key(band) for band in bands}                    # this archive's asset keys
+    needed = {source.asset(band) for band in bands}                  # this archive's asset names
 
     def search(dates: str | None) -> list[pystac.Item]:
         query = dict(bbox=bbox, max_items=limit, sortby=ORDER[prefer])

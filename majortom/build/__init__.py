@@ -173,7 +173,9 @@ def pick_scene(archive: Archive, source: Source, cell, collection, query, margin
                 clouds, fill = collection.clouds[1](data[0])
                 covered &= ~fill
                 cloud, cloud_source = (float(clouds[covered].mean()) if covered.any() else 1.0), "own"
-            elif collection.clouds_from:
+            elif collection.fill is not None:            # no mask: missing pixels are stored as the fill value
+                covered &= (data != collection.fill).any(axis=0)
+            if not own_mask and collection.clouds_from:
                 cloud, cloud_source, cloud_items = borrowed_clouds(archive, collection, tiles, crs, win,
                                                                    res[mask_asset], covered, bbox)
             nodata = 1 - covered.mean()
@@ -199,7 +201,7 @@ def timing(start: float, searched: float) -> dict:
 
 def present(collection: Collection, source: Source, tiles) -> list[str]:
     """Bands to save from these tiles: all required ones, and the optional ones every tile has."""
-    extra = [b for b in collection.optional if all(source.key(b) in it.assets for it in tiles)]
+    extra = [b for b in collection.optional if all(source.asset(b) in it.assets for it in tiles)]
     return list(collection.assets) + extra
 
 

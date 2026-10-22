@@ -3,7 +3,8 @@
     (product, archive) pairs from COLLECTIONS  ->  one sample at Snowbird  ->  bands, shapes, no-data, records
 
 Run with `pytest -m network tests/test_products.py`; pairs whose archive needs credentials (CDSE keys, an
-Earthdata token) are skipped when those are not set up.
+Earthdata token, Earth Engine) are skipped when those are not set up. With MAJORTOM_EVIDENCE_DIR set, the
+samples are kept in <dir>/samples/<archive>/<product>/ for docs/evidence/gallery.py.
 docs/evidence/build_speed.py uses the same places and dates to measure reading speed.
 """
 import json
@@ -20,16 +21,18 @@ from majortom.build.collections import COLLECTIONS               # noqa: E402
 pytestmark = pytest.mark.network
 
 SNOWBIRD = (-111.65, 40.58)
+AUGUST = "2024-08-01/2024-08-31"                                # one month for every product that allows it
 DATES = {                                                        # dates with data at Snowbird; static: None
-    "sentinel-2-l2a": "2024-07-01/2024-08-31", "sentinel-2-l1c": "2024-07-01/2024-08-31",
-    "landsat-c2-l2": "2024-07-01/2024-08-31", "hls2-s30": "2024-07-01/2024-08-31",
-    "hls2-l30": "2024-07-01/2024-08-31", "sentinel-1-rtc": "2023-06-01/2023-06-30",
-    "landsat-c2-l1": "2024-07-01/2024-08-31", "dynamic-world": "2024-07-01/2024-08-31",
-    "sentinel-1-grd": "2023-06-01/2023-06-30",
-    "alos-palsar-mosaic": "2020", "alos-fnf-mosaic": "2020", "esa-worldcover": "2021",
+    **{name: AUGUST for name in ("sentinel-2-l2a", "sentinel-2-l1c", "landsat-c2-l2", "landsat-c2-l1", "hls2-s30",
+                                 "hls2-l30", "sentinel-1-rtc", "sentinel-1-grd", "dynamic-world", "modis-09a1",
+                                 "modis-09q1", "modis-43a4", "modis-11a2", "modis-13q1", "viirs-dnb-monthly",
+                                 "sentinel-3-olci-l1")},
+    "aster-l1t": "2004-07-01/2004-09-30",                        # Planetary Computer: 2000-2006 only
+    "alos-palsar-mosaic": "2020", "alos-fnf-mosaic": "2020", "esa-worldcover": "2021",   # yearly: nearest version
     "io-lulc-annual-v02": "2022", "esa-cci-lc": "2020",
 }
 MAX_NODATA = 0.05
+MASKED = {"dynamic-world": 0.4}                                  # masks cloud and shadow pixels itself (mountains)
 
 
 def has_credentials(archive: str) -> bool:
@@ -45,9 +48,16 @@ PAIRS = [pytest.param(name, archive, id=f"{name}@{archive}",
 
 @pytest.mark.parametrize("name, archive", PAIRS)
 def test_product_builds_from_archive(name, archive, tmp_path):
+    import os
+    from pathlib import Path
+
     collection = COLLECTIONS[name]
+    if os.environ.get("MAJORTOM_EVIDENCE_DIR"):                  # keep the sample for the gallery
+        tmp_path = Path(os.environ["MAJORTOM_EVIDENCE_DIR"]) / "samples" / archive
     cells = build.cells_from_points(pd.DataFrame({"lon": [SNOWBIRD[0]], "lat": [SNOWBIRD[1]]}), d=10)
-    errors = build.download(cells, name, DATES.get(name), archive=archive, outdir=tmp_path, cloud=None)
+    ranked = collection.clouds or collection.clouds_from          # with a cloud ranking: a clear scene, as users
+    errors = build.download(cells, name, DATES.get(name), archive=archive, outdir=tmp_path,
+                            **({} if ranked else {"cloud": None}))
     assert errors.empty, errors.to_dict("records")
     stem = tmp_path / name / "000000"
     meta, arrays = json.loads(stem.with_suffix(".json").read_text()), np.load(stem.with_suffix(".npz"))
@@ -58,7 +68,7 @@ def test_product_builds_from_archive(name, archive, tmp_path):
         side = arrays[band].shape[-1]
         assert arrays[band].shape[-2:] == (side, side) and side > 0
     assert meta["window_m"] == pytest.approx(meta["res"] * meta["size"])
-    assert meta["nodata"] <= MAX_NODATA, meta["nodata"]
+    assert meta["nodata"] <= MASKED.get(name, MAX_NODATA), meta["nodata"]
     assert set(meta["timing"]) == {"search", "scene_choice", "bands", "total", "retries"}
     if collection.offset:
         assert all(meta["offset"][b] in (0.0, 1000.0) for b in collection.offset[0] if b in meta["offset"])

@@ -129,9 +129,15 @@ def search(archive: Archive, collection: str, sortby: list[dict] | None = None, 
     return retry(run, archive.retries)
 
 
+def _split(key: str) -> tuple[str, int | None]:
+    """An asset key, or "ASSET#n" for band n (1-based) of a multi-band file (ASTER's VNIR, SWIR, TIR)."""
+    asset, _, band = key.partition("#")
+    return asset, (int(band) if band else None)
+
+
 def header(archive: Archive, item: pystac.Item, key: str) -> tuple[CRS, rasterio.Affine]:
     """CRS and geotransform of one asset, from its file header."""
-    with rasterio.open(item.assets[key].href) as src:
+    with rasterio.open(item.assets[_split(key)[0]].href) as src:
         return src.crs, src.transform
 
 
@@ -139,13 +145,15 @@ def read_tile(archive: Archive, item: pystac.Item, key: str, win: Window, res: f
               method: str) -> tuple[np.ndarray, np.ndarray]:
     """One file onto the window grid: (bands, covered pixels). Pixels outside the file are 0."""
     n = win.pixels(res)
-    with rasterio.open(item.assets[key].href) as src:
+    asset, band = _split(key)
+    with rasterio.open(item.assets[asset].href) as src:
         same_crs = src.crs == CRS.from_user_input(win.crs)
         resampling = Resampling.nearest if same_crs else Resampling[method]
         with WarpedVRT(src, crs=win.crs, transform=win.transform(res), width=n, height=n,
                        resampling=resampling, add_alpha=True,
                        init_dest_nodata=False, INIT_DEST=0) as vrt:   # empty pixels 0; coverage from alpha
-            tile = retry(vrt.read)                       # bands, then alpha (0 = not covered)
+            indexes = None if band is None else [band, vrt.count]   # one band and the alpha band
+            tile = retry(lambda: vrt.read(indexes))      # bands, then alpha (0 = not covered)
     return tile[:-1], tile[-1] > 0
 
 

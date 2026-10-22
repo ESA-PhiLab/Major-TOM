@@ -32,7 +32,7 @@ def layout(archive: Archive, cell: Cell, item: pystac.Item, collection: Collecti
     unchanged (native). Otherwise the lattice is the coarsest target pixel size and the data are resampled.
     """
     headers = {asset: backend(archive).header(archive, item, source.key(asset)) for asset in assets}
-    native = all(c == CRS.from_user_input(crs) for c, _ in headers.values())
+    native = collection.native and all(c == CRS.from_user_input(crs) for c, _ in headers.values())
     if native:
         res = {a: abs(t.a) for a, (_, t) in headers.items()}
         coarse = max(res, key=res.get)

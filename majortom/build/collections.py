@@ -30,10 +30,19 @@ def hls_clouds(fmask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return (fmask & 0b1110) > 0, fmask == 255
 
 
+def declared_band(item: pystac.Item, key: str) -> dict:
+    """The raster:bands entry for an asset key ("ASSET#n": band n of a multi-band asset), or {}."""
+    asset, _, n = key.partition("#")
+    fields = item.assets[asset].extra_fields
+    bands = fields.get("raster:bands") or fields.get("bands") or []
+    index = int(n) - 1 if n else 0
+    return bands[index] if index < len(bands) else {}
+
+
 def declared_scaling(item: pystac.Item, key: str) -> dict | None:
     """Scale and offset the archive declares for an asset (physical = stored x scale + offset), or None."""
-    bands = item.assets[key].extra_fields.get("raster:bands") or item.assets[key].extra_fields.get("bands") or [{}]
-    scale, offset = bands[0].get("scale"), bands[0].get("offset")
+    band = declared_band(item, key)
+    scale, offset = band.get("scale"), band.get("offset")
     return None if scale is None and offset is None else {"scale": scale, "offset": offset}
 
 
@@ -48,8 +57,8 @@ def declared_or_baseline_offset(item: pystac.Item, key: str) -> float | None:
     Declared: raster:bands offset and scale (Earth Search: offset -0.1 at scale 0.0001, i.e. +1000).
     Not declared (Planetary Computer, CDSE): processing baseline 04.00 or later adds 1000 (from 2022-01-25).
     """
-    bands = item.assets[key].extra_fields.get("raster:bands") or [{}]
-    offset, scale = bands[0].get("offset"), bands[0].get("scale")
+    band = declared_band(item, key)
+    offset, scale = band.get("offset"), band.get("scale")
     if offset is not None and scale:
         return float(round(-offset / scale))
     baseline = processing_baseline(item)
@@ -66,6 +75,10 @@ class Source:
 
     def key(self, band: str) -> str:
         return self.assets.get(band, band)
+
+    def asset(self, band: str) -> str:
+        """The item asset holding `band` (a key "VNIR#2" is band 2 of asset VNIR)."""
+        return self.key(band).partition("#")[0]
 
 
 @dataclass(frozen=True)
@@ -86,8 +99,11 @@ class Collection:
     sources     archive name -> Source; None: Planetary Computer, under the product's own name
     offset      bands whose stored values carry an offset, and the function giving it (item, asset key)
     kind        what the product measures, for grouping in docs and benchmarks: "optical", "radar",
-                "elevation", "land cover", "biomass" or "water"
+                "elevation", "land cover", "biomass", "water", "temperature" or "night lights"
     optional    bands saved when a scene has them (Landsat: coastal, OLI only)
+    native      False: always resample to res_m, even in the cell's CRS (ASTER: pixels neither square nor
+                multiples of each other, 29.989 x 29.988 m and 89.904 m; OLCI: a swath on a stand-in grid)
+    fill        stored value meaning "no data" in files without a mask (Sentinel-2 L1C: 0 outside the swath)
     period      time covered when `sources` is None (Planetary Computer only); static products: none,
                 their one version is used whatever the dates
     """
@@ -101,6 +117,8 @@ class Collection:
     offset: tuple[tuple[str, ...], Callable[[pystac.Item, str], float | None]] | None = None
     kind: str = "optical"
     optional: tuple[str, ...] = ()
+    native: bool = True
+    fill: float | None = None
     period: tuple[str, str | None] | None = None
 
     def source(self, name: str, archive: str) -> Source | None:
@@ -141,6 +159,8 @@ class EarthEngine:
                Engine keeps reflectance, the others reflectance x 10 000), so samples match across archives
     zone_index image ids start with the MGRS tile ("T12TVK_..."): the search keeps the window's UTM zone +-1 on
                the server, since some footprints cross 180° and match everywhere (HLS)
+    link       (collection, property): copy the property from the image with the same id in that collection, to
+               sort by it (Dynamic World takes the cloud cover of its Sentinel-2 image)
     """
     bands: dict[str, str]
     cloud: str | None = None
@@ -150,6 +170,7 @@ class EarthEngine:
     scaling: dict[str, tuple[float, float]] = field(default_factory=dict)
     stored: tuple[float, str] | None = None
     zone_index: bool = False
+    link: tuple[str, str] | None = None
 
 
 S2_EE = {b: "B" + b[1:].lstrip("0") if b != "B8A" else "B8A" for b in S2_L1C} | {"SCL": "SCL"}
@@ -163,6 +184,13 @@ OLI_L1 = ("B1", "B2", "B3", "B4", "B5", "B6", "B7", "B9", "B10", "B11")
 HLS_EE = {f"B{i:02d}": f"B{i}" for i in range(1, 13)} | {"B8A": "B8A", "Fmask": "Fmask"}
 DYNAMIC_WORLD = ("water", "trees", "grass", "flooded_vegetation", "crops", "shrub_and_scrub", "built", "bare",
                  "snow_and_ice", "label")
+MODIS_SR = {f"sur_refl_b{i:02d}": (0.0001, 0.0) for i in range(1, 8)}
+NBAR = tuple(f"Nadir_Reflectance_Band{i}" for i in range(1, 8))
+ASTER_VNIR, ASTER_SWIR, ASTER_TIR = ("B01", "B02", "B3N"), tuple(f"B{i:02d}" for i in range(4, 10)), \
+    tuple(f"B{i}" for i in range(10, 15))
+ASTER_PC = {b: f"{asset}#{i}" for asset, bands in (("VNIR", ASTER_VNIR), ("SWIR", ASTER_SWIR), ("TIR", ASTER_TIR))
+            for i, b in enumerate(bands, 1)}                    # bands of Planetary Computer's multi-band files
+OLCI = tuple(f"Oa{i:02d}_radiance" for i in range(1, 22))
 EARTH_ENGINE = {
     "COPERNICUS/S2_SR_HARMONIZED": EarthEngine(S2_EE, "CLOUDY_PIXEL_PERCENTAGE", "SPACECRAFT_NAME", tile="MGRS_TILE",
                                                scaling=S2_EE_SCALE),
@@ -178,8 +206,22 @@ EARTH_ENGINE = {
     "NASA/HLS/HLSL30/v002": EarthEngine({b: v for b, v in HLS_EE.items() if b not in ("B10", "B11")}, "CLOUD_COVERAGE",
                                         stored=(10000, "int16"), zone_index=True),
     "NASA/HLS/HLSS30/v002": EarthEngine(HLS_EE, "CLOUD_COVERAGE", stored=(10000, "int16"), zone_index=True),
-    "GOOGLE/DYNAMICWORLD/V1": EarthEngine({b: b for b in DYNAMIC_WORLD}),
+    "GOOGLE/DYNAMICWORLD/V1": EarthEngine({b: b for b in DYNAMIC_WORLD}, "CLOUDY_PIXEL_PERCENTAGE", tile="MGRS_TILE",
+                                          link=("COPERNICUS/S2_SR_HARMONIZED", "CLOUDY_PIXEL_PERCENTAGE")),
     "COPERNICUS/S1_GRD": EarthEngine({"vv": "VV", "vh": "VH"}, platform="platform_number", prefix="sentinel-1"),
+    **{f"MODIS/061/{p}09A1": EarthEngine({b: b for b in MODIS_SR}, scaling=MODIS_SR) for p in ("MOD", "MYD")},
+    **{f"MODIS/061/{p}09Q1": EarthEngine({b: b for b in ("sur_refl_b01", "sur_refl_b02")}, scaling=MODIS_SR)
+       for p in ("MOD", "MYD")},
+    "MODIS/061/MCD43A4": EarthEngine({b: b for b in NBAR}, scaling={b: (0.0001, 0.0) for b in NBAR}),
+    **{f"MODIS/061/{p}11A2": EarthEngine({b: b for b in ("LST_Day_1km", "LST_Night_1km")},
+                                         scaling={"LST_Day_1km": (0.02, 0.0), "LST_Night_1km": (0.02, 0.0)})
+       for p in ("MOD", "MYD")},
+    **{f"MODIS/061/{p}13Q1": EarthEngine({"NDVI": "NDVI", "EVI": "EVI"},
+                                         scaling={"NDVI": (0.0001, 0.0), "EVI": (0.0001, 0.0)})
+       for p in ("MOD", "MYD")},
+    "ASTER/AST_L1T_003": EarthEngine({b: b for b in ASTER_VNIR + ASTER_SWIR + ASTER_TIR}, "CLOUDCOVER"),
+    "NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG": EarthEngine({"avg_rad": "avg_rad", "cf_cvg": "cf_cvg"}),
+    "COPERNICUS/S3/OLCI": EarthEngine({b: b for b in OLCI}),
 }
 COLLECTIONS = {
     "sentinel-2-l2a": Collection(S2, clouds=("SCL", s2_clouds), offset=(S2, declared_or_baseline_offset),
@@ -188,7 +230,8 @@ COLLECTIONS = {
                                           "cdse": Source("sentinel-2-l2a", S2_CDSE_L2A, S2_PERIOD),
                                           "earth-engine": Source("COPERNICUS/S2_SR_HARMONIZED",
                                                                  period=("2017-03-28", None))}),
-    "sentinel-2-l1c": Collection(S2_L1C, clouds_from="sentinel-2-l2a", offset=(S2_L1C, declared_or_baseline_offset),
+    "sentinel-2-l1c": Collection(S2_L1C, clouds_from="sentinel-2-l2a", fill=0,
+                                 offset=(S2_L1C, declared_or_baseline_offset),
                                  sources={"earth-search": Source("sentinel-2-l1c", S2_EARTH_SEARCH, S2_PERIOD),
                                           "cdse": Source("sentinel-2-l1c", period=S2_PERIOD),
                                           "earth-engine": Source("COPERNICUS/S2_HARMONIZED", period=S2_PERIOD)}),
@@ -218,6 +261,41 @@ COLLECTIONS = {
                                 clouds_from="sentinel-2-l2a",                 # it masks clouds: rank by the L2A SCL
                                 sources={"earth-engine": Source("GOOGLE/DYNAMICWORLD/V1",
                                                                 period=("2015-06-27", None))}),
+    # MODIS: sinusoidal grid, so always resampled; Terra (MOD) and Aqua (MYD) together, as on Planetary Computer
+    "modis-09a1": Collection(tuple(MODIS_SR), res_m=500,
+                             sources={"planetary-computer": Source("modis-09A1-061", period=("2000-02-18", None)),
+                                      "earth-engine": Source("MODIS/061/MOD09A1+MODIS/061/MYD09A1",
+                                                             period=("2000-02-18", None))}),
+    "modis-09q1": Collection(("sur_refl_b01", "sur_refl_b02"), res_m=250,
+                             sources={"planetary-computer": Source("modis-09Q1-061", period=("2000-02-18", None)),
+                                      "earth-engine": Source("MODIS/061/MOD09Q1+MODIS/061/MYD09Q1",
+                                                             period=("2000-02-18", None))}),
+    "modis-43a4": Collection(NBAR, res_m=500,                       # nadir BRDF-adjusted reflectance, daily
+                             sources={"planetary-computer": Source("modis-43A4-061", period=("2000-02-16", None)),
+                                      "earth-engine": Source("MODIS/061/MCD43A4", period=("2000-02-24", None))}),
+    "modis-11a2": Collection(("LST_Day_1km", "LST_Night_1km"), res_m=1000, kind="temperature",   # kelvin x 50
+                             sources={"planetary-computer": Source("modis-11A2-061", period=("2000-02-18", None)),
+                                      "earth-engine": Source("MODIS/061/MOD11A2+MODIS/061/MYD11A2",
+                                                             period=("2000-02-18", None))}),
+    "modis-13q1": Collection(("NDVI", "EVI"), res_m=250,
+                             sources={"planetary-computer": Source("modis-13Q1-061", {"NDVI": "250m_16_days_NDVI",
+                                                                                      "EVI": "250m_16_days_EVI"},
+                                                                   period=("2000-02-18", None)),
+                                      "earth-engine": Source("MODIS/061/MOD13Q1+MODIS/061/MYD13Q1",
+                                                             period=("2000-02-18", None))}),
+    # ASTER: digital numbers; SWIR failed in 2008, VNIR missing from some Planetary Computer scenes, so optional
+    "aster-l1t": Collection(ASTER_TIR, optional=ASTER_VNIR + ASTER_SWIR, native=False,
+                            res_m={**{b: 15 for b in ASTER_VNIR}, **{b: 30 for b in ASTER_SWIR},
+                                   **{b: 90 for b in ASTER_TIR}},
+                            sources={"planetary-computer": Source("aster-l1t", ASTER_PC,
+                                                                  ("2000-03-04", "2006-12-31")),
+                                     "earth-engine": Source("ASTER/AST_L1T_003", period=("2000-03-04", None))}),
+    "viirs-dnb-monthly": Collection(("avg_rad", "cf_cvg"), res_m=500, kind="night lights",   # nW/cm2/sr, cloud-free
+                                    sources={"earth-engine": Source("NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG",
+                                                                    period=("2014-01-01", None))}),
+    "sentinel-3-olci-l1": Collection(OLCI, res_m=300, native=False, fill=0,   # top-of-atmosphere radiance
+                                     sources={"earth-engine": Source("COPERNICUS/S3/OLCI",
+                                                                     period=("2016-10-18", None))}),
     "sentinel-1-rtc": Collection(("vv", "vh"), kind="radar",       # backscatter (gamma0, linear), UTM 10 m; no clouds
                                  period=("2014-10-10", None)),
     "sentinel-1-grd": Collection(("vv", "vh"), kind="radar",   # terrain-corrected by Earth Engine; backscatter in dB

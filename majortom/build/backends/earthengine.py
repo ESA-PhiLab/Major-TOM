@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from ..archives import Archive
 
 HIGH_VOLUME = "https://earthengine-highvolume.googleapis.com"
+KNOWN_CRS = {"SR-ORG:6974": "+proj=sinu +R=6371007.181 +nadgrids=@null +wktext +units=m +no_defs"}   # MODIS
 _signed_in = threading.Lock()
 _ready: list[bool] = []
 
@@ -90,14 +91,19 @@ def to_item(image: dict, collection_id: str) -> pystac.Item:
     geometry = {"type": "Polygon", "coordinates": [footprint["coordinates"]]} if footprint.get("coordinates") else None
     when = dt.datetime.fromtimestamp(props["system:time_start"] / 1000, tz=dt.timezone.utc)
     bands = {b["id"]: b for b in image["bands"]}
+    first = next(iter(bands.values()))["crs"] if bands else None
     item = pystac.Item(image["id"], geometry, None, when, {
         "eo:cloud_cover": props.get(naming.cloud) if naming.cloud else None,
         "platform": _platform(props, naming), "grid:code": _tile(props, naming),
-        "proj:code": next(iter(bands.values()))["crs"] if bands else None,
+        # only EPSG codes count as the scene's CRS: others (MODIS sinusoidal) are resampled into the cell's zone,
+        # as from Planetary Computer, which declares no code for them
+        "proj:code": first if first and first.startswith("EPSG:") else None,
         "s2:processing_baseline": props.get("PROCESSING_BASELINE"), "ee:collection": collection_id})
     for ours, theirs in naming.bands.items():
         if theirs in bands:
-            extra = {"proj:code": bands[theirs]["crs"], "proj:transform": bands[theirs].get("crs_transform")}
+            crs = bands[theirs]["crs"]
+            extra = {"proj:code": crs if crs.startswith("EPSG:") else None, "ee:crs": crs,
+                     "proj:transform": bands[theirs].get("crs_transform")}
             if ours in naming.scaling:                   # declared like STAC raster:bands, read the same way
                 scale, offset = naming.scaling[ours]
                 extra["raster:bands"] = [{"scale": scale, "offset": offset}]
@@ -114,6 +120,9 @@ def search(archive: Archive, collection: str, sortby: list[dict] | None = None, 
         images = None
         for cid in ids:
             part = ee.ImageCollection(cid).map(lambda image, cid=cid: image.set("majortom:collection", cid))
+            if EARTH_ENGINE[cid].link:                   # properties of the image with the same id elsewhere
+                linked, prop = EARTH_ENGINE[cid].link
+                part = part.linkCollection(ee.ImageCollection(linked), [], [prop])
             images = part if images is None else images.merge(part)
         if bbox is not None:
             images = images.filterBounds(ee.Geometry.Rectangle(list(bbox)))
@@ -140,7 +149,8 @@ def _parse(href: str) -> tuple[str, str]:
 def header(archive: Archive, item: pystac.Item, key: str) -> tuple[CRS, Affine]:
     """CRS and grid of one band, as Earth Engine listed it."""
     asset = item.assets[key]
-    return CRS.from_user_input(asset.extra_fields["proj:code"]), Affine(*asset.extra_fields["proj:transform"][:6])
+    code = asset.extra_fields["ee:crs"]
+    return CRS.from_user_input(KNOWN_CRS.get(code, code)), Affine(*asset.extra_fields["proj:transform"][:6])
 
 
 def read_tile(archive: Archive, item: pystac.Item, key: str, win: Window, res: float,
@@ -154,7 +164,7 @@ def read_tile(archive: Archive, item: pystac.Item, key: str, win: Window, res: f
                                 "shearY": 0, "scaleY": -res, "translateY": win.top}}
     with session(archive):
         image = ee.Image(image_id).select(band)
-        if item.assets[key].extra_fields["proj:code"] != win.crs and method != "nearest":
+        if item.assets[key].extra_fields["ee:crs"] != win.crs and method != "nearest":
             image = image.resample(method)               # Earth Engine's default is nearest neighbour
         request = {"expression": image.unmask(0).addBands(image.mask().rename("majortom_covered")),
                    "fileFormat": "NUMPY_NDARRAY", "grid": grid}
