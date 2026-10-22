@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-22 Benchmark rerun at Loch Lomond: 55 pairs, 0 failures (code 1d082dd); ARCHIVES speed guide updated -> [report](docs/reports/2026-10-22-build-speed.md)
 - 2026-10-22 Core pixel match, 48 samples: S2 and most S1 are exact copies at the stored origin rounded to the band grid; most S2 source versions replaced on CDSE -> [report](docs/reports/2026-10-22-core-pixel-match.md)
 - 2026-10-22 Sentinel-3 swaths 83 -> 24 s per sample (GDAL download cache); MODIS Terra/Aqua told apart, platform filter on download; producer page per product in the products table
 - 2026-10-22 CHECKLIST, STRATEGY (builder section, marked updated after review) and CONTEXT updated to the confirmed builder state

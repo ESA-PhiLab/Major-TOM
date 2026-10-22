@@ -2,20 +2,22 @@
 
 # 2026-10-22 — majortom.build reading speed
 
-Every product from every archive, 8 cells each near Snowbird (Wasatch, Utah). Raw rows: [2026-10-22-build-speed.csv](2026-10-22-build-speed.csv).
+Every product from every archive, 8 cells each around Loch Lomond (Scotland). Raw rows: [2026-10-22-build-speed.csv](2026-10-22-build-speed.csv).
 
 ## Where and when
 
 - Country of the network: GB (no address or host recorded)
-- Run window: 2026-10-22 10:44 to 2026-10-22 10:55 UTC
+- Run window: 2026-10-22 14:24 to 2026-10-22 15:54 UTC
 - CPUs available: 16
 
 ## Software
 
-- majortom: 45ac9a5
+- majortom: 1d082dd
 - rasterio: 1.4.4
 - gdal: 3.10.3
 - python: 3.10.22
+
+Note (added by hand): the run used 1d082dd, before the Sentinel-3 swath speed-up and the MODIS Terra/Aqua split (e7bfac0). Sentinel-3 times here are the slow path.
 
 ## Network
 
@@ -23,9 +25,11 @@ Median of 5 HTTPS HEAD requests, connection and TLS included. Distance to each a
 
 | Archive | Workers | Catalogue round-trip (s) | Storage round-trip (s) |
 |---|---|---|---|
-| planetary-computer | 16 | 0.099 | 0.089 |
-| earth-search | 16 | 0.456 | 0.484 |
-| cdse | 4 | 0.122 | 0.108 |
+| planetary-computer | 16 | 0.082 | 0.079 |
+| earth-search | 16 | 0.472 | 0.481 |
+| cdse | 4 | 0.134 | 0.109 |
+| earthdata | 8 | 0.135 | 0.286 |
+| earth-engine | 8 | 0.176 | 0.737 |
 
 ## Results per kind
 
@@ -35,52 +39,96 @@ Samples/hour: built samples over the pair's wall time, at the archive's workers.
 
 | Product | Archive | Samples/hour | s/sample | Search | Scene choice | Retries | s per band, by pixel size |
 |---|---|---|---|---|---|---|---|
-| sentinel-2-l2a | cdse | 562 | 21.4 | 2.6 | 1.4 | 0 | 10 m: 1.94 · 20 m: 1.31 · 60 m: 0.86 |
-| sentinel-2-l2a | earth-search | 320 | 82.5 | 1.5 | 6.3 | 0 | 10 m: 12.96 · 20 m: 3.45 · 60 m: 1.04 |
-| sentinel-2-l2a | planetary-computer | 1653 | 16.1 | 0.7 | 1.5 | 0 | 10 m: 2.40 · 20 m: 0.67 · 60 m: 0.15 |
-| sentinel-2-l1c | cdse | 512 | 20.7 | 1.9 | 4.7 | 0 | 10 m: 1.64 · 20 m: 1.12 · 60 m: 0.45 |
-| sentinel-2-l1c | earth-search | 774 | 19.0 | 1.0 | 4.1 | 0 | 10 m: 1.80 · 20 m: 1.01 · 60 m: 0.36 |
-| landsat-c2-l2 | planetary-computer | 475 | 37.5 | 28.9 | 3.6 | 0 | 30 m: 0.71 |
-| hls2-s30 | planetary-computer | 4509 | 5.6 | 0.5 | 1.7 | 0 | 30 m: 0.25 |
-| hls2-l30 | planetary-computer | 5109 | 4.1 | 0.2 | 1.2 | 0 | 30 m: 0.27 |
+| sentinel-2-l2a | cdse | 207 | 69.2 | 3.3 | 1.4 | 0 | 10 m: 7.00 · 20 m: 4.84 · 60 m: 3.73 |
+| sentinel-2-l2a | earth-engine | 215 | 31.6 | 2.2 | 4.4 | 0 | 10 m: 2.70 · 20 m: 1.90 · 60 m: 1.41 |
+| sentinel-2-l2a | earth-search | 384 | 72.7 | 1.5 | 7.7 | 0 | 10 m: 11.26 · 20 m: 2.77 · 60 m: 0.90 |
+| sentinel-2-l2a | planetary-computer | 1177 | 18.2 | 1.3 | 1.1 | 0 | 10 m: 2.87 · 20 m: 0.61 · 60 m: 0.34 |
+| sentinel-2-l1c | cdse | 208 | 68.9 | 1.9 | 6.7 | 0 | 10 m: 7.14 · 20 m: 4.53 · 60 m: 2.77 |
+| sentinel-2-l1c | earth-engine | 141 | 40.9 | 1.4 | 3.8 | 0 | 10 m: 2.77 · 20 m: 3.66 · 60 m: 1.26 |
+| sentinel-2-l1c | earth-search | 536 | 51.9 | 1.3 | 6.3 | 0 | 10 m: 5.69 · 20 m: 3.01 · 60 m: 2.21 |
+| landsat-c2-l2 | earth-engine | 481 | 14.1 | 1.0 | 1.7 | 0 | 30 m: 1.63 |
+| landsat-c2-l2 | planetary-computer | 7063 | 3.3 | 0.8 | 0.5 | 0 | 30 m: 0.27 |
+| landsat-c2-l1 | earth-engine | 119 | 40.2 | 0.6 | 9.2 | 0 | 15 m: 1.75 · 30 m: 2.86 |
+| hls2-s30 | earth-engine | 232 | 27.7 | 1.7 | 1.9 | 0 | 30 m: 1.86 |
+| hls2-s30 | earthdata | 379 | 67.0 | 15.3 | 33.6 | 0 | 30 m: 1.39 |
+| hls2-s30 | planetary-computer | 4859 | 5.1 | 0.8 | 1.1 | 0 | 30 m: 0.25 |
+| hls2-l30 | earth-engine | 376 | 17.5 | 0.8 | 1.5 | 0 | 30 m: 1.90 |
+| hls2-l30 | earthdata | 604 | 43.9 | 5.5 | 24.4 | 0 | 30 m: 1.39 |
+| hls2-l30 | planetary-computer | 5001 | 4.2 | 0.2 | 2.0 | 0 | 30 m: 0.20 |
+| modis-09a1 | earth-engine | 1047 | 6.1 | 0.9 | 1.1 | 0 | 500 m: 0.74 |
+| modis-09a1 | planetary-computer | 458 | 25.3 | 23.2 | 0.7 | 0 | 500 m: 0.23 |
+| modis-09q1 | earth-engine | 2612 | 2.2 | 0.7 | 0.9 | 0 | 250 m: 0.75 |
+| modis-09q1 | planetary-computer | 20631 | 1.1 | 0.4 | 0.4 | 0 | 250 m: 0.26 |
+| modis-43a4 | earth-engine | 1104 | 5.9 | 0.7 | 0.8 | 0 | 500 m: 0.74 |
+| modis-43a4 | planetary-computer | 9837 | 2.9 | 1.4 | 0.6 | 0 | 500 m: 0.15 |
+| modis-13q1 | earth-engine | 1284 | 5.5 | 0.9 | 3.7 | 0 | 250 m: 0.87 |
+| modis-13q1 | planetary-computer | 11841 | 1.9 | 0.3 | 1.2 | 0 | 250 m: 0.29 |
+| aster-l1t | earth-engine | 349 | 19.9 | 1.0 | 1.3 | 0 | 15 m: 1.96 · 30 m: 1.37 · 90 m: 0.95 |
+| aster-l1t | planetary-computer | 5663 | 4.0 | 0.4 | 1.7 | 0 | 15 m: 0.29 · 30 m: 0.12 · 90 m: 0.18 |
+| sentinel-3-olci-l1 | cdse | 34 | 406.9 | 4.2 | 61.0 | 0 | 300 m: 18.65 |
+| sentinel-3-olci-l1 | earth-engine | 285 | 24.6 | 2.1 | 3.8 | 0 | 300 m: 0.94 |
+| sentinel-3-olci-l2-lfr | cdse | 49 | 293.2 | 1.2 | 260.4 | 0 | 300 m: 26.26 |
+| sentinel-3-olci-l2-lfr | planetary-computer | 12 | 2395.4 | 0.7 | 1858.2 | 0 | 300 m: 305.83 |
 
 ### Elevation
 
 | Product | Archive | Samples/hour | s/sample | Search | Scene choice | Retries | s per band, by pixel size |
 |---|---|---|---|---|---|---|---|
-| cop-dem-glo-30 | cdse | 3941 | 2.9 | 2.6 | 0.3 | 0 | 30 m: 0.24 |
-| cop-dem-glo-30 | earth-search | 8839 | 2.5 | 0.7 | 1.9 | 0 | 30 m: 1.53 |
-| cop-dem-glo-30 | planetary-computer | 9056 | 2.2 | 0.3 | 1.9 | 0 | 30 m: 1.74 |
-| nasadem | planetary-computer | 16388 | 1.0 | 0.2 | 0.7 | 0 | 30 m: 0.58 |
-| alos-dem | planetary-computer | 2802 | 3.3 | 2.5 | 0.8 | 0 | 30 m: 0.64 |
-
-### Radar
-
-| Product | Archive | Samples/hour | s/sample | Search | Scene choice | Retries | s per band, by pixel size |
-|---|---|---|---|---|---|---|---|
-| sentinel-1-rtc | planetary-computer | 497 | 43.8 | 34.0 | 5.2 | 0 | 10 m: 4.72 |
-| alos-palsar-mosaic | planetary-computer | 579 | 25.9 | 24.0 | 1.0 | 0 | 25 m: 0.85 |
-
-### Biomass
-
-| Product | Archive | Samples/hour | s/sample | Search | Scene choice | Retries | s per band, by pixel size |
-|---|---|---|---|---|---|---|---|
-| hgb | planetary-computer | 551 | 49.4 | 47.5 | 0.9 | 0 | 300 m: 0.34 |
+| cop-dem-glo-30 | cdse | 3811 | 2.9 | 2.6 | 0.3 | 0 | 30 m: 0.21 |
+| cop-dem-glo-30 | earth-search | 15696 | 1.7 | 0.7 | 1.0 | 0 | 30 m: 0.73 |
+| cop-dem-glo-30 | planetary-computer | 9703 | 1.6 | 0.3 | 1.3 | 0 | 30 m: 1.12 |
+| nasadem | planetary-computer | 496 | 22.1 | 21.6 | 0.5 | 0 | 30 m: 0.29 |
+| alos-dem | planetary-computer | 9855 | 1.4 | 0.5 | 0.8 | 0 | 30 m: 0.59 |
 
 ### Land cover
 
 | Product | Archive | Samples/hour | s/sample | Search | Scene choice | Retries | s per band, by pixel size |
 |---|---|---|---|---|---|---|---|
-| alos-fnf-mosaic | planetary-computer | 33636 | 0.6 | 0.2 | 0.4 | 0 | 25 m: 0.11 |
-| esa-worldcover | planetary-computer | 526 | 25.2 | 24.0 | 0.8 | 0 | 10 m: 0.57 · 60 m: 0.44 |
-| io-lulc-annual-v02 | planetary-computer | 2220 | 9.4 | 8.9 | 0.5 | 0 | 10 m: 0.31 |
-| esa-cci-lc | planetary-computer | 477 | 50.6 | 50.1 | 0.4 | 0 | 300 m: 0.05 |
+| dynamic-world | earth-engine | 166 | 42.2 | 0.7 | 18.0 | 0 | 10 m: 2.64 |
+| opera-dist-alert-hls | earthdata | 632 | 23.4 | 8.1 | 13.9 | 0 | 30 m: 0.73 |
+| alos-fnf-mosaic | planetary-computer | 44271 | 0.5 | 0.2 | 0.3 | 0 | 25 m: 0.16 |
+| esa-worldcover | planetary-computer | 14808 | 1.5 | 0.3 | 0.6 | 0 | 10 m: 0.41 · 60 m: 0.56 |
+| io-lulc-annual-v02 | planetary-computer | 488 | 57.7 | 57.1 | 0.6 | 0 | 10 m: 0.46 |
+| esa-cci-lc | planetary-computer | 470 | 37.3 | 36.4 | 0.4 | 0 | 300 m: 0.10 |
+
+### Temperature
+
+| Product | Archive | Samples/hour | s/sample | Search | Scene choice | Retries | s per band, by pixel size |
+|---|---|---|---|---|---|---|---|
+| modis-11a2 | earth-engine | 747 | 9.5 | 0.9 | 7.7 | 0 | 1000 m: 1.29 |
+| modis-11a2 | planetary-computer | 9662 | 2.0 | 0.3 | 1.5 | 0 | 1000 m: 0.32 |
+
+### Night lights
+
+| Product | Archive | Samples/hour | s/sample | Search | Scene choice | Retries | s per band, by pixel size |
+|---|---|---|---|---|---|---|---|
+| viirs-dnb-monthly | earth-engine | 3618 | 2.0 | 0.6 | 0.9 | 0 | 500 m: 0.70 |
+
+### Radar
+
+| Product | Archive | Samples/hour | s/sample | Search | Scene choice | Retries | s per band, by pixel size |
+|---|---|---|---|---|---|---|---|
+| sentinel-1-rtc | planetary-computer | 2033 | 12.0 | 0.4 | 6.3 | 0 | 10 m: 5.65 |
+| sentinel-1-grd | cdse | 3363 | 3.5 | 2.2 | 0.8 | 0 | 10 m: 0.62 |
+| sentinel-1-grd | earth-search | 4802 | 5.4 | 1.1 | 2.4 | 0 | 10 m: 1.99 |
+| sentinel-1-grd | planetary-computer | 794 | 7.9 | 4.5 | 2.0 | 0 | 10 m: 1.54 |
+| sentinel-1-grd-tc | earth-engine | 662 | 8.6 | 0.8 | 4.1 | 0 | 10 m: 3.91 |
+| opera-rtc-s1 | earthdata | 817 | 32.7 | 20.9 | 8.8 | 0 | 30 m: 3.18 |
+| alos-palsar-mosaic | planetary-computer | 7676 | 2.9 | 0.3 | 1.6 | 0 | 25 m: 1.15 |
 
 ### Water
 
 | Product | Archive | Samples/hour | s/sample | Search | Scene choice | Retries | s per band, by pixel size |
 |---|---|---|---|---|---|---|---|
-| jrc-gsw | planetary-computer | 555 | 25.2 | 24.0 | 0.7 | 0 | 30 m: 0.11 |
+| opera-dswx-hls | earthdata | 532 | 42.0 | 26.7 | 11.3 | 2 | 30 m: 1.80 |
+| opera-dswx-s1 | earthdata | 806 | 26.4 | 15.2 | 6.5 | 0 | 30 m: 2.18 |
+| jrc-gsw | planetary-computer | 20566 | 1.3 | 0.3 | 0.7 | 0 | 30 m: 0.08 |
+
+### Biomass
+
+| Product | Archive | Samples/hour | s/sample | Search | Scene choice | Retries | s per band, by pixel size |
+|---|---|---|---|---|---|---|---|
+| hgb | planetary-computer | 486 | 23.4 | 21.7 | 1.0 | 0 | 300 m: 0.28 |
 
 ## Failures
 
@@ -91,4 +139,5 @@ None.
 - One sample is one cell's window: search, scene choice (cloud mask reads), every band read, written to .npz + .json.
 - Dates per product: as in `tests/test_products.py`; cloud=None, so any scene is accepted.
 - Each pair runs alone, one after another; archives are not loaded at the same time.
-- Search times depend on each archive's load at run time: rerunning single products minutes later, Planetary Computer searches that took 24-50 s here took under 1 s. Compare runs, not single numbers.
+- Earth Engine pairs use 2 cells each (a shared project quota); samples/hour are per those cells.
+- Search times depend on each archive's load at run time; compare runs, not single numbers.

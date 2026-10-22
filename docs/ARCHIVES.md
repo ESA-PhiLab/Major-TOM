@@ -155,7 +155,7 @@ Tiles of one pass overlap. Tiles that contain the whole window are used first, t
 
 Measured from a server in Europe; distance to each archive is part of every number. Latest report: [docs/reports/2026-10-22-build-speed.md](reports/2026-10-22-build-speed.md). Every sample records its own `timing` (search, scene choice, each band), so you can measure your own runs.
 
-Rough guide at 16 workers (4 for CDSE): HLS and Copernicus DEM several thousand samples/hour; Sentinel-2 L2A about 1,600 (Planetary Computer), 550 (CDSE), 300 (Earth Search); Sentinel-2 L1C about 500–800; Landsat L2 about 500.
+Rough guide from that report, in samples/hour at each archive's default workers (16 Planetary Computer and Earth Search, 8 Earthdata and Earth Engine, 4 CDSE): Copernicus DEM 4,000–16,000; Landsat L2 and HLS on Planetary Computer 5,000–7,000; HLS elsewhere 230–600; Sentinel-2 L2A about 1,200 (Planetary Computer), 380 (Earth Search), 210 (CDSE, Earth Engine); Sentinel-2 L1C 140–540. Earth Engine numbers are for 2 cells per pair (small-scale test project).
 
 ## 7. Troubleshooting
 
