@@ -38,7 +38,7 @@ from tqdm.auto import tqdm
 from ..cells import Cell, cells_from_points, cells_in   # noqa: F401  re-exported for convenience
 from ..spec import MARGIN, cell_coverage, window
 from .archives import ARCHIVES, Archive
-from .collections import COLLECTIONS, Collection, Source, processing_baseline
+from .collections import COLLECTIONS, Collection, Source, declared_scaling, processing_baseline
 from .read import layout, read_asset
 from .search import acquired, item_crs, retries, same_pass, scenes, tiles_for
 
@@ -50,6 +50,17 @@ def _field(row, name: str):
     """A per-sample column's value, or None when the column is missing or empty."""
     value = getattr(row, name, None)
     return None if value is None or (not isinstance(value, str) and pd.isna(value)) else value
+
+
+def outside(period: tuple[str, str | None] | None, query: str | None) -> bool:
+    """Whether a STAC datetime query lies wholly outside a source's period (first day, last day or None)."""
+    if period is None or not query:
+        return False
+    naive = [pd.Timestamp(t) for t in query.split("/") if t not in ("", "..")]
+    ends = [t.tz_convert(None) if t.tzinfo else t for t in naive]
+    first = pd.Timestamp(period[0])
+    last = pd.Timestamp(period[1]) + pd.Timedelta(days=1) if period[1] else None   # through the last day
+    return max(ends) < first or (last is not None and min(ends) >= last)
 
 
 def interval(when, days) -> str | None:
@@ -144,13 +155,14 @@ def pick_scene(archive: Archive, source: Source, cell, collection, query, margin
     start = time.perf_counter()
     own_mask = collection.clouds is not None
     mask_asset = collection.clouds[0] if own_mask else collection.assets[0]
-    grid_assets = list(collection.assets) + ([mask_asset] if own_mask else [])
     tried = []
     bbox = search_box(cell, margin)
     found, note = scenes(archive, source, collection, bbox, query, choice.prefer)
     searched = time.perf_counter()
     for scene in found[:CANDIDATES]:
         for crs, tiles in tiles_for(scene, cell, margin):   # same scene, another zone if this one is empty
+            bands = present(collection, source, tiles)
+            grid_assets = bands + ([mask_asset] if own_mask else [])
             win, res, native = layout(cell, tiles[0], collection, source, grid_assets, margin, crs)
             method = "nearest" if own_mask else collection.resampling   # without a mask: the data
             read_start = time.perf_counter()
@@ -183,6 +195,12 @@ def pick_scene(archive: Archive, source: Source, cell, collection, query, margin
 def timing(start: float, searched: float) -> dict:
     """Seconds spent on the catalogue search and on choosing the scene, rounded for the sidecar."""
     return dict(search=round(searched - start, 3), scene_choice=round(time.perf_counter() - searched, 3))
+
+
+def present(collection: Collection, source: Source, tiles) -> list[str]:
+    """Bands to save from these tiles: all required ones, and the optional ones every tile has."""
+    extra = [b for b in collection.optional if all(source.key(b) in it.assets for it in tiles)]
+    return list(collection.assets) + extra
 
 
 def band_names(arrays: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
@@ -228,7 +246,7 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
         pick, seconds = pick_scene(archive, source, cell, collection, query, margin, choice)
         tiles, win, res, native, cloud, nodata = pick.tiles, pick.win, pick.res, pick.native, pick.cloud, pick.nodata
         arrays, band_seconds = {}, {}
-        for asset in collection.assets:
+        for asset in present(collection, source, tiles):
             if pick.first is not None and asset == collection.assets[0]:   # read while choosing the scene
                 arrays[asset], band_seconds[asset] = pick.first, pick.first_seconds
                 continue
@@ -244,17 +262,20 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
     if collection.offset:                               # value added to stored values, per band
         bands, rule = collection.offset
         offset = {b: rule(tiles[0], source.key(b)) for b in collection.assets if b in bands}
-    finest = min(res[a] for a in collection.assets)
+    finest = min(res[a] for a in arrays)
+    scaling = {b: declared_scaling(tiles[0], source.key(b)) for b in arrays}
+    scaling = {b: v for b, v in scaling.items() if v} or None
     meta = dict(
         index=int(row.Index), lon=float(row.lon), lat=float(row.lat),
         archive=archive.name, collection=name, source_collection=source.collection,
+        platform=tiles[0].properties.get("platform"), scaling=scaling,          # physical = stored x scale + offset
         processing_baseline=processing_baseline(tiles[0]) if collection.offset else None, offset=offset,
         items=[it.id for it in tiles], datetime=acquired(tiles[0]).floor("us").isoformat(),
         cloud=cloud, cloud_source=pick.cloud_source, cloud_items=pick.cloud_items, nodata=float(nodata),
         crs=win.crs, epsg=int(win.crs.split(":")[1]),
         left=win.left, top=win.top, res=finest, size=win.pixels(finest), bands=list(planes),
         grid_cell=cell.name, grid_km=cell.d, window_m=win.side, cell_coverage=cell_coverage(cell, win),
-        profile=PROFILE, resampled=[] if native else list(collection.assets),
+        profile=PROFILE, resampled=[] if native else list(arrays),
         query=dict(datetime=query, margin=margin, dates_used=pick.note), choice=asdict(choice),
         timing=seconds,                                 # seconds: search, scene_choice, bands, total; retries
     )
@@ -295,8 +316,14 @@ def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, 
     source.gdal_env()                                    # missing credentials: one clear error, before any sample
     if collection not in COLLECTIONS:
         raise KeyError(f"unknown collection {collection!r}; pick one of {sorted(COLLECTIONS)}")
-    if COLLECTIONS[collection].source(collection, archive) is None:
-        raise KeyError(f"{archive} does not have {collection}; it is in {COLLECTIONS[collection].archives()}")
+    product = COLLECTIONS[collection]
+    if product.source(collection, archive) is None:
+        raise KeyError(f"{archive} does not have {collection}; it is in {product.archives()}")
+    if product.time == "scene" and outside(product.source(collection, archive).period, interval(datetime, days)):
+        covering = [a for a in product.archives() if not outside(product.source(collection, a).period,
+                                                                 interval(datetime, days))]
+        raise ValueError(f"{archive} has {collection} for {product.source(collection, archive).period}, not "
+                         f"{datetime}; archives that cover it: {covering or 'none'}")
     if cells.index.has_duplicates:
         raise ValueError("cells must have a unique index; call cells.reset_index(drop=True) first")
     out = Path(outdir) / collection

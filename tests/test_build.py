@@ -116,3 +116,44 @@ def test_crs_from_assets_when_the_item_has_none():                  # STAC 1.1 c
     item = pystac.Item("x", None, None, dt.datetime(2024, 8, 29), {})
     item.add_asset("B04_10m", pystac.Asset("s3://eodata/x.jp2", extra_fields={"proj:code": "EPSG:32612"}))
     assert item_crs(item) == "EPSG:32612"
+
+
+def test_dates_outside_a_source_period_are_refused():
+    from majortom.build import download, outside
+
+    assert outside(("2020-01-01", None), "2015-06-01/2015-08-31")
+    assert not outside(("2020-01-01", None), "2019-12-01/2020-01-15")             # overlaps
+    assert outside(("2015-01-01", "2021-12-31"), "2022-01-01T00:00:00Z/2022-02-01T00:00:00Z")
+    assert not outside(None, "1900-01-01/1900-02-01") and not outside(("2020-01-01", None), None)
+    with pytest.raises(ValueError, match="hls2-l30 for"):
+        download(pd.DataFrame({"row": [0]}), "hls2-l30", "2015-06-01/2015-08-31")
+
+
+def test_optional_bands_are_saved_only_where_every_tile_has_them():
+    import datetime as dt
+    import pystac
+    from majortom.build import COLLECTIONS, present
+
+    def scene(*keys):
+        it = pystac.Item("x", None, None, dt.datetime(2000, 1, 1), {})
+        for k in keys:
+            it.add_asset(k, pystac.Asset("https://example.org/x.tif"))
+        return [it]
+
+    landsat = COLLECTIONS["landsat-c2-l2"]
+    source = landsat.source("landsat-c2-l2", "planetary-computer")
+    tm = scene("blue", "green", "red", "nir08", "swir16", "swir22", "qa_pixel")
+    assert present(landsat, source, tm) == list(landsat.assets)                    # Landsat 5: no coastal
+    assert present(landsat, source, scene(*tm[0].assets, "coastal"))[-1] == "coastal"
+
+
+def test_declared_scaling_is_recorded_as_given():
+    import datetime as dt
+    import pystac
+    from majortom.build.collections import declared_scaling
+
+    it = pystac.Item("x", None, None, dt.datetime(2024, 8, 26), {})
+    it.add_asset("red", pystac.Asset("x", extra_fields={"raster:bands": [{"scale": 2.75e-05, "offset": -0.2}]}))
+    it.add_asset("qa_pixel", pystac.Asset("x", extra_fields={"raster:bands": [{"unit": "bit index"}]}))
+    assert declared_scaling(it, "red") == {"scale": 2.75e-05, "offset": -0.2}
+    assert declared_scaling(it, "qa_pixel") is None

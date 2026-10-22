@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-22 Builder: Landsat 4-7 now found (coastal optional; was dropping TM/ETM+ scenes); every sample records platform and declared scaling; sources declare their period, dates outside it are refused
 - 2026-10-22 Builder: one request per search (page size 100), CDSE searches spaced 1 s apart, retries counted per sample (CDSE 8/8 instead of 1/8); benchmark writes a dated report to docs/reports/
 - 2026-10-22 Products get a kind (optical, radar, elevation, land cover, biomass, water); tests/test_products.py builds all 21 product-archive pairs (pass); docs/evidence/build_speed.py benchmark
 - 2026-10-22 Builder: every sample records timing (search, scene_choice, per-band reads, total) in its .json

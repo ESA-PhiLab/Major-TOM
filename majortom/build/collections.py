@@ -30,6 +30,13 @@ def hls_clouds(fmask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return (fmask & 0b1110) > 0, fmask == 255
 
 
+def declared_scaling(item: pystac.Item, key: str) -> dict | None:
+    """Scale and offset the archive declares for an asset (physical = stored x scale + offset), or None."""
+    bands = item.assets[key].extra_fields.get("raster:bands") or item.assets[key].extra_fields.get("bands") or [{}]
+    scale, offset = bands[0].get("scale"), bands[0].get("offset")
+    return None if scale is None and offset is None else {"scale": scale, "offset": offset}
+
+
 def processing_baseline(item: pystac.Item) -> str | None:
     """Sentinel-2 processing baseline, e.g. "05.00": s2:processing_baseline, or processing:version (CDSE)."""
     return item.properties.get("s2:processing_baseline") or item.properties.get("processing:version")
@@ -51,9 +58,11 @@ def declared_or_baseline_offset(item: pystac.Item, key: str) -> float | None:
 
 @dataclass(frozen=True)
 class Source:
-    """One product in one archive: its collection id, and the asset key of each band (default: the band name)."""
+    """One product in one archive: its collection id, the asset key of each band (default: the band name), and
+    the time it covers as the archive's catalogue declares it: (first day, last day or None if ongoing)."""
     collection: str
     assets: dict[str, str] = field(default_factory=dict)
+    period: tuple[str, str | None] | None = None
 
     def key(self, band: str) -> str:
         return self.assets.get(band, band)
@@ -78,6 +87,9 @@ class Collection:
     offset      bands whose stored values carry an offset, and the function giving it (item, asset key)
     kind        what the product measures, for grouping in docs and benchmarks: "optical", "radar",
                 "elevation", "land cover", "biomass" or "water"
+    optional    bands saved when a scene has them (Landsat: coastal, OLI only)
+    period      time covered when `sources` is None (Planetary Computer only); static products: none,
+                their one version is used whatever the dates
     """
     assets: tuple[str, ...]
     time: str = "scene"
@@ -88,10 +100,14 @@ class Collection:
     sources: dict[str, Source] | None = None
     offset: tuple[tuple[str, ...], Callable[[pystac.Item, str], float | None]] | None = None
     kind: str = "optical"
+    optional: tuple[str, ...] = ()
+    period: tuple[str, str | None] | None = None
 
     def source(self, name: str, archive: str) -> Source | None:
         """Where `archive` keeps this product (`name` is the product's name), or None."""
-        return {"planetary-computer": Source(name)}.get(archive) if self.sources is None else self.sources.get(archive)
+        if self.sources is None:
+            return Source(name, period=self.period) if archive == "planetary-computer" else None
+        return self.sources.get(archive)
 
     def archives(self) -> list[str]:
         return ["planetary-computer"] if self.sources is None else sorted(self.sources)
@@ -108,36 +124,43 @@ S2_EARTH_SEARCH = {"B01": "coastal", "B02": "blue", "B03": "green", "B04": "red"
 S2_CDSE_L2A = {"B01": "B01_60m", "B02": "B02_10m", "B03": "B03_10m", "B04": "B04_10m", "B05": "B05_20m",
                "B06": "B06_20m", "B07": "B07_20m", "B08": "B08_10m", "B8A": "B8A_20m", "B09": "B09_60m",
                "B11": "B11_20m", "B12": "B12_20m", "SCL": "SCL_20m"}     # native resolution of each band
+S2_PERIOD = ("2015-06-27", None)
 COLLECTIONS = {
     "sentinel-2-l2a": Collection(S2, clouds=("SCL", s2_clouds), offset=(S2, declared_or_baseline_offset),
-                                 sources={"planetary-computer": Source("sentinel-2-l2a"),
-                                          "earth-search": Source("sentinel-2-c1-l2a", S2_EARTH_SEARCH),
-                                          "cdse": Source("sentinel-2-l2a", S2_CDSE_L2A)}),
+                                 sources={"planetary-computer": Source("sentinel-2-l2a", period=S2_PERIOD),
+                                          "earth-search": Source("sentinel-2-c1-l2a", S2_EARTH_SEARCH, S2_PERIOD),
+                                          "cdse": Source("sentinel-2-l2a", S2_CDSE_L2A, S2_PERIOD)}),
     "sentinel-2-l1c": Collection(S2_L1C, clouds_from="sentinel-2-l2a", offset=(S2_L1C, declared_or_baseline_offset),
-                                 sources={"earth-search": Source("sentinel-2-l1c", S2_EARTH_SEARCH),
-                                          "cdse": Source("sentinel-2-l1c")}),
+                                 sources={"earth-search": Source("sentinel-2-l1c", S2_EARTH_SEARCH, S2_PERIOD),
+                                          "cdse": Source("sentinel-2-l1c", period=S2_PERIOD)}),
     "cop-dem-glo-30": Collection(("DEM",), time="static", res_m=30, kind="elevation",
                                  sources={"planetary-computer": Source("cop-dem-glo-30", {"DEM": "data"}),
                                           "earth-search": Source("cop-dem-glo-30", {"DEM": "data"}),
                                           "cdse": Source("cop-dem-glo-30-dged-cog", {"DEM": "data"})}),
-    "landsat-c2-l2": Collection(("coastal", "blue", "green", "red", "nir08", "swir16", "swir22"),
-                                clouds=("qa_pixel", landsat_clouds)),
+    "landsat-c2-l2": Collection(("blue", "green", "red", "nir08", "swir16", "swir22"), optional=("coastal",),
+                                clouds=("qa_pixel", landsat_clouds), period=("1982-08-22", None)),   # Landsat 4-9
     "hls2-s30": Collection(("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B10", "B11", "B12"),
-                           clouds=("Fmask", hls_clouds)),
+                           clouds=("Fmask", hls_clouds), period=("2020-01-01", None)),   # Planetary Computer: 2020-
     "hls2-l30": Collection(("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B09", "B10", "B11"),
-                           clouds=("Fmask", hls_clouds)),
-    "sentinel-1-rtc": Collection(("vv", "vh"), kind="radar"),   # backscatter (gamma0, linear), UTM 10 m; no clouds
-    "alos-palsar-mosaic": Collection(("HH", "HV"), time="yearly", res_m=25, kind="radar"),
+                           clouds=("Fmask", hls_clouds), period=("2020-01-01", None)),
+    "sentinel-1-rtc": Collection(("vv", "vh"), kind="radar",       # backscatter (gamma0, linear), UTM 10 m; no clouds
+                                 period=("2014-10-10", None)),
+    "alos-palsar-mosaic": Collection(("HH", "HV"), time="yearly", res_m=25, kind="radar",
+                                     period=("2015-01-01", "2021-12-31")),
     "nasadem": Collection(("elevation",), time="static", res_m=30, kind="elevation"),
     "alos-dem": Collection(("data",), time="static", res_m=30, kind="elevation"),
     "hgb": Collection(("aboveground", "belowground", "aboveground_uncertainty", "belowground_uncertainty"),
                       time="static", res_m=300, kind="biomass"),
-    "alos-fnf-mosaic": Collection(("C",), time="yearly", resampling="nearest", res_m=25, kind="land cover"),
+    "alos-fnf-mosaic": Collection(("C",), time="yearly", resampling="nearest", res_m=25, kind="land cover",
+                                  period=("2015-01-01", "2020-12-31")),
     "esa-worldcover": Collection(("map", "input_quality"), time="yearly", resampling="nearest",
-                                 res_m={"map": 10, "input_quality": 60}, kind="land cover"),
-    "io-lulc-annual-v02": Collection(("data",), time="yearly", resampling="nearest", res_m=10, kind="land cover"),
+                                 res_m={"map": 10, "input_quality": 60}, kind="land cover",
+                                 period=("2020-01-01", "2021-12-31")),
+    "io-lulc-annual-v02": Collection(("data",), time="yearly", resampling="nearest", res_m=10, kind="land cover",
+                                     period=("2017-01-01", "2024-01-01")),
     "esa-cci-lc": Collection(("lccs_class", "change_count", "observation_count", "current_pixel_state",
-                              "processed_flag"), time="yearly", resampling="nearest", res_m=300, kind="land cover"),
+                              "processed_flag"), time="yearly", resampling="nearest", res_m=300, kind="land cover",
+                             period=("1992-01-01", "2020-12-31")),
     "jrc-gsw": Collection(("occurrence", "change", "seasonality", "recurrence", "transitions", "extent"),
                           time="static", resampling="nearest", res_m=30, kind="water"),
 }

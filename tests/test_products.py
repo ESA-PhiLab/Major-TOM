@@ -61,3 +61,17 @@ def test_product_builds_from_archive(name, archive, tmp_path):
     assert set(meta["timing"]) == {"search", "scene_choice", "bands", "total", "retries"}
     if collection.offset:
         assert all(meta["offset"][b] in (0.0, 1000.0) for b in collection.offset[0] if b in meta["offset"])
+
+
+@pytest.mark.parametrize("name, archive", PAIRS)
+def test_period_matches_the_catalogue(name, archive):
+    from majortom.build.archives import ARCHIVES
+    from majortom.build.search import catalog, retry
+
+    source = COLLECTIONS[name].source(name, archive)
+    if source.period is None:
+        pytest.skip("static product: one version, no period")
+    entry = retry(lambda: catalog(ARCHIVES[archive]).get_collection(source.collection), 6)
+    start, end = entry.extent.temporal.intervals[0]
+    assert start.date().isoformat() == source.period[0]
+    assert (end.date().isoformat() if end else None) in (source.period[1], None)   # ongoing: the catalogue may say so
