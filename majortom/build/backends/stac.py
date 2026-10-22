@@ -44,8 +44,11 @@ GDAL_OPTIONS = dict(                       # cloud-native reads: one request per
     # give up on stalled transfers, not slow ones: a limit on total time (GDAL_HTTP_TIMEOUT) cut 1.4 MB tiles
     # from a distant bucket short, and GDAL decoded the partial tile (TIFFFillTile "got ... bytes")
     GDAL_HTTP_CONNECTTIMEOUT="30", GDAL_HTTP_LOW_SPEED_TIME="60", GDAL_HTTP_LOW_SPEED_LIMIT="1024",
+    # keep downloaded pieces: opening a Sentinel-3 coordinates file over HTTP takes ~20 s, a second open 0.5 s
+    CPL_VSIL_CURL_CACHE_SIZE=str(512 * 2**20),
 )
 PAGE = 100                                              # items per page: one request per search (CDSE pages by 10)
+TIE_STEP = 64                                           # OLCI tie-point grid: every 64th column (ac_subsampling_factor)
 _gates: dict[str, tuple[threading.Lock, list[float]]] = {}
 _gates_lock = threading.Lock()
 
@@ -230,9 +233,8 @@ def _read_swath(item: pystac.Item, asset: str, variable: str, win: Window, res: 
     if not rows.size:
         return out, np.zeros((n, n), bool)
     geo, data = item.assets[find_asset(item, "geo-coordinates")].href, item.assets[find_asset(item, asset)].href
-    with rasterio.open(_gdal_path(geo, "latitude")) as src:
-        height, width = src.height, src.width
-    step = width // (tie_lat.shape[1] - 1) if tie_lat.shape[1] > 1 else 1
+    step = TIE_STEP                                      # tie points: every row, every 64th column
+    height, width = tie_lat.shape[0], (tie_lat.shape[1] - 1) * step + 1
     r0, r1 = max(rows.min() - 2, 0), min(rows.max() + 3, height)
     c0, c1 = max((cols.min() - 1) * step, 0), min((cols.max() + 2) * step, width)
     block = (int(c0), int(r0), int(c1 - c0), int(r1 - r0))

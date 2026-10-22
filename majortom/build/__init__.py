@@ -42,7 +42,7 @@ from .archives import ARCHIVES, Archive
 from .collections import COLLECTIONS, Collection, Source, declared_scaling, find_asset, processing_baseline
 from .backends import backend, retries
 from .read import layout, read_asset
-from .search import acquired, item_crs, same_pass, scenes, tiles_for
+from .search import acquired, item_crs, platform_of, same_pass, scenes, tiles_for
 
 PROFILE = "native-v0"          # recorded in every sample: native grid if the CRS matches, else resampled
 CANDIDATES = 5                 # scenes examined per sample
@@ -95,12 +95,14 @@ class Choice:
                 "complete"  least missing data beyond max_nodata first, then cloud share closest to the range
                             (default: a cloud mask can be applied later, missing pixels cannot be recovered)
                 "clear"     cloud share closest to the range first, then least missing data
+    platforms   only scenes from these satellites (e.g. ("terra",) for MODIS, ("landsat-9",)); None: any
     """
     prefer: str = "clearest"
     cloud: tuple[float, float] | None = (0.0, 0.05)
     max_nodata: float = 0.01
     strict: bool = False
     fallback: str = "complete"
+    platforms: tuple[str, ...] | None = None
 
     def accepts(self, cloud: float | None, nodata: float) -> bool:
         return nodata <= self.max_nodata and self.cloud_gap(cloud) == 0
@@ -170,7 +172,7 @@ def pick_scene(archive: Archive, source: Source, cell, collection, query, margin
     mask_asset = collection.clouds[0] if own_mask else collection.assets[0]
     tried = []
     bbox = search_box(cell, margin)
-    found, note = scenes(archive, source, collection, bbox, query, choice.prefer)
+    found, note = scenes(archive, source, collection, bbox, query, choice.prefer, platforms=choice.platforms)
     searched = time.perf_counter()
     for scene in found[:CANDIDATES]:
         for crs, tiles in tiles_for(scene, cell, margin):   # same scene, another zone if this one is empty
@@ -283,7 +285,7 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
     meta = dict(
         index=int(row.Index), lon=float(row.lon), lat=float(row.lat),
         archive=archive.name, collection=name, source_collection=source.collection,
-        platform=tiles[0].properties.get("platform"), scaling=scaling,          # physical = stored x scale + offset
+        platform=platform_of(tiles[0]), scaling=scaling,                         # physical = stored x scale + offset
         processing_baseline=processing_baseline(tiles[0]) if collection.offset else None, offset=offset,
         items=[it.id for it in tiles], datetime=acquired(tiles[0]).floor("us").isoformat(),
         cloud=cloud, cloud_source=pick.cloud_source, cloud_items=pick.cloud_items, nodata=float(nodata),
@@ -305,6 +307,7 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
 def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, days: float | None = None,
              margin: float = MARGIN, prefer: str = "clearest", cloud: tuple[float, float] | None = (0.0, 0.05),
              max_nodata: float = 0.01, strict: bool = False, fallback: str = "complete",
+             platform: str | list[str] | None = None,
              archive: str = "planetary-computer",
              outdir: str | Path = "chips", workers: int | None = None, force: bool = False) -> pd.DataFrame:
     """Build one sample per row of `cells` from a Planetary Computer collection.
@@ -319,13 +322,15 @@ def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, 
     strict       True: a sample with no acceptable scene fails; False: the best of the scenes tried is used
     fallback     the best when none is acceptable: "complete" (default; least missing data, then clouds) or
                  "clear" (clouds closest to the range, then least missing data)
+    platform     only scenes from this satellite or these satellites, e.g. "terra" or ["landsat-8", "landsat-9"]
     archive      where to search and read, one of ARCHIVES
     workers      parallel samples; None: what the archive allows
     force        True: rebuild every sample. False: reuse a sample on disk if it was built for the same
                  cell, dates, margin and scene choice. Samples in outdir for rows not in `cells` are removed
     Returns the samples that failed, with the reason.
     """
-    choice = Choice(prefer, tuple(cloud) if cloud is not None else None, max_nodata, strict, fallback)
+    platforms = None if platform is None else tuple([platform] if isinstance(platform, str) else platform)
+    choice = Choice(prefer, tuple(cloud) if cloud is not None else None, max_nodata, strict, fallback, platforms)
     if fallback not in ("complete", "clear"):
         raise ValueError(f"fallback must be complete or clear, not {fallback!r}")
     if prefer not in ("clearest", "cloudiest", "nearest", "newest"):

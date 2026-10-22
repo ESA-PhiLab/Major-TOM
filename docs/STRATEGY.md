@@ -148,8 +148,7 @@ None of these provides what makes a sample Major TOM: the cell, the window rule,
 **Still to do:**
 
 - odc-stac reader comparison behind the backend interface (exactness, speed).
-- Sentinel-3 swath reads: 90-300 s per sample; cache coordinate blocks per scene.
-- MODIS: Terra and Aqua are mixed in one product per archive.
+- Sentinel-3 swath reads: 24 s per sample, ~20 s of it opening the coordinates file once per scene.
 - Rate limits: batch searches by tile and date, cache search results.
 - Provenance per sample: band descriptions, spec and code version (product id, archive, CRS, window, scene choice, dates, offset, scaling, baseline, platform and timing are recorded).
 - Writers beyond the notebook layout: COG (352 px blocks), Core-style parquet shards + `metadata.parquet`.

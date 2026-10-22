@@ -65,7 +65,8 @@ def middle(datetime: str | None) -> pd.Timestamp:
 
 
 def scenes(archive: Archive, source: Source, collection: Collection, bbox: tuple[float, float, float, float],
-           datetime: str | None, prefer: str = "clearest", limit: int = 100) -> tuple[list[list[pystac.Item]], str]:
+           datetime: str | None, prefer: str = "clearest", limit: int = 100,
+           platforms: tuple[str, ...] | None = None) -> tuple[list[list[pystac.Item]], str]:
     """Scenes over a lon/lat box in the order of `prefer`, and a note on which dates were used.
 
     A scene is the list of tiles of one acquisition. Products without clouds are ordered newest first
@@ -87,10 +88,25 @@ def scenes(archive: Archive, source: Source, collection: Collection, bbox: tuple
     items = search(datetime if collection.time != "static" else None)
     if not items and collection.time == "yearly" and datetime:
         items, note = search(None), f"no version in {datetime}: newest used"
+    if platforms:                                       # only these satellites, e.g. ("terra",) or ("landsat-9",)
+        items = [it for it in items if platform_of(it) in platforms]
     if prefer == "nearest":
         target = middle(datetime)
         items.sort(key=lambda it: abs(acquired(it) - target))
     return passes(items), note
+
+
+MODIS_PLATFORM = {"MOD": "terra", "MYD": "aqua", "MCD": "terra+aqua"}
+
+
+def platform_of(item: pystac.Item) -> str | None:
+    """The satellite, lower case: from the item, else from a MODIS product name (Planetary Computer leaves it
+    empty, and Terra's and Aqua's composites share their dates)."""
+    platform = item.properties.get("platform")
+    if platform:
+        return str(platform).lower()
+    match = re.match(r"(?:.*/)?(MOD|MYD|MCD)\d", item.id)
+    return MODIS_PLATFORM[match.group(1)] if match else None
 
 
 def tile_code(item: pystac.Item) -> str | None:
@@ -107,11 +123,11 @@ def same_pass(archive: Archive, source: Source, scene: list[pystac.Item], bbox: 
     times = [acquired(it) for it in scene]
     dates = f"{(min(times) - slack).isoformat()}/{(max(times) + slack).isoformat()}"
     found = backend(archive).search(archive, source.collection, bbox=bbox, datetime=dates, max_items=50)
-    want = {(tile_code(it), it.properties.get("platform")) for it in scene}
+    want = {(tile_code(it), platform_of(it)) for it in scene}
     tiles = {tile for tile, _ in want}
     if any(platform is None for _, platform in want):                  # match on tile alone
         return [it for it in found if tile_code(it) in tiles]
-    return [it for it in found if (tile_code(it), it.properties.get("platform")) in want]
+    return [it for it in found if (tile_code(it), platform_of(it)) in want]
 
 
 def passes(items: list[pystac.Item], gap: pd.Timedelta = pd.Timedelta(minutes=5)) -> list[list[pystac.Item]]:
@@ -122,9 +138,9 @@ def passes(items: list[pystac.Item], gap: pd.Timedelta = pd.Timedelta(minutes=5)
     """
     groups: list[list[pystac.Item]] = []
     for item in items:
-        platform, when = item.properties.get("platform"), acquired(item)
+        platform, when = platform_of(item), acquired(item)
         for group in groups:
-            if group[0].properties.get("platform") == platform and abs(acquired(group[0]) - when) <= gap:
+            if platform_of(group[0]) == platform and abs(acquired(group[0]) - when) <= gap:
                 group.append(item)
                 break
         else:

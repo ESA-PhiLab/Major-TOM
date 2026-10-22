@@ -49,8 +49,9 @@ Workstreams are defined in `docs/STRATEGY.md`.
 - [x] Read paths: native/warped COG and JPEG 2000, ground control points (raw S1 GRD), netCDF swaths (Sentinel-3)
 - [x] Product gallery (`docs/evidence/gallery.py`) and reading-speed report (`docs/evidence/build_speed.py`)
 - [x] Docs: `docs/ARCHIVES.md` (generated products table), `CONTRIBUTING.md`
-- [ ] Sentinel-3 swath reads are slow (90-300 s per sample)
-- [ ] MODIS: Terra and Aqua mixed in one product
+- [x] Sentinel-3 swath reads: 83 s -> 24 s per sample (download cache; the first coordinate read per scene stays ~20 s)
+- [x] MODIS: Terra and Aqua told apart (`platform`, filter `platform="terra"`); no longer stitched together
+- [x] Producer page per product, linked in the products table
 - [ ] Global geocoded complex Sentinel-1 (CSLC): GitHub issue, for later
 - [ ] COG and parquet writers
 - [ ] v1→v2 crop path

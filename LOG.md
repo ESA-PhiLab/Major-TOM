@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-22 Sentinel-3 swaths 83 -> 24 s per sample (GDAL download cache); MODIS Terra/Aqua told apart, platform filter on download; producer page per product in the products table
 - 2026-10-22 CHECKLIST, STRATEGY (builder section, marked updated after review) and CONTEXT updated to the confirmed builder state
 - 2026-10-22 Scene choice: new fallback setting, "complete" (default: least missing data first) or "clear" (clouds first); Planetary Computer HLS gap documented (188 of 217 L30 tile-days over Scotland, summer 2024) and marked as an expected test failure
 - 2026-10-22 Raw Sentinel-1 GRD from PC, Earth Search, CDSE (placed by ground control points; EE terrain-corrected now sentinel-1-grd-tc); Sentinel-3 OLCI swaths from PC and CDSE (L1 radiance, new L2 land product); Earthdata token kept on redirects (ASF); ASF approval steps in docs; gallery at Loch Lomond: 101 of 103 pass (PC HLS L30 missing a tile)

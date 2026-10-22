@@ -189,3 +189,19 @@ def test_fallback_prefers_complete_windows_unless_asked_for_clear_ones():
     assert min([partial_clear, full_cloudy], key=lambda s: complete.rank(*s)) == full_cloudy
     assert min([partial_clear, full_cloudy], key=lambda s: clear.rank(*s)) == partial_clear
     assert complete.rank(0.0, 0.005) < complete.rank(0.2, 0.0)        # within max_nodata, clouds decide
+
+
+def test_modis_terra_and_aqua_are_told_apart():                    # Planetary Computer leaves platform empty
+    import datetime as dt
+    import pystac
+    from majortom.build.search import passes, platform_of
+
+    def item(name, platform=""):
+        return pystac.Item(name, None, None, dt.datetime(2024, 8, 28), {"platform": platform})
+
+    terra, aqua = item("MOD11A2.A2024241.h17v03.061"), item("MYD11A2.A2024241.h17v03.061")
+    assert (platform_of(terra), platform_of(aqua)) == ("terra", "aqua")
+    assert platform_of(item("MODIS/061/MYD11A2/2024_08_28")) == "aqua"                # Earth Engine ids
+    assert platform_of(item("MCD43A4.A2024244.h17v03.061")) == "terra+aqua"
+    assert platform_of(item("S2A_MSIL2A_x", "Sentinel-2A")) == "sentinel-2a"
+    assert len(passes([terra, aqua])) == 2                                             # same date, two satellites
