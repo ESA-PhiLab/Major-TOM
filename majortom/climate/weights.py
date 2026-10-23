@@ -84,14 +84,17 @@ def weights(cells: pd.DataFrame, grid: Grid, d: float = 10.0) -> Weights:
     return Weights(position, pixel, w, len(cells))
 
 
-def cell_means(w: Weights, field: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def cell_means(w: Weights, field: np.ndarray, pixel_weight: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
     """(value, valid) per cell from one time step (height x width, NaN where missing).
 
     Missing pixels drop out and the rest are re-weighted; `valid` is the share of the cell with data.
+    `pixel_weight` (height x width, 0..1) scales each pixel, e.g. a land fraction for land-only variables:
+    the value is then the mean over the land part, and `valid` the land share with data.
     """
     values = field.ravel()[w.pixel]
+    weight = w.weight if pixel_weight is None else w.weight * pixel_weight.ravel()[w.pixel]
     ok = np.isfinite(values)
-    valid = np.bincount(w.cell, w.weight * ok, minlength=w.n_cells)
-    total = np.bincount(w.cell, w.weight * np.where(ok, values, 0.0), minlength=w.n_cells)
+    valid = np.bincount(w.cell, weight * ok, minlength=w.n_cells)
+    total = np.bincount(w.cell, weight * np.where(ok, values, 0.0), minlength=w.n_cells)
     with np.errstate(invalid="ignore", divide="ignore"):
         return np.where(valid > 0, total / valid, np.nan), valid

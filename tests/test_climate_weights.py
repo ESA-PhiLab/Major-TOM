@@ -91,3 +91,17 @@ def test_table_order_kept():
     field[:360, :] = 1.0                                            # northern hemisphere = 1
     value, _ = cell_means(weights(cells, ERA5), field)
     assert value[0] == 1.0 and value[1] == 0.0
+
+
+def test_land_weighting():
+    """A cell half over a land pixel (value 0.3) and half over a sea pixel (stored 0): land-weighted mean is 0.3."""
+    cell = across_lon(1.0)
+    field = np.full((180, 360), 0.3)
+    field[:, 0] = 0.0                                               # western pixel: sea, stored as 0
+    land = np.ones((180, 360))
+    land[:, 0] = 0.0
+    w = weights(table([cell]), ONE)
+    plain, _ = cell_means(w, field)
+    value, valid = cell_means(w, field, land)
+    east = (cell.lon + cell.dlon - 1.0) / cell.dlon
+    assert np.isclose(plain[0], 0.3 * east) and np.isclose(value[0], 0.3) and np.isclose(valid[0], east)

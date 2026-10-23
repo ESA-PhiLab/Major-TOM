@@ -22,7 +22,7 @@ from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import pandas as pd
 
-from .sources import SOURCES, Source, field
+from .sources import SOURCES, Source, field, land_pixels
 from .weights import cell_means, weights
 
 HOUR = np.timedelta64(1, "h")
@@ -59,12 +59,14 @@ def cell_hours(cells: pd.DataFrame, hours: pd.DatetimeIndex, source: Source, var
     """values [hour, cell, variable] and valid [hour, cell]; reads run in threads (they wait on the network).
     With `progress`, prints the count, rate and time left every `progress` reads."""
     w = weights(cells, source.grid)
+    land = land_pixels(source) if set(variables) & set(source.land_only) else None
     values = np.empty((len(hours), len(cells), len(variables)), np.float32)
     valid = np.empty((len(hours), len(cells)), np.float32)
     total, done, start = len(hours) * len(variables), itertools.count(1), time.monotonic()
 
     def one(i: int, j: int) -> None:
-        values[i, :, j], ok = cell_means(w, field(source, variables[j], hours[i]))
+        mask = land if variables[j] in source.land_only else None
+        values[i, :, j], ok = cell_means(w, field(source, variables[j], hours[i]), mask)
         if j == 0:
             valid[i] = ok
         n = next(done)
@@ -128,4 +130,10 @@ def series(samples: pd.DataFrame, source: str = "era5", variables: list[str] | N
     hours = hours_needed(acq["acquired"].to_numpy(), hourly, daily)
     values, valid = cell_hours(cells, hours, src, variables, workers, progress)
     args = (acq, cell_of, hours, values, valid, src, variables)
-    return hourly_table(*args, hourly), daily_table(*args, daily)
+    hourly_df, daily_df = hourly_table(*args, hourly), daily_table(*args, daily)
+    land = land_pixels(src)
+    if land is not None:                         # share of each cell in land pixels: what land-only variables cover
+        share = cell_means(weights(cells, src.grid), land)[0][cell_of]
+        hourly_df[f"{src.name}_land"] = np.repeat(share, 2 * hourly + 1)
+        daily_df[f"{src.name}_land"] = np.repeat(share, 2 * daily + 1)
+    return hourly_df, daily_df

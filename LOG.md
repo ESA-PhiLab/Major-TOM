@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-23 ERA5 soil water and snow over land pixels only (land fraction >= 0.5); ERA5-Land days centred per acquisition by UTC offset (design)
 - 2026-10-23 majortom.climate.series: hourly ±24 h and daily ±30 d tables; ERA5 check on 20 Loch Lomond acquisitions, ~31 field reads/s with 32 threads (docs/evidence/core_weather_check.py)
 - 2026-10-23 majortom.climate.sources: ERA5 from ARCO-ERA5 (anonymous Zarr), one field per variable and hour in ~0.6-0.9 s; extra `climate`
 - 2026-10-23 majortom.climate.weights: exact cell x source-pixel weights and cell means, 8 offline tests

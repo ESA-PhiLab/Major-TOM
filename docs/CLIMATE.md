@@ -44,7 +44,7 @@ Two air-quality sources, deliberately: CAMS has no gaps and covers all of Core (
 | Source | Hourly table | Daily table |
 |---|---|---|
 | ERA5 | yes | yes |
-| ERA5-Land | no | yes: states only, UTC calendar days (section 8) |
+| ERA5-Land | no | yes: states only, days centred by UTC offset (section 8) |
 | IMERG | yes (half-hours summed to hours) | yes |
 | CAMS | yes, every third hour (others empty) | yes |
 | NOAA CPC | no | yes |
@@ -65,7 +65,7 @@ source field (one time step, lat/lon grid)
 
 - **Weights are precomputed** once per source grid as a sparse matrix (cells × source pixels), kept as (cell, pixel, weight) arrays. Each time step is then one weighted sum (`numpy.bincount`) over the whole globe; no scipy needed.
 - **Cells smaller than a source pixel** (ERA5 at 31 km against 10 km cells) get the one or two overlapping pixels. Values are not interpolated: a cell value never claims more detail than the source has.
-- **Valid share:** ERA5-Land has no values over the sea, Sentinel-5P has gaps under clouds and between swaths. A coastal cell's value comes from its land part, and `valid` says how much that is.
+- **Valid share:** ERA5-Land has no values over the sea, Sentinel-5P has gaps under clouds and between swaths. A coastal cell's value comes from its land part, and `valid` says how much that is. ERA5 stores land-only variables as ~0 over the sea instead of leaving gaps, so for those a land mask decides which pixels count (section 8).
 
 ## 4. [Source]-Monthly
 
@@ -180,8 +180,10 @@ majortom/climate/
 - First variables: 2 m temperature, dewpoint, total precipitation, snowfall and snow cover, soil water layer 1, 10 m wind (u, v), solar radiation, surface pressure. Confirmed (Miko, 2026-10-23).
 - Air quality: CAMS and Sentinel-5P L3 (Earth Engine) as two sources; Sentinel-5P L2 from CDSE rejected (cost, section 2).
 - Monthly coverage: whole globe where the source has sea values (ERA5 ~210 GB); land plus coast otherwise.
-- ERA5-Land: daily table only, states only (2 m temperature and dewpoint, 10 m wind, surface pressure, snow cover, soil water layer 1), from the Climate Data Store's daily statistics on UTC calendar days: step 0 is the UTC day of the acquisition, so these columns can be up to 12 h off-centre from the other sources. Precipitation, snowfall and radiation come from ERA5 (and IMERG, CPC). Hourly ERA5-Land with centred windows (~13 TB of reads) rejected for cost. Confirmed (Miko, 2026-10-23).
-- Step 0 is centred on the acquisition, in both tables (except the ERA5-Land columns, above).
+- ERA5-Land: daily table only, states only (2 m temperature and dewpoint, 10 m wind, surface pressure, snow cover, soil water layer 1), from the Climate Data Store's daily statistics. Its days start at a chosen whole-hour UTC offset, so each acquisition gets offset = round(12 − its UTC hour): step 0 is then the 24 h centred on the acquisition within ±30 minutes, like the other sources. Acquisitions are grouped by offset and each group is requested only for its own area (for Sentinel-2, about 10:30 local solar time, a band of ~15° longitude), so the requests together cover the globe about once per sensor timing pattern: ~24 groups instead of one, about the same volume. Blending neighbouring UTC days was rejected: a blended daily mean is biased by the day–night cycle, and minima and maxima cannot be recovered. Precipitation, snowfall and radiation come from ERA5 (and IMERG, CPC). Hourly ERA5-Land (~13 TB of reads) rejected for cost. Confirmed (Miko, 2026-10-23); to verify: the product accepts every offset from −12 to +12 and requests cut to an area.
+- Land-only variables (ERA5 soil water and snow depth; ERA5 stores ~0 over the sea): averaged over land pixels only, where a pixel is land if its land fraction is at least 0.5. ARCO-ERA5's regridding blends coastal pixels with sea (a pixel 40% land holds soil water diluted towards 0), so fractional weighting would bias coastal cells low. A cell with no land pixel gets no value; the column `era5_land` gives each cell's share in land pixels. Confirmed (Miko, 2026-10-23).
+- Values are kept as published, including ERA5's tiny negative accumulations (about −2 × 10⁻⁹ m). Confirmed (Miko, 2026-10-23).
+- Step 0 is centred on the acquisition, in both tables.
 
 ## 9. Open questions
 
