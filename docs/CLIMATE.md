@@ -155,15 +155,27 @@ needed steps  = union over acquisitions of their windows      (deduplicated)
 for each step: read global field once  ->  weights @ field  ->  rows for every acquisition whose window holds it
 ```
 
-Planned layout, following `majortom.build`:
+Layout as built (2026-10-23), following `majortom.build`:
 
 ```
 majortom/climate/
-  __init__.py      series(), monthly(), climatology()
-  sources.py       per source: access, variables, units, time steps (like build/collections.py)
-  weights.py       cell outline x source grid -> sparse weights
-  __main__.py      command line
+  __main__.py      python -m majortom.climate stream --samples <metadata.parquet ...> --source <name> --out <dir>
+  sources.py       per source: grid, variables, units, time step, reader, period ("hour" or "day")
+  weights.py       cell x source pixel weights; cell means
+  series.py        hourly and daily tables in memory (small sets)
+  stream.py        hourly sources (ERA5, CAMS, IMERG): rolling buffer, each hour read once
+  days.py          daily sources (ERA5-Land, NOAA CPC, Sentinel-5P): per source day, cell means cached once
+  readers/         one module per access method
+    zarr.py          ERA5 (ARCO-ERA5)
+    queue.py         ERA5-Land daily statistics, CAMS EAC4 (Climate / Atmosphere Data Store, a month per request)
+    files.py         NOAA CPC (yearly netCDF), IMERG (half-hourly HDF5)
+    earthengine.py   Sentinel-5P (UTC-day mosaics, 0.05° tiles)
 ```
+
+Each source is written to its own folder (`<out>/<source>/hourly/`, `<out>/<source>/daily/`), keyed by
+`grid_cell`, `acquired` and the step, so sources join on those three columns. Daily sources add
+`<source>_start`, the UTC start of the source day used for each step. Downloads and cached means live under
+`--cache` (Core build: `/data/Major-TOM/Core-Weather/cache/`).
 
 ## 7. Build and cost
 
