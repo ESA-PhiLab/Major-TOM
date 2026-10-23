@@ -61,6 +61,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--daily", type=int, default=30, help="days either side of each acquisition")
     run.add_argument("--workers", type=int, default=32, help="read threads")
     run.add_argument("--progress", type=int, default=0, help="print progress every N fields")
+    run.add_argument("--max-fields", type=int, help="daily sources: stop after N fields (quota budget); rerun to continue")
     run.add_argument("--cache", type=Path, help="downloads and per-day means (default ~/.cache/majortom/climate)")
     args = parser.parse_args(argv)
     if args.cache:
@@ -69,7 +70,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"{len(samples):,} samples from {samples['dataset'].nunique()} datasets", flush=True)
     write_links(samples, args.out / "acquisitions.parquet")
     if SOURCES[args.source].period == "day":                  # ERA5-Land, NOAA CPC, Sentinel-5P: daily table only
-        reads = stream_days(samples, args.out, args.source, args.variables, args.daily, args.workers, args.progress)
+        reads = stream_days(samples, args.out, args.source, args.variables, args.daily, args.workers, args.progress,
+                            args.max_fields)
     else:
         reads = stream(samples, args.out, args.source, args.variables, args.hourly, args.daily, args.workers,
                        args.progress)

@@ -140,7 +140,7 @@ SOURCES = {
     # Sentinel-5P OFFL L3 (Earth Engine, project from EE_PROJECT): UTC-day mosaics on a 0.05° grid
     "s5p": Source("s5p", "earthengine", Grid(west=-180.0, north=90.0, step=0.05, width=7200, height=3600),
                   _names(S5P_PRODUCTS, 1), _names(S5P_PRODUCTS, 2), step="1D", reader="earthengine", period="day",
-                  options={"collections": _names(S5P_PRODUCTS, 0), "overpass_local": 13.5}),
+                  options={"collections": _names(S5P_PRODUCTS, 0), "overpass_local": 13.5, "valid_per_variable": True}),
 }
 
 

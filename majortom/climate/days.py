@@ -8,7 +8,8 @@
       -> pass 2, per acquisition day: each step's source-day means -> daily table
                  -> <out>/daily/year=YYYY/<date>.parquet   a rerun skips existing days
 
-Columns: <name>_<variable><suffix> (ERA5-Land: _mean), <name>_valid, and <name>_start: the UTC start of the
+Columns: <name>_<variable><suffix> (ERA5-Land: _mean), <name>_valid (or <name>_<variable>_valid per variable when
+the source's gaps differ by variable, as for Sentinel-5P), and <name>_start: the UTC start of the
 source day used, so each value says which 24 hours it covers.
 """
 from __future__ import annotations
@@ -55,8 +56,12 @@ def _split(key: int) -> tuple[int, int]:
 
 
 def stream_days(samples: pd.DataFrame, out: Path | str, source: str, variables: list[str] | None = None,
-                daily: int = 30, workers: int = 8, progress: int = 0) -> int:
-    """Write the daily table of a daily source for `samples`; returns the number of fields read."""
+                daily: int = 30, workers: int = 8, progress: int = 0, max_fields: int | None = None) -> int:
+    """Write the daily table of a daily source for `samples`; returns the number of fields read.
+
+    `max_fields` stops reading after that many fields (a quota budget, e.g. Earth Engine's monthly EECU): only
+    acquisition days whose source days are all cached are written, and the next run continues from the cache.
+    """
     out, src = Path(out), SOURCES[source]
     rdr, variables = reader(src), list(variables or src.variables)
     acq = acquisitions(samples)
@@ -79,6 +84,8 @@ def stream_days(samples: pd.DataFrame, out: Path | str, source: str, variables: 
     by_month = pd.DataFrame({"key": keys, "day": [_split(k)[0] for k in keys], "group": [_split(k)[1] for k in keys]})
     by_month["month"] = pd.to_datetime(by_month["day"], unit="D").dt.to_period("M")
     for (month, g), part in by_month.groupby(["month", "group"], sort=True):
+        if max_fields is not None and reads >= max_fields:
+            break
         todo = [k for k in part["key"] if not (means / f"{k}.npz").exists()]
         if not todo:
             continue
@@ -89,6 +96,8 @@ def stream_days(samples: pd.DataFrame, out: Path | str, source: str, variables: 
         if hasattr(rdr, "prepare"):
             rdr.prepare(src, month.start_time, int(g), _bbox(cells, np.unique(cell_of[near])))
         for key in todo:
+            if max_fields is not None and reads >= max_fields:
+                break
             day, _ = _split(key)
             date = np.datetime64(day, "D")
             lo, hi = np.searchsorted(acquired, [date - reach, date + reach])
@@ -97,7 +106,7 @@ def stream_days(samples: pd.DataFrame, out: Path | str, source: str, variables: 
             with ThreadPoolExecutor(min(workers, len(variables))) as pool:
                 fields = list(pool.map(lambda v: field(src, v, (day, int(g))), variables))
             results = [cell_means(sub, f) for f in fields]
-            np.savez(means / f"{key}.npz", cells=day_cells, valid=results[0][1].astype(np.float32),
+            np.savez(means / f"{key}.npz", cells=day_cells, valid=np.stack([r[1] for r in results], axis=1).astype(np.float32),
                      values=np.stack([r[0] for r in results], axis=1).astype(np.float32))
             reads += len(variables)
             if progress and reads % progress < len(variables):
@@ -107,12 +116,15 @@ def stream_days(samples: pd.DataFrame, out: Path | str, source: str, variables: 
     for day in acq["day"].unique():
         rows = np.flatnonzero((acq["day"] == day).to_numpy())
         keys_day = _keys(rdr, src, acquired[rows], lon[rows], group[rows], daily)        # rows x steps
+        if not all((means / f"{k}.npz").exists() for k in np.unique(keys_day)):        # budget reached before it
+            continue
         values = np.full(keys_day.shape + (len(variables),), np.nan, np.float32)
-        valid = np.full(keys_day.shape, np.nan, np.float32)
+        valid = np.full(keys_day.shape + (len(variables),), np.nan, np.float32)
         for key in np.unique(keys_day):
             if key not in loaded:
                 with np.load(means / f"{key}.npz") as f:
-                    loaded[key] = (f["cells"], f["values"], f["valid"])
+                    ok = f["valid"]
+                    loaded[key] = (f["cells"], f["values"], ok[:, None] if ok.ndim == 1 else ok)
             ids, vals, ok = loaded[key]
             r, s = np.nonzero(keys_day == key)
             pos = np.searchsorted(ids, cell_of[rows][r])
@@ -143,7 +155,10 @@ def _table(acq: pd.DataFrame, keys: np.ndarray, values, valid, src, variables, d
     days, groups = np.divmod(keys.ravel(), 100)
     starts = rdr.period_start(src, days, groups - OFFSET).astype("datetime64[s]")
     columns = {f"{src.name}_{v}{suffix}": values[:, :, j].ravel() for j, v in enumerate(variables)}
+    if src.options.get("valid_per_variable"):
+        columns.update({f"{src.name}_{v}_valid": valid[:, :, j].ravel() for j, v in enumerate(variables)})
+    else:
+        columns[f"{src.name}_valid"] = valid[:, :, 0].ravel()
     return pd.DataFrame({"grid_cell": np.repeat(acq["grid_cell"].to_numpy(), len(steps)),
                          "acquired": np.repeat(acq["acquired"].to_numpy(), len(steps)),
-                         "step_d": np.tile(steps, len(acq)), **columns,
-                         f"{src.name}_valid": valid.ravel(), f"{src.name}_start": starts})
+                         "step_d": np.tile(steps, len(acq)), **columns, f"{src.name}_start": starts})

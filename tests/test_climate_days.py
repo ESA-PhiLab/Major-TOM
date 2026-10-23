@@ -86,3 +86,25 @@ def test_each_source_day_read_once_and_restart(reads, tmp_path):
     days_module.stream_days(samples(), tmp_path / "out", "fake", daily=2)
     assert reads == []                                              # cached means reused, nothing read again
     pd.testing.assert_frame_equal(table(tmp_path / "out"), first)
+
+
+def test_valid_per_variable(reads, monkeypatch, tmp_path):
+    """Sentinel-5P-like: variable b has no data, so b_valid is 0 while a_valid is 1."""
+    per = Source("fake", "-", FAKE.grid, {"a": "a", "b": "b"}, {"a": "1", "b": "1"}, "1D", period="day",
+                 options={"valid_per_variable": True})
+    monkeypatch.setitem(days_module.SOURCES, "fake", per)
+    real = days_module.field
+    monkeypatch.setattr(days_module, "field", lambda src, v, key: real(src, v, key) * (np.nan if v == "b" else 1))
+    days_module.stream_days(samples(), tmp_path / "out", "fake", daily=1)
+    t = table(tmp_path / "out")
+    assert (t.fake_a_valid == 1).all() and (t.fake_b_valid == 0).all() and "fake_valid" not in t
+
+
+def test_budget_then_continue(reads, tmp_path):
+    """A field budget stops early and writes only complete days; the next run finishes the rest."""
+    days_module.stream_days(samples(), tmp_path / "out", "fake", daily=2, max_fields=6)
+    assert len(reads) == 6
+    partial = sorted((tmp_path / "out" / "daily").glob("year=*/*.parquet"))
+    days_module.stream_days(samples(), tmp_path / "out", "fake", daily=2)
+    assert len(reads) == len(set(reads))
+    assert len(sorted((tmp_path / "out" / "daily").glob("year=*/*.parquet"))) > len(partial)
