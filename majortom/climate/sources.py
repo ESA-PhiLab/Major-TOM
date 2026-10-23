@@ -5,6 +5,8 @@
       -> weights.cell_means              value and valid share per cell
 
 Values keep the units the producer published; they are recorded per variable, never converted.
+Values are not altered either: ERA5 accumulations hold tiny negative values (about -2e-9 m) from its
+storage precision, and they stay as published.
 Only ERA5 exists so far.
 """
 from __future__ import annotations
