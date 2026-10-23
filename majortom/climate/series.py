@@ -17,12 +17,13 @@ from __future__ import annotations
 
 import itertools
 import time
+import warnings
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import pandas as pd
 
-from .sources import SOURCES, Source, field, land_pixels
+from .sources import SOURCES, Source, field, land_pixels, on_step
 from .weights import cell_means, weights
 
 HOUR = np.timedelta64(1, "h")
@@ -65,10 +66,15 @@ def cell_hours(cells: pd.DataFrame, hours: pd.DatetimeIndex, source: Source, var
     total, done, start = len(hours) * len(variables), itertools.count(1), time.monotonic()
 
     def one(i: int, j: int) -> None:
-        mask = land if variables[j] in source.land_only else None
-        values[i, :, j], ok = cell_means(w, field(source, variables[j], hours[i]), mask)
-        if j == 0:
-            valid[i] = ok
+        if not on_step(source, hours[i]):              # e.g. CAMS at 01:00: no field, left empty
+            values[i, :, j] = np.nan
+            if j == 0:
+                valid[i] = np.nan
+        else:
+            mask = land if variables[j] in source.land_only else None
+            values[i, :, j], ok = cell_means(w, field(source, variables[j], hours[i]), mask)
+            if j == 0:
+                valid[i] = ok
         n = next(done)
         if progress and n % progress == 0:
             rate = n / (time.monotonic() - start)
@@ -99,21 +105,27 @@ def hourly_table(acq: pd.DataFrame, cell_of: np.ndarray, hours, values, valid, s
 
 def daily_table(acq: pd.DataFrame, cell_of: np.ndarray, hours, values, valid, source: Source,
                 variables: list[str], daily: int) -> pd.DataFrame:
-    """Per 24 h window: sums of accumulations, means of states, and min/max for EXTREMES."""
+    """Per 24 h window: sums of accumulations, means of states, and min/max for EXTREMES.
+
+    Statistics use the hours that have values (CAMS: the 8 three-hourly steps); empty when none do.
+    """
     steps = np.arange(-daily, daily + 1)
     h = _index(hours, _daily_times(acq["acquired"].to_numpy(), daily))      # acquisitions x steps x 24
     c = cell_of[:, None, None]
     columns = {}
-    for j, v in enumerate(variables):
-        window = values[h, c, j]
-        if v in source.accumulated:
-            columns[f"{source.name}_{v}_sum"] = window.sum(axis=2).ravel()
-            continue
-        columns[f"{source.name}_{v}_mean"] = window.mean(axis=2).ravel()
-        if v in EXTREMES:
-            columns[f"{source.name}_{v}_min"] = window.min(axis=2).ravel()
-            columns[f"{source.name}_{v}_max"] = window.max(axis=2).ravel()
-    columns[f"{source.name}_valid"] = valid[h, c].mean(axis=2).ravel()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)                    # all-empty windows give NaN, as wanted
+        for j, v in enumerate(variables):
+            window = values[h, c, j]
+            if v in source.accumulated:
+                total = np.nansum(window, axis=2)
+                columns[f"{source.name}_{v}_sum"] = np.where(np.isnan(window).all(axis=2), np.nan, total).ravel()
+                continue
+            columns[f"{source.name}_{v}_mean"] = np.nanmean(window, axis=2).ravel()
+            if v in EXTREMES:
+                columns[f"{source.name}_{v}_min"] = np.nanmin(window, axis=2).ravel()
+                columns[f"{source.name}_{v}_max"] = np.nanmax(window, axis=2).ravel()
+        columns[f"{source.name}_valid"] = np.nanmean(valid[h, c], axis=2).ravel()
     return pd.DataFrame({"grid_cell": np.repeat(acq["grid_cell"].to_numpy(), len(steps)),
                          "acquired": np.repeat(acq["acquired"].to_numpy(), len(steps)),
                          "step_d": np.tile(steps, len(acq)), **columns})

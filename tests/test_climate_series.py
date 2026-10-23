@@ -66,3 +66,18 @@ def test_one_row_per_acquisition():
     acq = acquisitions(samples("2021-07-14T11:21:19Z", "2021-07-14T11:21:19Z"))
     hourly, daily = series(samples("2021-07-14T11:21:19Z", "2021-07-14T11:21:19Z"), "fake", hourly=24, daily=30)
     assert len(acq) == 1 and len(hourly) == 49 and len(daily) == 61
+
+
+def test_three_hourly_source(monkeypatch):
+    """A 3-hourly source (like CAMS): off-step hours are empty and not read; daily means use the 8 steps."""
+    three = Source("three", "-", FAKE.grid, {"t2m": "t"}, {"t2m": "K"}, "3h")
+    monkeypatch.setitem(series_module.SOURCES, "three", three)
+    read = []
+    monkeypatch.setattr(series_module, "field",
+                        lambda source, variable, time: read.append(time) or np.full((18, 36), hour_number(time)))
+    hourly, daily = series(samples("2021-07-14T11:21:19Z"), "three", hourly=2, daily=0)
+    assert all(pd.Timestamp(t).hour % 3 == 0 for t in read)
+    by_step = hourly.set_index("step_h")["three_t2m"]
+    assert np.isnan(by_step[-1]) and by_step[-2] == hour_number("2021-07-14T09:00")   # 10:00 off step, 09:00 on
+    first = hour_number("2021-07-14T00:00")
+    assert daily.three_t2m_mean.iloc[0] == pytest.approx(first + np.mean([0, 3, 6, 9, 12, 15, 18, 21]))

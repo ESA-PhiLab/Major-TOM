@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 
 from .series import acquisitions, daily_table, hourly_table
-from .sources import SOURCES, field, land_pixels
+from .sources import SOURCES, field, land_pixels, on_step
 from .weights import ByCell, cell_means, weights
 
 HOUR = pd.Timedelta(hours=1)
@@ -77,6 +77,11 @@ def stream(samples: pd.DataFrame, out: Path | str, source: str = "era5", variabl
             valid = np.empty((24, len(day_cells)), np.float32)
 
             def one(i: int, j: int) -> None:
+                if not on_step(src, hours[i]):                  # e.g. CAMS at 01:00: no field, left empty
+                    values[i, :, j] = np.nan
+                    if j == 0:
+                        valid[i] = np.nan
+                    return
                 values[i, :, j], ok = cell_means(sub, field(src, variables[j], hours[i]),
                                                  land if variables[j] in land_vars else None)
                 if j == 0:
@@ -86,8 +91,9 @@ def stream(samples: pd.DataFrame, out: Path | str, source: str = "era5", variabl
                 list(pool.map(lambda ij: one(*ij), itertools.product(range(24), range(len(variables)))))
             for i, h in enumerate(hours):
                 buffer[h] = (day_cells, values[i], valid[i])
-            reads += 24 * len(variables)
-            if progress and reads // progress != (reads - 24 * len(variables)) // progress:
+            day_reads = sum(on_step(src, h) for h in hours) * len(variables)
+            reads += day_reads
+            if progress and reads // progress != (reads - day_reads) // progress:
                 rate = reads / (time.monotonic() - start)
                 print(f"{day.date()}: {reads:,}/~{total:,} fields, {rate:.0f}/s, "
                       f"{(total - reads) / rate / 60:.0f} min left", flush=True)
