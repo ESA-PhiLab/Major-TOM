@@ -164,7 +164,8 @@ def month_field(source, variable: str, month: pd.Timestamp) -> np.ndarray:
     target.parent.mkdir(parents=True, exist_ok=True)
     path = _fetch(source, request, target)
     when = pd.Timestamp(month).to_datetime64().astype("datetime64[ns]")
-    return read_netcdf(path, source.options["files"][variable], when, source.grid)
+    until = (pd.Timestamp(month) + pd.offsets.MonthBegin()).to_datetime64().astype("datetime64[ns]")
+    return read_netcdf(path, source.options["files"][variable], when, source.grid, until)
 
 
 def land_pixels(source) -> np.ndarray | None:

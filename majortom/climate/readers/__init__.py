@@ -72,8 +72,10 @@ def band_times(path: str, variable: str) -> tuple[np.ndarray, tuple]:
         return netcdf_times(tags, dim), tuple(src.transform)[:6]
 
 
-def read_netcdf(path: Path, variable: str, when: np.datetime64, grid: Grid) -> np.ndarray:
-    """The band of `variable` at `when` from a cached file (or a folder of files), on the global grid."""
+def read_netcdf(path: Path, variable: str, when: np.datetime64, grid: Grid, until: np.datetime64 | None = None) -> np.ndarray:
+    """The band of `variable` at `when` (or, with `until`, the band stamped in [when, until)) from a cached file
+    or a folder of files, on the global grid. Monthly means are stamped differently per product (CAMS: 21:00 on
+    the first day), so monthly readers match the month."""
     import rasterio
 
     files = [path] if path.is_file() else sorted(path.glob("*.nc"))
@@ -82,7 +84,7 @@ def read_netcdf(path: Path, variable: str, when: np.datetime64, grid: Grid) -> n
             times, transform = band_times(str(f), variable)
         except Exception:                                  # this file of the folder has no such variable
             continue
-        band = np.flatnonzero(times == when)
+        band = np.flatnonzero(times == when) if until is None else np.flatnonzero((times >= when) & (times < until))
         if not len(band):
             raise KeyError(f"{variable} has no band for {when} in {f}")
         with rasterio.open(f'netcdf:"{f}":{variable}') as src:
