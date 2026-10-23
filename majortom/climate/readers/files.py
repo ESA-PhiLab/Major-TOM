@@ -130,3 +130,35 @@ def _imerg(source, hour: pd.Timestamp) -> np.ndarray:
     halves = [_imerg_half_hour(_imerg_file(source, hour - pd.Timedelta(minutes=m))) for m in (60, 30)]
     hourly = (halves[0] + halves[1]) / 2                            # mean rate over the hour = mm in that hour
     return place(hourly, Affine(0.1, 0, -180, 0, -0.1, 90), source.grid)
+
+
+# NOAA CPC monthly (period "month" in majortom.climate.monthly): from the daily yearly files ---------------------
+
+MONTHLY_STAT = {"precip": "sum", "tmax": "mean", "tmin": "mean"}     # total rain; mean daily extremes
+
+
+def valid_months(source) -> tuple[pd.Timestamp, pd.Timestamp]:
+    last = (pd.Timestamp.now().normalize() - pd.DateOffset(months=1)).to_period("M").start_time
+    return pd.Timestamp("1979-01-01"), last
+
+
+def month_field(source, variable: str, month: pd.Timestamp) -> np.ndarray:
+    """CPC monthly: total precipitation (mm), or the mean of daily maximum / minimum temperature (degC)."""
+    import rasterio
+
+    from . import band_times
+
+    path = source.variables[variable]
+    target = cache_dir(source.name) / f"{Path(path).name}.{month.year}.nc"
+    _download(f"{source.store}/{path}.{month.year}.nc", target)
+    name = Path(path).name
+    times, transform = band_times(str(target), name)
+    bands = np.flatnonzero((times >= np.datetime64(month)) & (times < np.datetime64(month + pd.offsets.MonthBegin())))
+    with rasterio.open(f'netcdf:"{target}":{name}') as src:
+        stack = src.read([int(b) + 1 for b in bands]).astype(np.float32)
+        if src.nodata is not None:
+            stack[stack == np.float32(src.nodata)] = np.nan
+    with np.errstate(invalid="ignore"):
+        stat = np.nansum(stack, axis=0) if MONTHLY_STAT[variable] == "sum" else np.nanmean(stack, axis=0)
+    stat[np.isnan(stack).all(axis=0)] = np.nan
+    return place(stat, Affine(*transform), source.grid)

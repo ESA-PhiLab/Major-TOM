@@ -91,6 +91,23 @@ CAMS_SURFACE = {
     "hcho": ("formaldehyde", "hcho", "kg kg**-1"),
 }
 
+# ERA5 and ERA5-Land monthly means (Climate Data Store): file names in the delivered netCDF
+ERA5_FILES = {"t2m": "t2m", "d2m": "d2m", "tp": "tp", "u10": "u10", "v10": "v10", "sp": "sp", "ssrd": "ssrd", "sf": "sf",
+              "sd": "sd", "swvl1": "swvl1", "sst": "sst", "siconc": "siconc"}
+ERA5_LAND_MONTHLY = {
+    "t2m": ("2m_temperature", "t2m", "K"),
+    "d2m": ("2m_dewpoint_temperature", "d2m", "K"),
+    "tp": ("total_precipitation", "tp", "m day**-1"),            # monthly means of accumulations: per day
+    "u10": ("10m_u_component_of_wind", "u10", "m s**-1"),
+    "v10": ("10m_v_component_of_wind", "v10", "m s**-1"),
+    "sp": ("surface_pressure", "sp", "Pa"),
+    "ssrd": ("surface_solar_radiation_downwards", "ssrd", "J m**-2 day**-1"),
+    "sf": ("snowfall", "sf", "m of water equivalent day**-1"),
+    "snowc": ("snow_cover", "snowc", "%"),
+    "sd": ("snow_depth_water_equivalent", "sd", "m of water equivalent"),
+    "swvl1": ("volumetric_soil_water_layer_1", "swvl1", "m**3 m**-3"),
+}
+
 # Sentinel-5P L3 on Earth Engine: our name -> (collection, band, units)
 S5P_PRODUCTS = {
     "no2": ("COPERNICUS/S5P/OFFL/L3_NO2", "tropospheric_NO2_column_number_density", "mol m**-2"),
@@ -127,6 +144,23 @@ SOURCES = {
                    {**_names(CAMS_SINGLE, 2), **_names(CAMS_SURFACE, 2)}, step="3h", reader="queue",
                    options={"url": "https://ads.atmosphere.copernicus.eu/api", "surface": tuple(CAMS_SURFACE),
                             "files": {**_names(CAMS_SINGLE, 1), **_names(CAMS_SURFACE, 1)}, "model_level": "60"}),
+    # [Source]-Monthly: ERA5 monthly means (Climate Data Store), one request per year; accumulations are per day
+    "era5-monthly": Source("era5", "reanalysis-era5-single-levels-monthly-means",
+                           Grid(west=-0.125, north=90.125, step=0.25, width=1440, height=721),
+                           _names(ERA5_VARIABLES, 0),
+                           {**_names(ERA5_VARIABLES, 1), "tp": "m day**-1", "ssrd": "J m**-2 day**-1",
+                            "sf": "m of water equivalent day**-1"},
+                           step="1MS", land_only=("swvl1", "sd"), reader="queue", period="month",
+                           options={"url": "https://cds.climate.copernicus.eu/api", "files": ERA5_FILES,
+                                    "product_type": "monthly_averaged_reanalysis", "land_from": "era5",
+                                    "first_month": "1940-01-01"}),
+    "era5-land-monthly": Source("era5land", "reanalysis-era5-land-monthly-means",
+                                Grid(west=-180.05, north=90.05, step=0.1, width=3600, height=1801),
+                                _names(ERA5_LAND_MONTHLY, 0), _names(ERA5_LAND_MONTHLY, 2), step="1MS",
+                                reader="queue", period="month",
+                                options={"url": "https://cds.climate.copernicus.eu/api",
+                                         "files": _names(ERA5_LAND_MONTHLY, 1),
+                                         "product_type": "monthly_averaged_reanalysis", "first_month": "1950-01-01"}),
     # NOAA CPC Global Unified (PSL): daily gauge analyses, 0.5°, yearly netCDF files
     "cpc": Source("cpc", "https://downloads.psl.noaa.gov/Datasets",
                   Grid(west=0.0, north=90.0, step=0.5, width=720, height=360),

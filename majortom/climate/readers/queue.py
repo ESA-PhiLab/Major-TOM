@@ -133,3 +133,32 @@ def _cams(source, variable: str, time: pd.Timestamp) -> np.ndarray:
     target.parent.mkdir(parents=True, exist_ok=True)
     path = _fetch(source, request, target)
     return read_netcdf(path, source.options["files"][variable], time.to_datetime64().astype("datetime64[ns]"), source.grid)
+
+
+# Monthly means (period "month"): ERA5 and ERA5-Land, one request per year ------------------------------------
+
+def valid_months(source) -> tuple[pd.Timestamp, pd.Timestamp]:
+    """First month published, and the last complete month assumed published (the stores lag by 2-3 months)."""
+    last = (pd.Timestamp.now().normalize() - pd.DateOffset(months=3)).to_period("M").start_time
+    return pd.Timestamp(source.options["first_month"]), last
+
+
+def month_field(source, variable: str, month: pd.Timestamp) -> np.ndarray:
+    """One monthly mean (global, on source.grid) from that year's cached request."""
+    target = cache_dir(source.name) / "monthly" / f"{source.store}_{month:%Y}.nc"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    request = {"product_type": [source.options["product_type"]], "variable": list(source.variables.values()),
+               "year": [f"{month:%Y}"], "month": [f"{m:02d}" for m in range(1, 13)], "time": ["00:00"],
+               "data_format": "netcdf", "download_format": "unarchived"}
+    path = _fetch(source, request, target)
+    when = pd.Timestamp(month).to_datetime64().astype("datetime64[ns]")
+    return read_netcdf(path, source.options["files"][variable], when, source.grid)
+
+
+def land_pixels(source) -> np.ndarray | None:
+    """ERA5 monthly means share ERA5's 0.25° grid: its land mask comes from the ARCO store (see readers/zarr.py)."""
+    if "land_from" not in source.options:
+        return None
+    from ..sources import SOURCES
+    from . import zarr
+    return zarr.land_pixels(SOURCES[source.options["land_from"]])

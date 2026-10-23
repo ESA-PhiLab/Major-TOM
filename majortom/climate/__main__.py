@@ -1,6 +1,8 @@
 """Core-Weather-style tables for any dataset's samples (docs/CLIMATE.md section 6).
 
     python -m majortom.climate stream --samples <metadata.parquet> [more ...] --source era5 --out <dir>
+    python -m majortom.climate monthly --source era5-monthly --years 1940 2025 --out <dir>
+    python -m majortom.climate climatology --out <dir> --period 1991 2020
 
     metadata files (paths or URLs; columns grid_cell, grid_row_u, grid_col_r, timestamp, and product_id if present)
       -> <out>/acquisitions.parquet: grid_cell, acquired, dataset, product_id   (links samples to table rows)
@@ -63,9 +65,26 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--progress", type=int, default=0, help="print progress every N fields")
     run.add_argument("--max-fields", type=int, help="daily sources: stop after N fields (quota budget); rerun to continue")
     run.add_argument("--cache", type=Path, help="downloads and per-day means (default ~/.cache/majortom/climate)")
+    month = sub.add_parser("monthly", help="[Source]-Monthly: monthly values for every cell")
+    month.add_argument("--source", required=True, help="era5-monthly, era5-land-monthly, cpc")
+    month.add_argument("--years", type=int, nargs=2, required=True, metavar=("FIRST", "LAST"))
+    month.add_argument("--out", type=Path, required=True)
+    month.add_argument("--workers", type=int, default=4)
+    month.add_argument("--cache", type=Path)
+    clim = sub.add_parser("climatology", help="per cell and calendar month: mean, std, years, from a monthly series")
+    clim.add_argument("--out", type=Path, required=True, help="the folder written by `monthly`")
+    clim.add_argument("--period", type=int, nargs=2, default=(1991, 2020), metavar=("FIRST", "LAST"))
     args = parser.parse_args(argv)
-    if args.cache:
+    if getattr(args, "cache", None):
         os.environ["MAJORTOM_CLIMATE_CACHE"] = str(args.cache)
+    if args.command == "monthly":
+        from .monthly import monthly
+        print(f"{monthly(args.source, args.out, tuple(args.years), workers=args.workers)} months written", flush=True)
+        return 0
+    if args.command == "climatology":
+        from .monthly import climatology
+        print(f"{climatology(args.out, tuple(args.period)):,} rows written", flush=True)
+        return 0
     samples = pd.concat([read_samples(p) for p in args.samples], ignore_index=True)
     print(f"{len(samples):,} samples from {samples['dataset'].nunique()} datasets", flush=True)
     write_links(samples, args.out / "acquisitions.parquet")
