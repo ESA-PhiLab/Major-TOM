@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-23 majortom.climate.stream: rolling buffer, each hour read once, one parquet file per acquisition day, restartable
 - 2026-10-23 Climate Data Store token setup: `python -m majortom.build.credentials cds` (token checked without a data request); cdsapi in the climate extra
 - 2026-10-23 ERA5 soil water and snow over land pixels only (land fraction >= 0.5); ERA5-Land days centred per acquisition by UTC offset (design)
 - 2026-10-23 majortom.climate.series: hourly ±24 h and daily ±30 d tables; ERA5 check on 20 Loch Lomond acquisitions, ~31 field reads/s with 32 threads (docs/evidence/core_weather_check.py)

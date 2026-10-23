@@ -98,3 +98,19 @@ def cell_means(w: Weights, field: np.ndarray, pixel_weight: np.ndarray | None = 
     total = np.bincount(w.cell, weight * np.where(ok, values, 0.0), minlength=w.n_cells)
     with np.errstate(invalid="ignore", divide="ignore"):
         return np.where(valid > 0, total / valid, np.nan), valid
+
+
+class ByCell:
+    """Weights sorted by cell, so the weights of any subset of cells are a cheap gather (`subset`)."""
+
+    def __init__(self, w: Weights):
+        order = np.argsort(w.cell, kind="stable")
+        self.pixel, self.weight = w.pixel[order], w.weight[order]
+        self.start = np.searchsorted(w.cell[order], np.arange(w.n_cells + 1))
+
+    def subset(self, cells: np.ndarray) -> Weights:
+        """Weights of `cells` (indices into the original table); result cell i is cells[i]."""
+        lengths = self.start[cells + 1] - self.start[cells]
+        first = np.repeat(self.start[cells] - np.concatenate([[0], np.cumsum(lengths)[:-1]]), lengths)
+        index = first + np.arange(lengths.sum())
+        return Weights(np.repeat(np.arange(len(cells)), lengths), self.pixel[index], self.weight[index], len(cells))
