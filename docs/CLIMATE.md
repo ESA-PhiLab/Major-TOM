@@ -165,6 +165,7 @@ majortom/climate/
   series.py        hourly and daily tables in memory (small sets)
   stream.py        hourly sources (ERA5, CAMS, IMERG): rolling buffer, each hour read once
   days.py          daily sources (ERA5-Land, NOAA CPC, Sentinel-5P): per source day, cell means cached once
+  monthly.py       [Source]-Monthly: monthly series for every cell, and the climatology from it
   readers/         one module per access method
     zarr.py          ERA5 (ARCO-ERA5)
     queue.py         ERA5-Land daily statistics, CAMS EAC4 (Climate / Atmosphere Data Store, a month per request)
@@ -198,7 +199,7 @@ Each source is written to its own folder (`<out>/<source>/hourly/`, `<out>/<sour
 - Land-only variables (ERA5 soil water and snow depth; ERA5 stores ~0 over the sea): averaged over land pixels only, where a pixel is land if its land fraction is at least 0.5. ARCO-ERA5's regridding blends coastal pixels with sea (a pixel 40% land holds soil water diluted towards 0), so fractional weighting would bias coastal cells low. A cell with no land pixel gets no value; the column `era5_land` gives each cell's share in land pixels. Confirmed (Miko, 2026-10-23).
 - Values are kept as published, including ERA5's tiny negative accumulations (about −2 × 10⁻⁹ m). Confirmed (Miko, 2026-10-23).
 - Step 0 is centred on the acquisition, in both tables.
-- NOAA CPC day (measured 2026-10-23, `docs/evidence/cpc_day.py`): against ERA5 hourly precipitation at Sydney, Brisbane, Denver and Glasgow, CPC day D fits a 24 h window starting between 12Z on D−1 and 00Z on D, best near 12Z on D−1; not local days, not starting at 12Z on D. The reader still uses 00Z (`day_start_utc: 0`). Pending: switch to −12.
+- NOAA CPC day: CPC's daily totals end at a different UTC hour per country, published as a 0.5° end-of-day map (CPC's README: "based on very limited and UNCHECKED information"; 12Z for 23% of land boxes, 18Z 16%, 24Z 38%, 03Z/06Z the next day 22%). The reader uses that map per cell (`majortom/climate/readers/files.py`), and `cpc_start` records each day's UTC start. Our ERA5 comparison at Sydney, Brisbane, Denver and Glasgow (`docs/evidence/cpc_day.py`) agrees with the map within its broad peaks.
 - Output layout (Miko, 2026-10-23): each source is built into its own folder under `/data/Major-TOM/Core-Weather/` and joined on `grid_cell`, `acquired` and the step; for publishing, the sources are merged into one hourly and one daily table.
 - ERA5-Land through Earth Engine (option b, measured 2026-10-23, `docs/evidence/era5land_ee_cost.py`): ~280 EECU-s per global 7-band daily field, so ~2,100 EECU-hours for ~3,000 days × 9 offset groups (~700 if cut to each group's area): months of the Community tier. Through the Climate Data Store, month requests waited up to ~3 h and ran ~16 min. Decided (Miko, 2026-10-23): option c, ERA5-Land only in ERA5Land-Monthly; Core-Weather takes its daily land variables from ERA5. The ERA5-Land daily reader (`majortom/climate/readers/queue.py`) stays, tested on Loch Lomond.
 
