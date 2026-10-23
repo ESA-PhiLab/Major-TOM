@@ -146,7 +146,7 @@ climatology("ERA5Land-Monthly/series/", period=(1991, 2020), out="ERA5Land-Month
 python -m majortom.climate series --samples metadata.parquet --sources era5,era5-land --hourly 24 --daily 30 --out Weather/
 ```
 
-**Loop over time, not samples.** Many samples share a day. Core spans about seven years, so about 2 million acquisitions fall on about 2,500 days, ~800 a day. For each time step, the build reads the global field once, then applies the weights from section 3 to the cells that need that step:
+**Loop over time, not samples.** Many samples share a day. Core-S2L2A's 2,245,886 samples fall on 2,883 distinct days (2016-01-01 to 2024-02-06), a median of 919 a day (counted by `docs/evidence/s5p_cost.py`). For each time step, the build reads the global field once, then applies the weights from section 3 to the cells that need that step:
 
 ```
 needed steps  = union over acquisitions of their windows      (deduplicated)
@@ -168,7 +168,7 @@ majortom/climate/
 - **Reads dominate.** One global ERA5 field (1440 × 721) is about 4 MB per variable and hour. The hourly and daily windows of Core cover about 2,600 days ≈ 62,000 hours: about 2.5 TB for 10 variables from ARCO-ERA5, streamed, not stored.
 - **ERA5-Land is daily only.** Hourly fields are about 6× larger than ERA5's (3600 × 1801); the Climate Data Store's daily statistics would avoid reading them, if they cover our variables (section 2).
 - **CAMS** is small: 0.75°, 3-hourly, from the Atmosphere Data Store.
-- **Sentinel-5P** cell means are computed on Earth Engine's servers (one table export per product and year). They run in a dedicated Earth Engine project for Sentinel-5P, not `wiki-eo`.
+- **Sentinel-5P:** Earth Engine builds each day's mosaic and serves it on a 0.05° grid (32 tiles of 900 × 900 for the globe); cell means are computed on `cirrus` with the section 3 weights, and the grids are dropped. Measured for NO₂ on the busiest day (`docs/evidence/s5p_cost.py`, 2026-10-23): ~1.5 EECU-s per tile, ~50 per day, so ~200 EECU-hours for 2,110 days × 7 products (good to about ×2: one tile, one day, one product). Cell means on Earth Engine (`reduceRegions`) cost ~12,300 EECU-s per day for that day's 75,843 cells, ~50,000 EECU-hours in all, and were rejected. Runs in the dedicated project `major-tom-climate`, not `wiki-eo`.
 - **Runs on `cirrus` as Slurm CPU jobs,** one job per source and year. Weight matrices are built once per source grid and saved.
 - Otherwise Earth Engine stays for small tests only (shared `wiki-eo` quota).
 
@@ -183,5 +183,5 @@ majortom/climate/
 
 ## 9. Open questions
 
-1. Earth Engine quota for Sentinel-5P: a dedicated project exists (2026-10-23); its tier depends on a one-day cost measurement.
+1. Earth Engine tier for `major-tom-climate`: Community (150 EECU-hours a month, ~1.5 months for Sentinel-5P) or Contributor (1,000 a month, needs a billing account; noncommercial use is not charged).
 2. The four checks in section 2, before the first build.
