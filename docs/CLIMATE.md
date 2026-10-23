@@ -44,7 +44,7 @@ Two air-quality sources, deliberately: CAMS has no gaps and covers all of Core (
 | Source | Hourly table | Daily table |
 |---|---|---|
 | ERA5 | yes | yes |
-| ERA5-Land | no | yes |
+| ERA5-Land | no | yes: states only, UTC calendar days (section 8) |
 | IMERG | yes (half-hours summed to hours) | yes |
 | CAMS | yes, every third hour (others empty) | yes |
 | NOAA CPC | no | yes |
@@ -180,10 +180,9 @@ majortom/climate/
 - First variables: 2 m temperature, dewpoint, total precipitation, snowfall and snow cover, soil water layer 1, 10 m wind (u, v), solar radiation, surface pressure. Confirmed (Miko, 2026-10-23).
 - Air quality: CAMS and Sentinel-5P L3 (Earth Engine) as two sources; Sentinel-5P L2 from CDSE rejected (cost, section 2).
 - Monthly coverage: whole globe where the source has sea values (ERA5 ~210 GB); land plus coast otherwise.
-- ERA5-Land: daily table only.
-- Step 0 is centred on the acquisition, in both tables.
+- ERA5-Land: daily table only, states only (2 m temperature and dewpoint, 10 m wind, surface pressure, snow cover, soil water layer 1), from the Climate Data Store's daily statistics on UTC calendar days: step 0 is the UTC day of the acquisition, so these columns can be up to 12 h off-centre from the other sources. Precipitation, snowfall and radiation come from ERA5 (and IMERG, CPC). Hourly ERA5-Land with centred windows (~13 TB of reads) rejected for cost. Confirmed (Miko, 2026-10-23).
+- Step 0 is centred on the acquisition, in both tables (except the ERA5-Land columns, above).
 
 ## 9. Open questions
 
 1. Earth Engine tier for `major-tom-climate`: Community (150 EECU-hours a month, ~1.5 months for Sentinel-5P) or Contributor (1,000 a month, needs a billing account; noncommercial use is not charged).
-2. **ERA5-Land in the daily table.** Its daily statistics use calendar days and omit precipitation, snowfall and radiation (section 2), and hourly ERA5-Land would be ~13 TB of reads. Options: (a) take ERA5-Land states from the daily statistics, on UTC calendar days (step 0 = the UTC day of the acquisition), and precipitation, snowfall and radiation from ERA5 only; (b) read hourly ERA5-Land for all variables and keep centred windows (~13 TB); (c) leave ERA5-Land out of Core-Weather and use it only in ERA5Land-Monthly.
