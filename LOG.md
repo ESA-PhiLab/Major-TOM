@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-23 majortom.climate.weights: exact cell x source-pixel weights and cell means, 8 offline tests
 - 2026-10-23 Sentinel-5P cost on Earth Engine: ~200 EECU-h via a 0.05° grid; cell means on Earth Engine ~50,000, rejected (docs/evidence/s5p_cost.py)
 - 2026-10-23 CLIMATE.md reviewed; dedicated Earth Engine project for Sentinel-5P
 - 2026-10-23 Climate design: Core-Weather (hourly ±24 h, daily ±30 d, all sources) and [Source]-Monthly (series + climatology) -> [design](docs/CLIMATE.md)

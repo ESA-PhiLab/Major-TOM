@@ -55,13 +55,14 @@ ERA5-Land stays out of the hourly table: its atmosphere comes from ERA5 (it is a
 
 ```
 source field (one time step, lat/lon grid)
-  -> cell outline in lat/lon (majortom.spec.cell_polygon; Major TOM cells are lat/lon boxes)
-  -> overlap of each source pixel with the outline, as weights (computed once per cell and source)
+  -> overlap of each source pixel with each cell: in longitude x in sin(latitude), as weights
+     (Major TOM cells and source pixels are both lat/lon boxes, so the exact area overlap separates;
+      computed once per source grid: majortom/climate/weights.py)
   -> weighted mean over valid pixels                         -> value
   -> share of the cell's area with valid data                -> valid
 ```
 
-- **Weights are precomputed** once per source grid as a sparse matrix (cells × source pixels). Each time step is then one matrix-vector product over the whole globe.
+- **Weights are precomputed** once per source grid as a sparse matrix (cells × source pixels), kept as (cell, pixel, weight) arrays. Each time step is then one weighted sum (`numpy.bincount`) over the whole globe; no scipy needed.
 - **Cells smaller than a source pixel** (ERA5 at 31 km against 10 km cells) get the one or two overlapping pixels. Values are not interpolated: a cell value never claims more detail than the source has.
 - **Valid share:** ERA5-Land has no values over the sea, Sentinel-5P has gaps under clouds and between swaths. A coastal cell's value comes from its land part, and `valid` says how much that is.
 
