@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** reviewed (Miko, 2026-10-23), sources included. Design only; no code exists yet.
+> **Review status:** reviewed (Miko, 2026-10-23), sources included. The section 2 checks and section 9 question 2 were added after review (unreviewed).
 
 # Weather and climate per grid cell — design
 
@@ -30,11 +30,12 @@ Both join to every Major TOM dataset on `grid_cell`. Core-Weather also joins on 
 | [NOAA CPC Global Unified](https://developers.google.com/earth-engine/datasets/catalog/NOAA_CPC_Temperature) | gauge-based precipitation, daily min and max temperature | 0.5° | daily, 1979– | NOAA PSL downloads (anonymous); Earth Engine | no restriction; attribution requested |
 | [GPM IMERG Final V07](https://data.nasa.gov/dataset/gpm-imerg-final-precipitation-l3-half-hourly-0-1-degree-x-0-1-degree-v07-gpm-3imerghh-at-g-fb698) | satellite precipitation | 0.1° | half-hourly, June 2000– | Earthdata (token, as for OPERA) | NASA open data |
 
-To verify before the first build:
-- Sentinel-5P: the exact redistribution wording in the Copernicus Sentinel data terms, and the L3 pixel size on Earth Engine.
-- ERA5: the current end date in the ARCO-ERA5 store's metadata.
-- NOAA CPC precipitation: the PSL product page (the temperature product is confirmed).
-- ERA5-Land: whether the Climate Data Store's post-processed daily statistics for ERA5-Land cover the variables we need. It would avoid reading hourly ERA5-Land for the daily table.
+Checked before the first build (2026-10-23):
+- **Sentinel-5P terms:** the [Copernicus Sentinel data legal notice](https://sentinels.copernicus.eu/documents/247904/690755/Sentinel_Data_Legal_Notice) allows reproduction, distribution, communication to the public, and adaptation and combination with other data. Cell means are adapted data, so the dataset card must carry "Contains modified Copernicus Sentinel data [Year]". CAMS, ERA5 and ERA5-Land (Copernicus services, CC-BY) need "Contains modified Copernicus Service information [Year]" (to confirm against each CC-BY page).
+- **Sentinel-5P L3 on Earth Engine:** 1113.2 m pixels, 2018-06-28 to present; pixels below a quality value of 75% are removed for tropospheric NO₂ ([catalogue](https://developers.google.com/earth-engine/datasets/catalog/COPERNICUS_S5P_OFFL_L3_NO2); its example command uses 50%, so the page is not fully consistent).
+- **NOAA CPC precipitation:** [CPC Global Unified Gauge-Based Analysis of Daily Precipitation](https://developers.google.com/earth-engine/datasets/catalog/NOAA_CPC_Precipitation), 0.5°, daily, 1979 to present (one day's delay), 0.1 mm units, with a gauge count per pixel; quality weakest over tropical Africa and Antarctica; real-time values can be revised. Earth Engine's copy starts in 2006; the full record is at NOAA PSL (page not read directly). Use unrestricted, attribution requested.
+- **ERA5-Land daily statistics:** the Climate Data Store's [post-processed daily statistics](https://cds.climate.copernicus.eu/datasets/derived-era5-land-daily-statistics) (0.1°, 1950 to present, CC-BY) give daily mean, min and max of states (2 m temperature and dewpoint, 10 m wind, surface pressure, snow cover, soil water), but **omit accumulated variables** (precipitation, and by the same rule snowfall and radiation), and compute **calendar days** at a fixed UTC offset, not windows centred on an acquisition. They do not fit the daily table as designed: see section 9.
+- **ARCO-ERA5:** Zarr format 2; final data 1940-01-01 to 2026-06-30, preliminary ERA5T to 2026-10-17 (store metadata, read 2026-10-23). The time axis runs 1900-2050 with empty slots outside that range.
 
 Two air-quality sources, deliberately: CAMS has no gaps and covers all of Core (2017–), but at ~80 km and from a model; Sentinel-5P observes at a few km, but only from mid-2018 and with gaps. Sentinel-5P L2 swaths from CDSE were rejected: whole files must be downloaded (about 0.5 GB per orbit for NO₂, ~14 orbits a day), on the order of 18 TB for NO₂ alone over Core's days, for values averaged over 10 km cells anyway.
 
@@ -185,4 +186,4 @@ majortom/climate/
 ## 9. Open questions
 
 1. Earth Engine tier for `major-tom-climate`: Community (150 EECU-hours a month, ~1.5 months for Sentinel-5P) or Contributor (1,000 a month, needs a billing account; noncommercial use is not charged).
-2. The four checks in section 2, before the first build.
+2. **ERA5-Land in the daily table.** Its daily statistics use calendar days and omit precipitation, snowfall and radiation (section 2), and hourly ERA5-Land would be ~13 TB of reads. Options: (a) take ERA5-Land states from the daily statistics, on UTC calendar days (step 0 = the UTC day of the acquisition), and precipitation, snowfall and radiation from ERA5 only; (b) read hourly ERA5-Land for all variables and keep centred windows (~13 TB); (c) leave ERA5-Land out of Core-Weather and use it only in ERA5Land-Monthly.

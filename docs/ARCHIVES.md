@@ -151,6 +151,8 @@ Where processing versions differ (Planetary Computer's originals vs reprocessed 
 
 Tiles of one pass overlap. Tiles that contain the whole window are used first, then the lowest tile code, so archives agree where their footprints do. If archives' footprints differ, they may still pick neighbouring tiles (seen for HLS S30 on Earth Engine), with small differences in the overlap.
 
+**Raw Sentinel-1 GRD (`sentinel-1-grd`) is placed, not terrain-corrected.** The files are in radar geometry, with a grid of ground control points (latitude and longitude per pixel position, about every 10 km). The builder warps them onto the window through those points. Flat, low ground lands close to its true position. Terrain above or below the smooth surface through the control points is shifted towards the satellite by about `h / tan(incidence)`, 1–1.7 × the height difference at IW incidences of 30–46°: several hundred metres in hills, close to 1 km on a 1,000 m summit (from geometry, not measured). Slopes facing the satellite are also compressed or folded over (foreshortening, layover). Values are amplitude digital numbers: uncalibrated, not sigma0. For placed and calibrated backscatter use `sentinel-1-rtc` (Planetary Computer) or `opera-rtc-s1` (Earthdata), both terrain-corrected and flattened (gamma0), or `sentinel-1-grd-tc` (Earth Engine: terrain-corrected, sigma0 in dB, not flattened).
+
 ## 6. Speed
 
 Measured from a server in Europe; distance to each archive is part of every number. Latest report: [docs/reports/2026-10-22-build-speed.md](reports/2026-10-22-build-speed.md). Every sample records its own `timing` (search, scene choice, each band), so you can measure your own runs.
