@@ -13,6 +13,7 @@ row 0 north, NaN where missing.
 from __future__ import annotations
 
 import os
+from functools import cache
 from pathlib import Path
 
 import numpy as np
@@ -57,3 +58,37 @@ def netcdf_times(tags: dict, dimension: str) -> np.ndarray:
     values = [float(v) for v in tags[f"NETCDF_DIM_{dimension}_VALUES"].strip("{}").split(",")]
     step = {"days": "D", "hours": "h", "minutes": "min", "seconds": "s"}[unit.strip()]
     return (pd.Timestamp(origin.strip()) + pd.to_timedelta(values, unit=step)).to_numpy()
+
+
+@cache
+def band_times(path: str, variable: str) -> tuple[np.ndarray, tuple]:
+    """Times of each band of `variable` in a netCDF file, and the file's transform."""
+    import rasterio
+
+    with rasterio.open(f'netcdf:"{path}":{variable}') as src:
+        tags = src.tags()
+        dim = next(k.removeprefix("NETCDF_DIM_").removesuffix("_VALUES") for k in tags
+                   if k.startswith("NETCDF_DIM_") and k.endswith("_VALUES") and "time" in k)
+        return netcdf_times(tags, dim), tuple(src.transform)[:6]
+
+
+def read_netcdf(path: Path, variable: str, when: np.datetime64, grid: Grid) -> np.ndarray:
+    """The band of `variable` at `when` from a cached file (or a folder of files), on the global grid."""
+    import rasterio
+
+    files = [path] if path.is_file() else sorted(path.glob("*.nc"))
+    for f in files:
+        try:
+            times, transform = band_times(str(f), variable)
+        except Exception:                                  # this file of the folder has no such variable
+            continue
+        band = np.flatnonzero(times == when)
+        if not len(band):
+            raise KeyError(f"{variable} has no band for {when} in {f}")
+        with rasterio.open(f'netcdf:"{f}":{variable}') as src:
+            raw = src.read(int(band[0]) + 1)
+            data = raw.astype(np.float32) * (src.scales[band[0]] or 1) + (src.offsets[band[0]] or 0)
+            if src.nodata is not None:
+                data[raw == src.nodata] = np.nan
+        return place(data, Affine(*transform), grid)
+    raise KeyError(f"no file in {path} holds {variable}")

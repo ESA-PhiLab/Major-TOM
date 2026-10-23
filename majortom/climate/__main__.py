@@ -4,12 +4,14 @@
 
     metadata files (paths or URLs; columns grid_cell, grid_row_u, grid_col_r, timestamp, and product_id if present)
       -> <out>/acquisitions.parquet: grid_cell, acquired, dataset, product_id   (links samples to table rows)
-      -> stream(): <out>/hourly/ and <out>/daily/, one file per acquisition day; a rerun continues where it stopped
+      -> hourly sources: stream(), <out>/hourly/ and <out>/daily/; daily sources: stream_days(), <out>/daily/
+         one file per acquisition day; a rerun continues where it stopped
 The dataset name is the metadata file's folder (Major-TOM/Core-S2L2A/.../metadata.parquet -> Core-S2L2A).
 """
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import sys
 from pathlib import Path
@@ -18,6 +20,8 @@ import fsspec
 import pandas as pd
 import pyarrow.parquet as pq
 
+from .days import stream_days
+from .sources import SOURCES
 from .stream import stream
 
 COLUMNS = ["grid_cell", "grid_row_u", "grid_col_r", "timestamp"]
@@ -57,11 +61,18 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--daily", type=int, default=30, help="days either side of each acquisition")
     run.add_argument("--workers", type=int, default=32, help="read threads")
     run.add_argument("--progress", type=int, default=0, help="print progress every N fields")
+    run.add_argument("--cache", type=Path, help="downloads and per-day means (default ~/.cache/majortom/climate)")
     args = parser.parse_args(argv)
+    if args.cache:
+        os.environ["MAJORTOM_CLIMATE_CACHE"] = str(args.cache)
     samples = pd.concat([read_samples(p) for p in args.samples], ignore_index=True)
     print(f"{len(samples):,} samples from {samples['dataset'].nunique()} datasets", flush=True)
     write_links(samples, args.out / "acquisitions.parquet")
-    reads = stream(samples, args.out, args.source, args.variables, args.hourly, args.daily, args.workers, args.progress)
+    if SOURCES[args.source].period == "day":                  # ERA5-Land, NOAA CPC, Sentinel-5P: daily table only
+        reads = stream_days(samples, args.out, args.source, args.variables, args.daily, args.workers, args.progress)
+    else:
+        reads = stream(samples, args.out, args.source, args.variables, args.hourly, args.daily, args.workers,
+                       args.progress)
     print(f"done: {reads:,} fields read", flush=True)
     return 0
 
