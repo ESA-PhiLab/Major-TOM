@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-23 ERA5-Land daily statistics: an offset day starts at local midnight, verified over April 2021 (docs/evidence/era5land_offset.py)
 - 2026-10-23 majortom.climate.stream: rolling buffer, each hour read once, one parquet file per acquisition day, restartable
 - 2026-10-23 Climate Data Store token setup: `python -m majortom.build.credentials cds` (token checked without a data request); cdsapi in the climate extra
 - 2026-10-23 ERA5 soil water and snow over land pixels only (land fraction >= 0.5); ERA5-Land days centred per acquisition by UTC offset (design)
