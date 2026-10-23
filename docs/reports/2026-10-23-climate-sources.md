@@ -58,7 +58,7 @@ IMERG: GES DISC answers 401 to the Earthdata token.
 ## Follow-up (same day, after review)
 
 - IMERG: works after the GES DISC approval. One hour read correctly (tropics 0.23 mm/h, Sahara dry); 265 s for two 8 MB files (~60 KB/s) while the ERA5 run fills the link.
-- Sentinel-5P: one valid share per product (`s5p_<product>_valid`). Tiles cost 0.95-2.64 EECU-s (~56 EECU-s per field, ~230 EECU-h in all). Stage 1 started as job 1694 with `--max-fields 7700` (~120 EECU-h); the rest after the quota resets on 1 November (`majortom/climate/days.py:78`).
+- Sentinel-5P: one valid share per product (`s5p_<product>_valid`). Tiles cost 0.95-2.64 EECU-s (~56 EECU-s per field, ~230 EECU-h in all). Stage 1 started as job 1694 with `--max-fields 7700` (~120 EECU-h); the rest after the quota resets on 1 November (`majortom/climate/days.py:87`).
 - ERA5-Land through Earth Engine: ~280 EECU-s per global field, ~2,100 EECU-h for the build (`docs/evidence/era5land_ee_cost.py`).
 - NOAA CPC day: best 24 h window starts between -13 h and +1 h of 00 UTC, best near 12Z the day before; not UTC days, not local days (`docs/evidence/cpc_day.py`).
 
