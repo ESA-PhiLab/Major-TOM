@@ -44,6 +44,7 @@ ERA5_VARIABLES = {
     "sf": ("snowfall", "m of water equivalent"),
     "sd": ("snow_depth", "m of water equivalent"),
     "swvl1": ("volumetric_soil_water_layer_1", "m**3 m**-3"),
+    "sst": ("sea_surface_temperature", "K"),             # NaN over land: a cell mean covers its sea part
 }
 
 SOURCES = {
