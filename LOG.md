@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-23 `python -m majortom.climate stream`: tables and link table for any metadata files; ERA5 sea ice cover
 - 2026-10-23 ERA5 sea surface temperature in the climate variables; ARCO reads are bandwidth-bound (~64 MB/s), processes no faster than threads
 - 2026-10-23 stream() on July 2021 Core-S2L2A: 22,320 ERA5 fields in 13 min, 3.5 GB, 164 MB; fix: cells outside their window when gathering a day (docs/evidence/core_weather_month.py)
 - 2026-10-23 ERA5-Land daily statistics: an offset day starts at local midnight, verified over April 2021 (docs/evidence/era5land_offset.py)

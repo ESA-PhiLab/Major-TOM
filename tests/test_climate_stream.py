@@ -83,3 +83,18 @@ def test_acquisitions_hours_apart_in_one_day(reads, tmp_path):
         assert got.notna().all().all()
         expected = expected.sort_values(["acquired", "grid_cell", f"step_{kind[0]}"]).reset_index(drop=True)
         pd.testing.assert_frame_equal(got, expected, check_dtype=False)
+
+
+def test_command_line(reads, tmp_path):
+    """Two metadata files sharing an acquisition: one table row per acquisition, both samples in the link table."""
+    from majortom.climate.__main__ import main
+
+    l2a, l1c = tmp_path / "Core-S2L2A" / "metadata.parquet", tmp_path / "Core-S2L1C" / "metadata.parquet"
+    for path, product in ((l2a, "L2A"), (l1c, "L1C")):
+        path.parent.mkdir()
+        samples().head(2).assign(product_id=product).to_parquet(path)
+    assert main(["stream", "--samples", str(l2a), str(l1c), "--source", "fake", "--out", str(tmp_path / "out"),
+                 "--hourly", "3", "--daily", "2"]) == 0
+    links = pd.read_parquet(tmp_path / "out" / "acquisitions.parquet")
+    assert len(links) == 4 and set(links.dataset) == {"Core-S2L2A", "Core-S2L1C"}
+    assert len(read_back(tmp_path / "out", "daily")) == 2 * 5               # 2 acquisitions x 5 daily steps
