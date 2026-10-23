@@ -1,13 +1,15 @@
-"""Set up archive credentials once: `python -m majortom.build.credentials cdse` (or `earthdata`, `earth-engine`).
+"""Set up archive credentials once: `python -m majortom.build.credentials cdse` (or `earthdata`, `earth-engine`, `cds`).
 
     cdse          prompt (hidden)  ->  [cdse] section of the AWS credentials file (owner-only, 600)  ->  one test read
     earthdata     prompt (hidden)  ->  ~/.config/majortom/earthdata-token (owner-only, 600)          ->  one test read
     earth-engine  project, and a service-account key file's path (or your `earthengine authenticate` login)
                   ->  ~/.config/majortom/earth-engine.json (owner-only; the path, never the key)
                   ->  one test read
+    cds           prompt (hidden)  ->  ~/.config/majortom/cds-token (owner-only, 600)                ->  token check
+                  (Climate Data Store personal access token, for majortom.climate: ERA5-Land, CAMS)
 
 Nothing secret is printed back. The environment (CDSE_S3_ACCESS_KEY / CDSE_S3_SECRET_KEY, EARTHDATA_TOKEN,
-EE_PROJECT / EE_SERVICE_ACCOUNT_KEY) still takes precedence, e.g. in Slurm jobs or Colab. On shared machines file
+EE_PROJECT / EE_SERVICE_ACCOUNT_KEY, CDS_TOKEN) still takes precedence, e.g. in Slurm jobs or Colab. On shared machines file
 permissions keep out other users, not administrators: use these revocable keys and tokens, never a main
 password. See docs/ARCHIVES.md.
 """
@@ -27,6 +29,9 @@ CDSE_SETUP = ("CDSE needs S3 keys (not your login). Create them at "
 EARTHDATA_SETUP = ("NASA Earthdata needs a token (not your password). Generate one at "
                    "https://urs.earthdata.nasa.gov (Generate Token; it lasts 60 days), then run "
                    "`python -m majortom.build.credentials earthdata`, or set EARTHDATA_TOKEN")
+CDS_SETUP = ("The Climate Data Store needs your personal access token (not your password), from your profile at "
+             "https://cds.climate.copernicus.eu, then run `python -m majortom.build.credentials cds`, or set CDS_TOKEN")
+CDS_CHECK = "https://cds.climate.copernicus.eu/api/profiles/v1/account/verification/pat"
 EE_SETUP = ("Earth Engine needs a Cloud project registered for Earth Engine, and either your login "
             "(`earthengine authenticate`) or a service-account key file. Run "
             "`python -m majortom.build.credentials earth-engine`, or set EE_PROJECT (and EE_SERVICE_ACCOUNT_KEY)")
@@ -76,6 +81,20 @@ def earthdata_token() -> str:
     return token
 
 
+def cds_token_file() -> Path:
+    return config_dir() / "cds-token"
+
+
+def cds_token() -> str:
+    """The Climate Data Store token: from the environment, else the owner-only token file. Never logged or stored."""
+    token = os.environ.get("CDS_TOKEN")
+    if not token and cds_token_file().exists():
+        token = cds_token_file().read_text().strip()
+    if not token:
+        raise PermissionError(CDS_SETUP)
+    return token
+
+
 def earth_engine_settings() -> tuple[str, str | None]:
     """(project, service-account key file or None for your own login): environment, else the saved settings."""
     saved = config_dir() / "earth-engine.json"
@@ -108,8 +127,15 @@ def save_cdse(key: str, secret: str) -> None:
 
 
 def save_earthdata(token: str) -> None:
-    """Write the token to its owner-only file, in an owner-only folder."""
-    path = earthdata_token_file()
+    save_token(earthdata_token_file(), token)
+
+
+def save_cds(token: str) -> None:
+    save_token(cds_token_file(), token)
+
+
+def save_token(path: Path, token: str) -> None:
+    """Write a token to its owner-only file, in an owner-only folder."""
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w") as handle:
@@ -145,9 +171,20 @@ def check_cdse() -> str:
     return check("cdse", "sentinel-2-l2a", "SCL_60m")
 
 
+def check_cds() -> str:
+    """Ask the Climate Data Store whether the saved token is valid (no data request, no queue)."""
+    import requests
+
+    response = requests.post(CDS_CHECK, headers={"PRIVATE-TOKEN": cds_token()}, timeout=30)
+    if response.status_code in (401, 403):
+        raise PermissionError(f"the Climate Data Store refused the token ({response.status_code}). {CDS_SETUP}")
+    response.raise_for_status()
+    return "token accepted by the Climate Data Store"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("archive", choices=["cdse", "earthdata", "earth-engine"])
+    parser.add_argument("archive", choices=["cdse", "earthdata", "earth-engine", "cds"])
     parser.add_argument("--no-check", action="store_true", help="skip the test read")
     args = parser.parse_args(argv)
     if args.archive == "cdse":
@@ -171,6 +208,17 @@ def main(argv: list[str] | None = None) -> int:
         save_earth_engine(project, key_file)
         print(f"saved to {config_dir() / 'earth-engine.json'} (owner-only; the key file stays where it is)")
         test = lambda: check("earth-engine", "COPERNICUS/S2_SR_HARMONIZED", "B04")    # noqa: E731
+    elif args.archive == "cds":
+        print("Climate Data Store personal access token (https://cds.climate.copernicus.eu > your profile)")
+        token = getpass.getpass("token: ").strip()
+        if not token:
+            print("no token given; nothing saved", file=sys.stderr)
+            return 1
+        save_cds(token)
+        print(f"saved to {cds_token_file()} (owner-only)")
+        print("Accept each dataset's licence once on its page (Download tab), e.g. ERA5-Land post-processed daily "
+              "statistics; CAMS EAC4 on https://ads.atmosphere.copernicus.eu.")
+        test = check_cds
     else:
         print("NASA Earthdata token (https://urs.earthdata.nasa.gov > Generate Token; it lasts 60 days)")
         token = getpass.getpass("token: ").strip()

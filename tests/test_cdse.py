@@ -94,6 +94,22 @@ def test_earthdata_token_setup_and_lookup(no_token, monkeypatch, capsys):
     assert credentials.earthdata_token() == "env-token"
 
 
+def test_cds_token_setup_and_lookup(monkeypatch, tmp_path, capsys):
+    """Climate Data Store token: hidden prompt, owner-only file, never printed; CDS_TOKEN takes precedence."""
+    monkeypatch.delenv("CDS_TOKEN", raising=False)
+    monkeypatch.setenv("MAJORTOM_CONFIG", str(tmp_path / "majortom"))
+    with pytest.raises(PermissionError, match="CDS_TOKEN"):
+        credentials.cds_token()
+    monkeypatch.setattr(credentials.getpass, "getpass", lambda prompt: "fake-cds-token")
+    assert credentials.main(["cds", "--no-check"]) == 0
+    out = capsys.readouterr()
+    assert "fake-cds-token" not in out.out + out.err
+    path = tmp_path / "majortom" / "cds-token"
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600 and credentials.cds_token() == "fake-cds-token"
+    monkeypatch.setenv("CDS_TOKEN", "env-token")
+    assert credentials.cds_token() == "env-token"
+
+
 def test_hls_from_earthdata_covers_the_years_before_planetary_computer():
     from majortom.build import outside
 

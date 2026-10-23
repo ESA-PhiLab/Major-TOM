@@ -273,6 +273,20 @@ wheels = [
 ]
 
 [[package]]
+name = "cdsapi"
+version = "0.7.7"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "ecmwf-datastores-client" },
+    { name = "requests" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/55/f3/6cb5b4bf077c441978c5d5be3a568d37e1f07f3e7177a17fa66aec2594b6/cdsapi-0.7.7.tar.gz", hash = "sha256:bc0cf807c1b78aceba6a11c3a5180f885f47f71a4e58205e324cfedcee16f10b", size = 13322, upload-time = "2025-09-30T19:11:22.404Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4f/f4/4a65460d5cb6784128019fd707a87993f378db25e796eba01400a0903f62/cdsapi-0.7.7-py2.py3-none-any.whl", hash = "sha256:384c1658572d6dc53f4111f6dd46fcdfe6fea54a688af9756d71f6fe9118b66d", size = 12293, upload-time = "2025-09-30T19:11:21.184Z" },
+]
+
+[[package]]
 name = "certifi"
 version = "2026.7.22"
 source = { registry = "https://pypi.org/simple" }
@@ -1075,6 +1089,21 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/1e/a1/1654d586e94a7b58535f5a225f2a4c1d3bd060b7b0df824895f1ddef848a/earthengine_api-1.7.49.tar.gz", hash = "sha256:a6a34dd80ca422aa3752ad9496690fb8c3a08310a3674356b39def25562a0a65", size = 437664, upload-time = "2026-10-19T21:47:18.98Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/89/30/9674680b014c4bfcc8592bdc764c6e0d4b4f040a62d4932d5d9275a8ff5b/earthengine_api-1.7.49-py3-none-any.whl", hash = "sha256:da11e004b240533729f045d936f17e5da54b62a4cd57ea59f9c48e4f8ffd4d69", size = 484765, upload-time = "2026-10-19T21:47:17.233Z" },
+]
+
+[[package]]
+name = "ecmwf-datastores-client"
+version = "0.5.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "attrs" },
+    { name = "multiurl" },
+    { name = "requests" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/32/fc/5d5175b3e8ad38a4839e2dc0ed6b607f7eddc6aac6a835379213fc6129c2/ecmwf_datastores_client-0.5.3.tar.gz", hash = "sha256:15bd614a138c88fc8f6556aefdb4f2e3a5107ad1fc8b7ba18fab06dd69e3ec52", size = 138359, upload-time = "2026-07-31T13:47:33.251Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d5/34/b1e57d5e2c4095c6e10db834c6fa48c17682d4395c01b5557d42f9b3c3fd/ecmwf_datastores_client-0.5.3-py3-none-any.whl", hash = "sha256:c840fdfd5ddfac07ba4f536b4b79c870096371d3f3e33acf74a8f791c64497dd", size = 26165, upload-time = "2026-07-31T13:47:31.747Z" },
 ]
 
 [[package]]
@@ -2379,6 +2408,7 @@ build = [
     { name = "requests" },
 ]
 climate = [
+    { name = "cdsapi" },
     { name = "gcsfs" },
     { name = "xarray", version = "2025.6.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "xarray", version = "2026.9.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
@@ -2420,6 +2450,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cdsapi", marker = "extra == 'climate'" },
     { name = "earthengine-api", marker = "extra == 'gee'", specifier = ">=1.7" },
     { name = "fsspec", extras = ["http"] },
     { name = "gcsfs", marker = "extra == 'climate'" },
@@ -3058,6 +3089,21 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/02/8b/b2c2805c3eb6fa4cdf5512fb95ac6174dde71e34dd601c5be52f4df5dc82/multidict-6.9.1-cp315-cp315t-win_amd64.whl", hash = "sha256:e96ca64383efa107262ee3949f047af5ee4f1845ba09463466c04d35a83bd3ec", size = 64984, upload-time = "2026-09-21T17:58:59.446Z" },
     { url = "https://files.pythonhosted.org/packages/fd/34/03f1d204d698c408f4754c969882609b6b7a902c0e3d16a7033f219cdeda/multidict-6.9.1-cp315-cp315t-win_arm64.whl", hash = "sha256:501ed8b02a5990c67a91c732843609d43a6be1f7576fcdfc867331239f37fbd3", size = 58742, upload-time = "2026-09-21T17:59:01.726Z" },
     { url = "https://files.pythonhosted.org/packages/be/59/e26cb779be4c591d1a910f59d29aca9fba4de70349840a833beba2652371/multidict-6.9.1-py3-none-any.whl", hash = "sha256:7bf6478188f4e47bf5686e8a33da4ae28bf43b1b2528d9ee144d28492bfac60b", size = 19176, upload-time = "2026-09-21T17:59:03.501Z" },
+]
+
+[[package]]
+name = "multiurl"
+version = "0.3.9"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "python-dateutil" },
+    { name = "pytz" },
+    { name = "requests" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d3/35/a08c568e63fda8cb1b7f3168409c026d2b407ab6d82da09cea078b01c2d7/multiurl-0.3.9.tar.gz", hash = "sha256:799b7998bfabd4e15d51ba09d08eb5d0716762655bae6e09db00a14c3bfaeae6", size = 20044, upload-time = "2026-06-18T07:43:38.756Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/59/f1/2374970b2ad0ab20e28a0cd12eec1c234567fef31064f0903396d55ae3f1/multiurl-0.3.9-py3-none-any.whl", hash = "sha256:5acedb53343bb47ff6188405dc33e10c1f1713591de8929a69b966d4d395d88e", size = 22610, upload-time = "2026-06-18T07:43:37.727Z" },
 ]
 
 [[package]]

@@ -29,7 +29,7 @@ embed = ["majortom[torch]", "timm", "torchgeo", "open-clip-torch", "transformers
 viz = ["matplotlib"]
 build = ["pystac-client", "planetary-computer", "requests"]   # first version; WS5 decision gate still open
 gee = ["earthengine-api>=1.7"]                                 # majortom.build archive "earth-engine"
-climate = ["xarray", "zarr", "gcsfs"]                         # majortom.climate (ERA5 from ARCO-ERA5)
+climate = ["xarray", "zarr", "gcsfs", "cdsapi"]               # majortom.climate (ARCO-ERA5; Climate Data Store)
 all = ["majortom[embed,viz,build]"]
 
 [project.urls]
