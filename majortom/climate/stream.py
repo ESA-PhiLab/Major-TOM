@@ -107,12 +107,15 @@ def _emit(acq, day, cell_of, buffer, src, variables, hourly, daily, land_share, 
     batch_cells, local = np.unique(cell_of[rows], return_inverse=True)
     first, last = _window_bounds(batch["acquired"], daily)
     hours = pd.date_range(first.min(), last.max(), freq="h")
-    values = np.empty((len(hours), len(batch_cells), len(variables)), np.float32)
-    valid = np.empty((len(hours), len(batch_cells)), np.float32)
+    values = np.full((len(hours), len(batch_cells), len(variables)), np.nan, np.float32)
+    valid = np.full((len(hours), len(batch_cells)), np.nan, np.float32)
     for k, h in enumerate(hours):
+        # a day's acquisitions are up to 24 h apart, so near the ends of these hours some cells are outside their
+        # own window and were never stored; they stay NaN, and the tables only read each acquisition's own window
         ids, vals, ok = buffer[h]
-        pos = np.searchsorted(ids, batch_cells)
-        values[k], valid[k] = vals[pos], ok[pos]
+        pos = np.minimum(np.searchsorted(ids, batch_cells), len(ids) - 1)
+        stored = ids[pos] == batch_cells
+        values[k, stored], valid[k, stored] = vals[pos[stored]], ok[pos[stored]]
     args = (batch, local, hours, values, valid, src, variables)
     hourly_df, daily_df = hourly_table(*args, hourly), daily_table(*args, daily)
     if land_share is not None:

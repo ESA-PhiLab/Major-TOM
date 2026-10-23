@@ -69,3 +69,17 @@ def test_restart_skips_finished_days(reads, tmp_path):
     stream(samples(), tmp_path, "fake", hourly=3, daily=2)
     pd.testing.assert_frame_equal(read_back(tmp_path, "daily"), first_run)
     assert len(reads) < 24 * 2 * 9                                  # only the last day's window was read again
+
+
+def test_acquisitions_hours_apart_in_one_day(reads, tmp_path):
+    """Two cells acquired 23 h apart on one day: each gets its own cell's values, none from a neighbour, no gaps."""
+    a, b = cell_at(-4.6, 56.1), cell_at(150.0, -33.0)
+    s = pd.DataFrame({"grid_cell": [a.name, b.name], "grid_row_u": [a.row, b.row], "grid_col_r": [a.col, b.col],
+                      "timestamp": ["2021-07-01T00:10:00Z", "2021-07-01T23:20:00Z"]})
+    hourly, daily = series(s, "fake", hourly=3, daily=2)
+    stream(s, tmp_path, "fake", hourly=3, daily=2)
+    for kind, expected in (("hourly", hourly), ("daily", daily)):
+        got = read_back(tmp_path, kind)
+        assert got.notna().all().all()
+        expected = expected.sort_values(["acquired", "grid_cell", f"step_{kind[0]}"]).reset_index(drop=True)
+        pd.testing.assert_frame_equal(got, expected, check_dtype=False)
