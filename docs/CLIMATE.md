@@ -200,8 +200,12 @@ Each source is written to its own folder (`<out>/<source>/hourly/`, `<out>/<sour
 - Step 0 is centred on the acquisition, in both tables.
 - NOAA CPC day (measured 2026-10-23, `docs/evidence/cpc_day.py`): against ERA5 hourly precipitation at Sydney, Brisbane, Denver and Glasgow, CPC day D fits a 24 h window starting between 12Z on D−1 and 00Z on D, best near 12Z on D−1; not local days, not starting at 12Z on D. The reader still uses 00Z (`day_start_utc: 0`). Pending: switch to −12.
 - Output layout (Miko, 2026-10-23): each source is built into its own folder under `/data/Major-TOM/Core-Weather/` and joined on `grid_cell`, `acquired` and the step; for publishing, the sources are merged into one hourly and one daily table.
-- ERA5-Land through Earth Engine (option b, measured 2026-10-23, `docs/evidence/era5land_ee_cost.py`): ~280 EECU-s per global 7-band daily field, so ~2,100 EECU-hours for ~3,000 days × 9 offset groups (~700 if cut to each group's area): months of the Community tier. Through the Climate Data Store, month requests waited up to ~3 h and ran ~16 min. Pending: option c, ERA5-Land only in ERA5Land-Monthly.
+- ERA5-Land through Earth Engine (option b, measured 2026-10-23, `docs/evidence/era5land_ee_cost.py`): ~280 EECU-s per global 7-band daily field, so ~2,100 EECU-hours for ~3,000 days × 9 offset groups (~700 if cut to each group's area): months of the Community tier. Through the Climate Data Store, month requests waited up to ~3 h and ran ~16 min. Decided (Miko, 2026-10-23): option c, ERA5-Land only in ERA5Land-Monthly; Core-Weather takes its daily land variables from ERA5. The ERA5-Land daily reader (`majortom/climate/readers/queue.py`) stays, tested on Loch Lomond.
 
 ## 9. Open questions
 
 1. Earth Engine tier for `major-tom-climate`: Community for now (Miko, 2026-10-23): 150 EECU-hours a month, so the full Sentinel-5P build (~200 EECU-hours) spans about two months, or runs on in restricted mode. Contributor (1,000 a month, needs a billing account) remains the option to finish within a month.
+
+## 10. Future options
+
+- ERA5-Land in Core-Weather (option b): Earth Engine's hourly ERA5-Land averaged over each offset group's day, ~280 EECU-s per global 7-band field, ~2,100 EECU-hours for Core (~700 if cut to each group's area; `docs/evidence/era5land_ee_cost.py`). Worth it with a Contributor or Partner tier, or if the Climate Data Store queue shortens (option a: ~800 month requests, measured waits up to ~3 h and ~16 min runs).
