@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-23 CLIMATE.md reviewed; dedicated Earth Engine project for Sentinel-5P
 - 2026-10-23 Climate design: Core-Weather (hourly ±24 h, daily ±30 d, all sources) and [Source]-Monthly (series + climatology) -> [design](docs/CLIMATE.md)
 - 2026-10-22 `correct_core_transform`: Core-S2 and all Core-S1RTC origins rounded to the band grid (the 4 unmatched S1 samples are an older source version); Core-DEM kept
 - 2026-10-22 Benchmark rerun at Loch Lomond: 55 pairs, 0 failures (code 1d082dd); ARCHIVES speed guide updated -> [report](docs/reports/2026-10-22-build-speed.md)

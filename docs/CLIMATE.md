@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** unreviewed. Design only; no code exists yet.
+> **Review status:** reviewed (Miko, 2026-10-23), sources included. Design only; no code exists yet.
 
 # Weather and climate per grid cell — design
 
@@ -168,7 +168,7 @@ majortom/climate/
 - **Reads dominate.** One global ERA5 field (1440 × 721) is about 4 MB per variable and hour. The hourly and daily windows of Core cover about 2,600 days ≈ 62,000 hours: about 2.5 TB for 10 variables from ARCO-ERA5, streamed, not stored.
 - **ERA5-Land is daily only.** Hourly fields are about 6× larger than ERA5's (3600 × 1801); the Climate Data Store's daily statistics would avoid reading them, if they cover our variables (section 2).
 - **CAMS** is small: 0.75°, 3-hourly, from the Atmosphere Data Store.
-- **Sentinel-5P** cell means are computed on Earth Engine's servers (one table export per product and year). This needs an Earth Engine project with real quota, not `wiki-eo`.
+- **Sentinel-5P** cell means are computed on Earth Engine's servers (one table export per product and year). They run in a dedicated Earth Engine project for Sentinel-5P, not `wiki-eo`.
 - **Runs on `cirrus` as Slurm CPU jobs,** one job per source and year. Weight matrices are built once per source grid and saved.
 - Otherwise Earth Engine stays for small tests only (shared `wiki-eo` quota).
 
@@ -183,5 +183,5 @@ majortom/climate/
 
 ## 9. Open questions
 
-1. An Earth Engine project with enough quota for the Sentinel-5P exports.
+1. Earth Engine quota for Sentinel-5P: a dedicated project exists (2026-10-23); its tier depends on a one-day cost measurement.
 2. The four checks in section 2, before the first build.
