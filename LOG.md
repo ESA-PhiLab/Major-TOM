@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-23 Core-Weather ERA5 built: 3,704,013 acquisitions, 181M hourly and 226M daily rows, complete (docs/evidence/core_weather_validate.py)
 - 2026-10-23 Climate readers for ERA5-Land, CAMS, CPC, IMERG, Sentinel-5P; daily path -> [report](docs/reports/2026-10-23-climate-sources.md)
 - 2026-10-23 `python -m majortom.climate stream`: tables and link table for any metadata files; ERA5 sea ice cover
 - 2026-10-23 ERA5 sea surface temperature in the climate variables; ARCO reads are bandwidth-bound (~64 MB/s), processes no faster than threads
