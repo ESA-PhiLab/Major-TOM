@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-23 Climate readers for ERA5-Land, CAMS, CPC, IMERG, Sentinel-5P; daily path -> [report](docs/reports/2026-10-23-climate-sources.md)
 - 2026-10-23 `python -m majortom.climate stream`: tables and link table for any metadata files; ERA5 sea ice cover
 - 2026-10-23 ERA5 sea surface temperature in the climate variables; ARCO reads are bandwidth-bound (~64 MB/s), processes no faster than threads
 - 2026-10-23 stream() on July 2021 Core-S2L2A: 22,320 ERA5 fields in 13 min, 3.5 GB, 164 MB; fix: cells outside their window when gathering a day (docs/evidence/core_weather_month.py)
