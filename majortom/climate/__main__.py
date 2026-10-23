@@ -3,6 +3,7 @@
     python -m majortom.climate stream --samples <metadata.parquet> [more ...] --source era5 --out <dir>
     python -m majortom.climate monthly --source era5-monthly --years 1940 2025 --out <dir>
     python -m majortom.climate climatology --out <dir> --period 1991 2020
+    python -m majortom.climate merge --root <Core-Weather> --sources era5 cams cpc s5p --out <dir>
 
     metadata files (paths or URLs; columns grid_cell, grid_row_u, grid_col_r, timestamp, and product_id if present)
       -> <out>/acquisitions.parquet: grid_cell, acquired, dataset, product_id   (links samples to table rows)
@@ -74,7 +75,15 @@ def main(argv: list[str] | None = None) -> int:
     clim = sub.add_parser("climatology", help="per cell and calendar month: mean, std, years, from a monthly series")
     clim.add_argument("--out", type=Path, required=True, help="the folder written by `monthly`")
     clim.add_argument("--period", type=int, nargs=2, default=(1991, 2020), metavar=("FIRST", "LAST"))
+    join = sub.add_parser("merge", help="per-source Core-Weather folders -> one hourly and one daily table")
+    join.add_argument("--root", type=Path, required=True, help="the folder holding one folder per source")
+    join.add_argument("--sources", nargs="+", required=True, help="source folder names, e.g. era5 cams cpc s5p")
+    join.add_argument("--out", type=Path, required=True)
     args = parser.parse_args(argv)
+    if args.command == "merge":
+        from .merge import merge
+        print(f"{merge(args.root, args.sources, args.out)} day files written", flush=True)
+        return 0
     if getattr(args, "cache", None):
         os.environ["MAJORTOM_CLIMATE_CACHE"] = str(args.cache)
     if args.command == "monthly":
