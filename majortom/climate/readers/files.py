@@ -138,13 +138,21 @@ MONTHLY_STAT = {"precip": "sum", "tmax": "mean", "tmin": "mean"}     # total rai
 
 
 def valid_months(source) -> tuple[pd.Timestamp, pd.Timestamp]:
-    last = (pd.Timestamp.now().normalize() - pd.DateOffset(months=1)).to_period("M").start_time
-    return pd.Timestamp("1979-01-01"), last
+    last = (pd.Timestamp.now().normalize() - pd.DateOffset(months=4)).to_period("M").start_time
+    return pd.Timestamp(source.options.get("first_month", "1979-01-01")), last
 
 
 def month_field(source, variable: str, month: pd.Timestamp) -> np.ndarray:
-    """CPC monthly: total precipitation (mm), or the mean of daily maximum / minimum temperature (degC)."""
+    """CPC monthly: total precipitation (mm), or the mean of daily maximum / minimum temperature (degC).
+    IMERG monthly: the month's mean precipitation rate (mm/hr), from its monthly file."""
     import rasterio
+
+    if source.name == "imerg":
+        from ...build.credentials import earthdata_token
+        name = f"3B-MO.MS.MRG.3IMERG.{month:%Y%m}01-S000000-E235959.{month:%m}.V07B.HDF5"
+        target = cache_dir(source.name) / "monthly" / name
+        _download(f"{source.store}/{month:%Y}/{name}", target, {"Authorization": f"Bearer {earthdata_token()}"})
+        return place(_imerg_half_hour(target), Affine(0.1, 0, -180, 0, -0.1, 90), source.grid)
 
     from . import band_times
 

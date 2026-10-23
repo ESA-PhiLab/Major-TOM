@@ -144,12 +144,24 @@ def valid_months(source) -> tuple[pd.Timestamp, pd.Timestamp]:
 
 
 def month_field(source, variable: str, month: pd.Timestamp) -> np.ndarray:
-    """One monthly mean (global, on source.grid) from that year's cached request."""
-    target = cache_dir(source.name) / "monthly" / f"{source.store}_{month:%Y}.nc"
+    """One monthly mean (global, on source.grid) from that year's cached request.
+
+    CAMS: surface gases (model level 60) and single-level fields come as two requests per year.
+    """
+    year = {"year": [f"{month:%Y}"], "month": [f"{m:02d}" for m in range(1, 13)]}
+    if "surface" in source.options:
+        surface = variable in source.options["surface"]
+        names = [v for v in source.variables if (v in source.options["surface"]) == surface]
+        request = {"product_type": [source.options["product_type"]], "variable": [source.variables[v] for v in names],
+                   **year, "data_format": "netcdf_zip"}
+        if surface:
+            request["model_level"] = [source.options["model_level"]]
+        target = cache_dir(source.name) / "monthly" / f"{source.store}_{month:%Y}_{'ml' if surface else 'sl'}.zip"
+    else:
+        request = {"product_type": [source.options["product_type"]], "variable": list(source.variables.values()),
+                   **year, "time": ["00:00"], "data_format": "netcdf", "download_format": "unarchived"}
+        target = cache_dir(source.name) / "monthly" / f"{source.store}_{month:%Y}.nc"
     target.parent.mkdir(parents=True, exist_ok=True)
-    request = {"product_type": [source.options["product_type"]], "variable": list(source.variables.values()),
-               "year": [f"{month:%Y}"], "month": [f"{m:02d}" for m in range(1, 13)], "time": ["00:00"],
-               "data_format": "netcdf", "download_format": "unarchived"}
     path = _fetch(source, request, target)
     when = pd.Timestamp(month).to_datetime64().astype("datetime64[ns]")
     return read_netcdf(path, source.options["files"][variable], when, source.grid)
