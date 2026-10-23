@@ -2,8 +2,9 @@
 
     a field needs a file -> <cache>/<file> (downloaded once, resumed if cut) -> one band -> the global grid
 
-NOAA CPC (period "day"): days are fixed periods starting at options["day_start_utc"]; a daily step takes the
-CPC day holding the step's window centre, i.e. the day overlapping its 24 hours most.
+NOAA CPC (period "day"): a day's 24 hours end at a different UTC hour per country (CPC's end-of-day map); each
+cell's group is its day start in hours from 00Z of the labelled date, and a daily step takes the CPC day holding
+the step's window centre, i.e. the day overlapping its 24 hours most.
 IMERG (period "hour"): precipitation in mm/hr per half hour; the hour ending at H is the mean of the two
 half-hours [H - 1 h, H - 30 min) and [H - 30 min, H), in mm. Needs the Earthdata token, with the GES DISC
 application approved on the Earthdata profile.
@@ -55,17 +56,36 @@ def _download(url: str, target: Path, headers: dict | None = None) -> Path:
 
 # NOAA CPC Global Unified: daily, yearly files ------------------------------------------------------------------
 
-def groups(source, acquired: np.ndarray, lon: np.ndarray) -> np.ndarray:
-    return np.zeros(len(acquired), dtype=int)
+def end_of_day(source) -> np.ndarray:
+    """CPC's map of the hour (UTC, from 00Z of the labelled date) at which each 0.5° box's daily total ends.
+
+    National gauge networks report at different hours: 12 = 12Z on the date, 30 = 06Z the next day; -999 where
+    unknown. 360 x 720 float32, south row first, as published (README: "based on very limited and UNCHECKED
+    information"). https://ftp.cpc.ncep.noaa.gov/precip/CPC_UNI_PRCP/GAUGE_GLB/DOCU/
+    """
+    target = cache_dir(source.name) / "PRCP_CU_GAUGE_V1.0GLB_0.50deg_EOD.lnx"
+    _download(source.options["end_of_day"], target)
+    return np.fromfile(target, "<f4").reshape(360, 720)
+
+
+def groups(source, acquired: np.ndarray, lon: np.ndarray, lat: np.ndarray) -> np.ndarray:
+    """CPC: where each cell's day starts, in hours from 00Z of the labelled date (end of day - 24); else 0."""
+    if "end_of_day" not in source.options:
+        return np.zeros(len(acquired), dtype=int)
+    eod = end_of_day(source)
+    rows = np.clip(((np.asarray(lat) + 90) // 0.5).astype(int), 0, 359)
+    cols = ((np.asarray(lon) % 360) // 0.5).astype(int) % 720
+    hours = eod[rows, cols]
+    return np.where(hours > -999, hours - 24, 0).astype(int)
 
 
 def days(source, centres: np.ndarray, lon: np.ndarray, group: np.ndarray) -> np.ndarray:
-    start = source.options.get("day_start_utc", 0)
-    return (centres - start * H).astype("datetime64[D]").astype(np.int64)
+    """The CPC day whose 24 hours hold the window centre: day D covers D 00Z + group h to D 00Z + group h + 24 h."""
+    return (centres - group * H).astype("datetime64[D]").astype(np.int64)
 
 
 def period_start(source, day: np.ndarray, group: np.ndarray) -> np.ndarray:
-    return np.asarray(day).astype("datetime64[D]") + source.options.get("day_start_utc", 0) * H
+    return np.asarray(day).astype("datetime64[D]") + np.asarray(group) * H
 
 
 def field(source, variable: str, key) -> np.ndarray:

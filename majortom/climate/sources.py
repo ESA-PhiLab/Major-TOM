@@ -132,7 +132,8 @@ SOURCES = {
                   Grid(west=0.0, north=90.0, step=0.5, width=720, height=360),
                   {"precip": "cpc_global_precip/precip", "tmax": "cpc_global_temp/tmax", "tmin": "cpc_global_temp/tmin"},
                   {"precip": "mm", "tmax": "degC", "tmin": "degC"}, step="1D", reader="files", period="day",
-                  options={"day_start_utc": 0}),                          # to verify against the files
+                  options={"end_of_day": "https://ftp.cpc.ncep.noaa.gov/precip/CPC_UNI_PRCP/GAUGE_GLB/DOCU/"
+                                         "PRCP_CU_GAUGE_V1.0GLB_0.50deg_EOD.lnx"}),     # day boundaries per country
     # GPM IMERG Final V07 (NASA GES DISC, Earthdata token): half-hourly 0.1°, summed to the hour ending at the stamp
     "imerg": Source("imerg", "https://gpm1.gesdisc.eosdis.nasa.gov/data/GPM_L3/GPM_3IMERGHH.07",
                     Grid(west=-180.0, north=90.0, step=0.1, width=3600, height=1800),
@@ -140,7 +141,8 @@ SOURCES = {
     # Sentinel-5P OFFL L3 (Earth Engine, project from EE_PROJECT): UTC-day mosaics on a 0.05° grid
     "s5p": Source("s5p", "earthengine", Grid(west=-180.0, north=90.0, step=0.05, width=7200, height=3600),
                   _names(S5P_PRODUCTS, 1), _names(S5P_PRODUCTS, 2), step="1D", reader="earthengine", period="day",
-                  options={"collections": _names(S5P_PRODUCTS, 0), "overpass_local": 13.5, "valid_per_variable": True}),
+                  options={"collections": _names(S5P_PRODUCTS, 0), "overpass_local": 13.5, "valid_per_variable": True,
+                           "first_day": "2018-06-28"}),
 }
 
 

@@ -25,7 +25,7 @@ from .readers import cache_dir
 from .series import acquisitions
 from .sources import SOURCES, field, reader
 from .stream import _done, _write
-from .weights import ByCell, cell_means, weights
+from .weights import cell_means, weights
 
 OFFSET = 50                               # key = day * 100 + group + OFFSET (groups run from -12 to +14)
 DAY = np.timedelta64(1, "D")
@@ -41,6 +41,27 @@ def centre_lon(rows: np.ndarray, cols: np.ndarray, d: float = 10.0) -> np.ndarra
         at = rows == row
         out[at] = cols[at] * cell.dlon + cell.dlon / 2
     return out
+
+
+ID = 10_000                                     # cell identity: row * ID + column (columns stay within +-ID/2)
+
+
+def cell_id(rows: np.ndarray, cols: np.ndarray) -> np.ndarray:
+    """A fixed identity per cell, the same in every run, so cached means can be shared between runs."""
+    return np.asarray(rows, np.int64) * ID + np.asarray(cols, np.int64)
+
+
+def _cells_of(ids: np.ndarray) -> pd.DataFrame:
+    rows = np.round(ids / ID).astype(np.int64)
+    return pd.DataFrame({"grid_row_u": rows, "grid_col_r": ids - rows * ID})
+
+
+def centre_lat(rows: np.ndarray, d: float = 10.0) -> np.ndarray:
+    """Latitude of each cell's centre, from its grid row."""
+    from ..cells import Cell
+
+    dlat = Cell(0, 0, d).dlat
+    return rows * dlat + dlat / 2
 
 
 def _keys(rdr, src, acquired: np.ndarray, lon: np.ndarray, group: np.ndarray, daily: int) -> np.ndarray:
@@ -69,12 +90,14 @@ def stream_days(samples: pd.DataFrame, out: Path | str, source: str, variables: 
     acq = acq[~acq["day"].isin(_done(out))].reset_index(drop=True)
     if acq.empty:
         return 0
-    cells = acq.drop_duplicates("grid_cell")[["grid_cell", "grid_row_u", "grid_col_r"]].reset_index(drop=True)
-    cell_of = pd.Index(cells["grid_cell"]).get_indexer(acq["grid_cell"])
+    acq_ids = cell_id(acq["grid_row_u"].to_numpy(), acq["grid_col_r"].to_numpy())
+    ids = np.unique(acq_ids)                                       # this run's cells, sorted by identity
+    cell_of = np.searchsorted(ids, acq_ids)
+    cells = _cells_of(ids)
     acquired = acq["acquired"].to_numpy()
     lon = centre_lon(acq["grid_row_u"].to_numpy(), acq["grid_col_r"].to_numpy())
-    group = rdr.groups(src, acquired, lon).astype(np.int64)
-    by_cell = ByCell(weights(cells, src.grid))
+    lat = centre_lat(acq["grid_row_u"].to_numpy())
+    group = rdr.groups(src, acquired, lon, lat).astype(np.int64)
     means = cache_dir(src.name) / "means"
     means.mkdir(exist_ok=True)
 
@@ -83,30 +106,39 @@ def stream_days(samples: pd.DataFrame, out: Path | str, source: str, variables: 
     reads, start = 0, time.monotonic()
     by_month = pd.DataFrame({"key": keys, "day": [_split(k)[0] for k in keys], "group": [_split(k)[1] for k in keys]})
     by_month["month"] = pd.to_datetime(by_month["day"], unit="D").dt.to_period("M")
+    first, last = (np.datetime64(v, "D") for v in rdr.valid_range(src)) if hasattr(rdr, "valid_range") else (None, None)
     for (month, g), part in by_month.groupby(["month", "group"], sort=True):
         if max_fields is not None and reads >= max_fields:
             break
-        todo = [k for k in part["key"] if not (means / f"{k}.npz").exists()]
-        if not todo:
-            continue
         reach = (daily + 2) * DAY                                     # acquisitions that may need this month
-        lo, hi = np.searchsorted(acquired, [month.start_time.to_datetime64() - reach,
-                                            month.end_time.to_datetime64() + reach])
-        near = np.arange(lo, hi)[group[lo:hi] == g]
-        if hasattr(rdr, "prepare"):
-            rdr.prepare(src, month.start_time, int(g), _bbox(cells, np.unique(cell_of[near])))
-        for key in todo:
+        prepared = False
+        for key in part["key"]:
             if max_fields is not None and reads >= max_fields:
                 break
             day, _ = _split(key)
             date = np.datetime64(day, "D")
             lo, hi = np.searchsorted(acquired, [date - reach, date + reach])
-            day_cells = np.unique(cell_of[lo:hi][group[lo:hi] == g])
-            sub = by_cell.subset(day_cells)
+            need = ids[np.unique(cell_of[lo:hi][group[lo:hi] == g])]
+            path = means / f"{key}.npz"
+            have = np.load(path)["cells"] if path.exists() else np.array([], np.int64)
+            if np.isin(need, have).all():
+                continue                                              # cached for every cell this run needs
+            need = np.union1d(need, have)                             # keep what other runs cached
+            outside = first is not None and not (first <= date <= last)
+            if not outside and not prepared and hasattr(rdr, "prepare"):
+                near = np.arange(*np.searchsorted(acquired, [month.start_time.to_datetime64() - reach,
+                                                             month.end_time.to_datetime64() + reach]))
+                rdr.prepare(src, month.start_time, int(g), _bbox(cells, np.unique(cell_of[near[group[near] == g]])))
+                prepared = True
+            if outside:                                               # before or after the record: empty, no read
+                empty = np.full((len(need), len(variables)), np.nan, np.float32)
+                np.savez(path, cells=need, values=empty, valid=np.zeros_like(empty))
+                continue
+            sub = weights(_cells_of(need), src.grid)
             with ThreadPoolExecutor(min(workers, len(variables))) as pool:
                 fields = list(pool.map(lambda v: field(src, v, (day, int(g))), variables))
             results = [cell_means(sub, f) for f in fields]
-            np.savez(means / f"{key}.npz", cells=day_cells, valid=np.stack([r[1] for r in results], axis=1).astype(np.float32),
+            np.savez(path, cells=need, valid=np.stack([r[1] for r in results], axis=1).astype(np.float32),
                      values=np.stack([r[0] for r in results], axis=1).astype(np.float32))
             reads += len(variables)
             if progress and reads % progress < len(variables):
@@ -125,9 +157,12 @@ def stream_days(samples: pd.DataFrame, out: Path | str, source: str, variables: 
                 with np.load(means / f"{key}.npz") as f:
                     ok = f["valid"]
                     loaded[key] = (f["cells"], f["values"], ok[:, None] if ok.ndim == 1 else ok)
-            ids, vals, ok = loaded[key]
+            have, vals, ok = loaded[key]
             r, s = np.nonzero(keys_day == key)
-            pos = np.searchsorted(ids, cell_of[rows][r])
+            want = acq_ids[rows][r]
+            pos = np.minimum(np.searchsorted(have, want), len(have) - 1)
+            if not (have[pos] == want).all():
+                raise RuntimeError(f"cached source day {key} lacks cells this run needs: {means / f'{key}.npz'}")
             values[r, s], valid[r, s] = vals[pos], ok[pos]
         oldest = np.datetime64(day.date()) - (daily + 3) * DAY                           # free what is behind
         for key in [k for k in loaded if np.datetime64(_split(k)[0], "D") < oldest]:

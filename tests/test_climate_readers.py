@@ -24,7 +24,7 @@ def test_era5_land_groups_centre_days():
     src = SOURCES["era5-land"]
     acquired = np.array(["2021-07-01T11:21", "2021-07-01T23:50", "2021-07-01T02:00", "2021-07-01T05:40"],
                         dtype="datetime64[s]")
-    group = queue.groups(src, acquired, np.zeros(4))
+    group = queue.groups(src, acquired, np.zeros(4), np.zeros(4))
     assert list(group) == [0, -12, 9, 6]
     day = queue.days(src, acquired[:, None], np.zeros((4, 1)), group[:, None])[:, 0]
     start = queue.period_start(src, day, group)
@@ -32,11 +32,19 @@ def test_era5_land_groups_centre_days():
     assert (np.abs((centre - acquired) / H) <= 1.5 + 1e-9).all()
 
 
-def test_cpc_day_holds_the_window_centre():
+def test_cpc_days_follow_the_end_of_day_map(monkeypatch):
+    """A box whose day ends at 12Z: day D runs from 12Z on D-1, so a window centred at 15Z belongs to D+1."""
     src = SOURCES["cpc"]
-    centres = np.array([["2021-07-01T11:00", "2021-07-01T23:30"]], dtype="datetime64[s]")
-    day = files.days(src, centres, np.zeros((1, 1)), np.zeros((1, 1), int))
-    assert list(day[0].astype("datetime64[D]").astype(str)) == ["2021-07-01", "2021-07-01"]
+    eod = np.full((360, 720), 24.0, np.float32)
+    eod[int((39.7 + 90) // 0.5), int((-104.9 % 360) // 0.5)] = 12.0          # Denver's box
+    monkeypatch.setattr(files, "end_of_day", lambda source: eod)
+    group = files.groups(src, np.zeros(2, "datetime64[s]"), np.array([-104.9, 0.0]), np.array([39.7, 0.0]))
+    assert list(group) == [-12, 0]
+    centres = np.array([["2021-07-01T15:00"], ["2021-07-01T15:00"]], dtype="datetime64[s]")
+    day = files.days(src, centres, None, group[:, None])[:, 0]
+    assert list(day.astype("datetime64[D]").astype(str)) == ["2021-07-02", "2021-07-01"]
+    start = files.period_start(src, day, group)
+    assert list(start.astype(str)) == ["2021-07-01T12", "2021-07-01T00"]
 
 
 def test_s5p_overpass_day():

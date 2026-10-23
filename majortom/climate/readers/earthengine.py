@@ -36,7 +36,12 @@ def _ee():
     return ee
 
 
-def groups(source, acquired: np.ndarray, lon: np.ndarray) -> np.ndarray:
+def valid_range(source) -> tuple[str, str]:
+    """Days with data: before the first OFFL products (2018-06-28) a day is empty without asking Earth Engine."""
+    return source.options["first_day"], "2100-01-01"
+
+
+def groups(source, acquired: np.ndarray, lon: np.ndarray, lat: np.ndarray) -> np.ndarray:
     return np.zeros(len(acquired), dtype=int)
 
 
@@ -58,8 +63,10 @@ def field(source, variable: str, key) -> np.ndarray:
     day, _ = key
     date = str(np.datetime64(int(day), "D"))
     start = ee.Date(date)
-    image = (ee.ImageCollection(source.options["collections"][variable]).filterDate(start, start.advance(1, "day"))
-             .select(source.variables[variable]).mean().unmask(-9999))
+    band = source.variables[variable]
+    day_images = ee.ImageCollection(source.options["collections"][variable]).filterDate(start, start.advance(1, "day"))
+    image = ee.Image(ee.Algorithms.If(day_images.size().gt(0), day_images.select(band).mean(),
+                                      ee.Image.constant(-9999).rename(band))).unmask(-9999)     # no orbits: empty
     grid = source.grid
     out = np.full((grid.height, grid.width), np.nan, np.float32)
 

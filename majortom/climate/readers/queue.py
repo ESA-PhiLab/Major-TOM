@@ -53,7 +53,7 @@ def _fetch(source, request: dict, target: Path) -> Path:
 
 # ERA5-Land daily statistics: days centred on each acquisition by a UTC offset (period "day") ---------------
 
-def groups(source, acquired: np.ndarray, lon: np.ndarray) -> np.ndarray:
+def groups(source, acquired: np.ndarray, lon: np.ndarray, lat: np.ndarray) -> np.ndarray:
     """UTC-offset group of each acquisition: 12 - its UTC hour, rounded to the source's offset step (3 h)."""
     hour = (acquired - acquired.astype("datetime64[D]")) / H
     step = source.options.get("offset_step", 1)
@@ -70,15 +70,37 @@ def period_start(source, day: np.ndarray, group: np.ndarray) -> np.ndarray:
     return np.asarray(day).astype("datetime64[D]") - np.asarray(group) * H
 
 
-def _month_file(source, month: pd.Timestamp, group: int) -> Path:
-    return cache_dir(source.name) / "raw" / f"{month:%Y-%m}_utc{group:+03d}.nc"
+def _month_file(source, month: pd.Timestamp, group: int, bbox: tuple | None = None) -> Path:
+    """The cached month for a group; requests are cut to an area, so the area is part of the name."""
+    folder = cache_dir(source.name) / "raw"
+    if bbox is None:                                       # reading: the largest area fetched for this month
+        found = _cached(folder, month, group)
+        if not found:
+            raise FileNotFoundError(f"no cached file for {month:%Y-%m} utc{group:+03d} in {folder}: run prepare()")
+        return max(found, key=lambda fa: (fa[1][0] - fa[1][2]) * (fa[1][3] - fa[1][1]))[0]
+    area = "_".join(f"{v:g}" for v in bbox)
+    return folder / f"{month:%Y-%m}_utc{group:+03d}_{area}.nc"
+
+
+def _cached(folder: Path, month: pd.Timestamp, group: int) -> list[tuple[Path, tuple[float, ...]]]:
+    """Cached files (or unzipped folders) for a month and group, with their areas (north, west, south, east)."""
+    out = []
+    for f in folder.glob(f"{month:%Y-%m}_utc{group:+03d}_*"):
+        if f.name.endswith(".part"):
+            continue
+        area = f.name.removesuffix(".nc").split("_", 2)[2]
+        out.append((f, tuple(float(v) for v in area.split("_"))))
+    return out
 
 
 def prepare(source, month: pd.Timestamp, group: int, bbox: tuple[float, float, float, float]) -> None:
     """Fetch one month of daily means for one offset group, cut to `bbox` (north, west, south, east)."""
-    target = _month_file(source, month, group)
-    target.parent.mkdir(parents=True, exist_ok=True)
     north, west, south, east = (round(v, 1) for v in bbox)
+    for _, (n, w, s, e) in _cached(cache_dir(source.name) / "raw", month, group):
+        if n >= north and w <= west and s <= south and e >= east:
+            return                                           # an earlier run fetched an area that covers this one
+    target = _month_file(source, month, group, (north, west, south, east))
+    target.parent.mkdir(parents=True, exist_ok=True)
     request = {"variable": list(source.variables.values()), "year": f"{month:%Y}", "month": f"{month:%m}",
                "day": [f"{d:02d}" for d in range(1, calendar.monthrange(month.year, month.month)[1] + 1)],
                "daily_statistic": "daily_mean", "time_zone": f"utc{group:+03d}:00", "frequency": "1_hourly",
@@ -91,10 +113,7 @@ def field(source, variable: str, key) -> np.ndarray:
     if source.period == "day":
         day, group = key
         date = np.datetime64(int(day), "D")
-        path = _month_file(source, pd.Timestamp(date), group)
-        found = path.with_suffix("") if path.with_suffix("").is_dir() else path
-        if not found.exists():
-            raise FileNotFoundError(f"{path} not fetched: run prepare() for its month and group first")
+        found = _month_file(source, pd.Timestamp(date), group)
         return read_netcdf(found, source.options["files"][variable], date.astype("datetime64[ns]"), source.grid)
     return _cams(source, variable, pd.Timestamp(key))
 

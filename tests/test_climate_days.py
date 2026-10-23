@@ -18,7 +18,7 @@ days_module = importlib.import_module("majortom.climate.days")
 H = np.timedelta64(1, "h")
 
 
-def groups(src, acquired, lon):
+def groups(src, acquired, lon, lat):
     hour = (acquired - acquired.astype("datetime64[D]")) / H
     return (3 * np.round((12 - hour) / 3)).astype(int)
 
@@ -108,3 +108,22 @@ def test_budget_then_continue(reads, tmp_path):
     days_module.stream_days(samples(), tmp_path / "out", "fake", daily=2)
     assert len(reads) == len(set(reads))
     assert len(sorted((tmp_path / "out" / "daily").glob("year=*/*.parquet"))) > len(partial)
+
+
+def test_runs_with_other_cells_share_the_cache(reads, monkeypatch, tmp_path):
+    """A second run needing more cells extends the cached days; its tables equal those of a run from scratch."""
+    days_module.stream_days(samples().iloc[[0]], tmp_path / "one", "fake", daily=1)
+    days_module.stream_days(samples(), tmp_path / "shared", "fake", daily=1)
+    assert days_module.stream_days(samples(), tmp_path / "again", "fake", daily=1) == 0     # all cached now
+    monkeypatch.setenv("MAJORTOM_CLIMATE_CACHE", str(tmp_path / "fresh-cache"))
+    days_module.stream_days(samples(), tmp_path / "fresh", "fake", daily=1)
+    pd.testing.assert_frame_equal(table(tmp_path / "shared"), table(tmp_path / "fresh"))
+
+
+def test_days_outside_the_record_are_empty_and_not_read(reads, monkeypatch, tmp_path):
+    reader = SimpleNamespace(**vars(FAKE_READER), valid_range=lambda src: ("2021-07-02", "2030-01-01"))
+    monkeypatch.setattr(days_module, "reader", lambda src: reader)
+    days_module.stream_days(samples().iloc[[0]], tmp_path / "out", "fake", daily=1)
+    t = table(tmp_path / "out").set_index("step_d")
+    assert np.isnan(t.loc[-1, "fake_a_mean"]) and t.loc[-1, "fake_valid"] == 0 and not np.isnan(t.loc[1, "fake_a_mean"])
+    assert all(key[0] >= np.datetime64("2021-07-02").astype(int) for _, key in reads)
