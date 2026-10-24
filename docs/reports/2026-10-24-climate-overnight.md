@@ -38,6 +38,14 @@ CPC's README: the end of day "differs from country to country", with a 0.5° end
 
 Reading one stored hourly ERA5-Land image costs ~0.21 EECU-s per 600 × 600 seven-band tile (`getPixels` or `computePixels`); the earlier ~41 EECU-s per tile was the server-side 24-hour mean. Raw hours averaged on cirrus: ~76 EECU-hours for Core, ~8-26 TB moved. Recorded as a future option in `docs/CLIMATE.md`.
 
+## Sentinel-5P stage 1 (job 1698)
+
+7,700 fields (the budget, ~120 EECU-hours) in 9 h 28 min, source days to 2021-07-01. 2,000 complete acquisition days written, 124,199,111 of 225,944,793 daily rows (55%); stage 2 continues from the cache after the quota resets on 1 November. A typical day (2020-05-30): valid share O₃ 0.99, aerosol index 0.96, HCHO 0.77, CO 0.69, SO₂ 0.67, NO₂ 0.64, CH₄ 0.07. CH₄ median 1,856 ppb; O₃ median 0.124 mol m⁻².
+
+## CAMS download speed
+
+Atmosphere Data Store: requests run in ~2 min, downloads crawl. One month at a time: 1.31 GB in 76.5 min (0.3 MB/s). Three months in flight (`python -m majortom.climate fetch`): 3.9 GB in 105 min (0.62 MB/s). Core period (~100 months, 1.25 GB each): ~2.3 days with 3 in flight.
+
 ## [Source]-Monthly
 
 New `majortom/climate/monthly.py`: series in a fixed cell order (`cells.parquet`), one file per month, resumable; climatology one variable at a time, written in grid row bands. 2021 tests:
@@ -50,7 +58,7 @@ New `majortom/climate/monthly.py`: series in a fixed cell order (`cells.parquet`
 | CAMS EAC4 | 5,113,745 | 1.5 min |
 | IMERG | 5,113,546 | 73 min from GES DISC; ~2.4 min from Earth Engine |
 
-Full builds started (16 GB, 4 CPUs each): ERA5-Monthly 1940-2025, ERA5Land-Monthly 1950-2025, CAMS-Monthly 2003-2025, IMERG-Monthly 1998-2024, CPC-Monthly 1979-2025, under `/data/Major-TOM/<name>/`. Climatology waits for 1991-2020 to be complete.
+Done by morning: IMERG-Monthly (324 months, 1998-2024, 14 GB; global mean 2.76-2.84 mm/day) and CAMS-Monthly (276 months, 2003-2025, 68 GB; global median ozone column 268-289 DU). Still running at 04:00 UTC: ERA5-Monthly (to 1955 of 2025, ~14 h left), CPC-Monthly (to 1988 of 2025, ~10 h), ERA5Land-Monthly (to 1955 of 2025, ~2 days). Full builds started (16 GB, 4 CPUs each): ERA5-Monthly 1940-2025, ERA5Land-Monthly 1950-2025, CAMS-Monthly 2003-2025, IMERG-Monthly 1998-2024, CPC-Monthly 1979-2025, under `/data/Major-TOM/<name>/`. Climatology waits for 1991-2020 to be complete.
 
 ## Also added
 
