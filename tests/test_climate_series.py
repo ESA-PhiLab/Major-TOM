@@ -81,3 +81,17 @@ def test_three_hourly_source(monkeypatch):
     assert np.isnan(by_step[-1]) and by_step[-2] == hour_number("2021-07-14T09:00")   # 10:00 off step, 09:00 on
     first = hour_number("2021-07-14T00:00")
     assert daily.three_t2m_mean.iloc[0] == pytest.approx(first + np.mean([0, 3, 6, 9, 12, 15, 18, 21]))
+
+
+def test_daily_statistics_by_kind(monkeypatch):
+    """Maxima take the max, minima the min, codes the most frequent value over each window."""
+    kinds = Source("kinds", "-", FAKE.grid, {"mx": "a", "mn": "b", "code": "c"}, {"mx": "K", "mn": "K", "code": "~"},
+                   "1h", maxima=("mx",), minima=("mn",), categorical=("code",))
+    monkeypatch.setitem(series_module.SOURCES, "kinds", kinds)
+    monkeypatch.setattr(series_module, "field", lambda source, variable, time: np.full(
+        (18, 36), {"mx": hour_number(time), "mn": hour_number(time), "code": 5.0 if pd.Timestamp(time).hour < 16 else 1.0}[variable]))
+    _, daily = series(samples("2021-07-14T11:21:19Z"), "kinds", hourly=1, daily=0)
+    first = hour_number("2021-07-14T00:00")
+    row = daily.iloc[0]
+    assert row.kinds_mx_max == first + 23 and row.kinds_mn_min == first and row.kinds_code_mode == 5.0
+    assert "kinds_mx_mean" not in daily

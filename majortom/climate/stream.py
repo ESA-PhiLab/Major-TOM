@@ -21,7 +21,7 @@ import pandas as pd
 
 from .series import acquisitions, daily_table, hourly_table
 from .sources import SOURCES, field, land_pixels, on_step
-from .weights import ByCell, cell_means, weights
+from .weights import ByCell, cell_means, cell_modes, weights
 
 HOUR = pd.Timedelta(hours=1)
 
@@ -91,8 +91,11 @@ def stream(samples: pd.DataFrame, out: Path | str, source: str = "era5", variabl
                     if j == 0:
                         valid[i] = np.nan
                     return
-                values[i, :, j], ok = cell_means(sub, field(src, variables[j], hours[i]),
-                                                 land if variables[j] in land_vars else None)
+                f = field(src, variables[j], hours[i])
+                if variables[j] in src.categorical:
+                    values[i, :, j], ok = cell_modes(sub, f)
+                else:
+                    values[i, :, j], ok = cell_means(sub, f, land if variables[j] in land_vars else None)
                 if j == 0:
                     valid[i] = ok
 

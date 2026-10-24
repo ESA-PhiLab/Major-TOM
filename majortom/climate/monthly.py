@@ -22,7 +22,7 @@ import pandas as pd
 
 from ..cells import Cell, n_rows
 from .sources import SOURCES, reader
-from .weights import cell_means, weights
+from .weights import cell_means, cell_modes, weights
 
 
 def all_cells(d: float = 10.0) -> pd.DataFrame:
@@ -43,12 +43,13 @@ def _month(rdr, src, variables, month: pd.Timestamp, w, land, workers: int) -> t
     """cells x variables values, and the first variable's valid share, for one month."""
     with ThreadPoolExecutor(workers) as pool:
         fields = list(pool.map(lambda v: rdr.month_field(src, v, month), variables))
-    results = [cell_means(w, f, land if v in src.land_only else None) for v, f in zip(variables, fields)]
+    results = [cell_modes(w, f) if v in src.categorical else cell_means(w, f, land if v in src.land_only else None)
+               for v, f in zip(variables, fields)]
     return np.stack([r[0] for r in results], axis=1).astype(np.float32), results[0][1].astype(np.float32)
 
 
 def monthly(source: str, out: Path | str, years: tuple[int, int], variables: list[str] | None = None,
-            cells: pd.DataFrame | None = None, workers: int = 4, progress: bool = True) -> int:
+            cells: pd.DataFrame | None = None, workers: int = 4, progress: bool = True, prefetch: int = 0) -> int:
     """Write the monthly series of `source` for `years` (inclusive) to `out`; returns months written."""
     out, src = Path(out), SOURCES[source]
     rdr, variables = reader(src), list(variables or src.variables)
@@ -64,7 +65,13 @@ def monthly(source: str, out: Path | str, years: tuple[int, int], variables: lis
         cells = all_cells() if cells is None else cells.reset_index(drop=True)
     w = weights(cells, src.grid)
     written, start = 0, time.monotonic()
+    ahead = ThreadPoolExecutor(prefetch) if prefetch and hasattr(rdr, "fetch_year") else None
+    todo = [m for m in months if not (out / "series" / f"year={m.year}" / f"{m.month:02d}.parquet").exists()]
+    for year in sorted({m.year for m in todo})[:prefetch] if ahead else []:
+        ahead.submit(rdr.fetch_year, src, year)                  # the store queues them; downloads overlap
     for month in months:
+        if ahead and month.month == 1:
+            ahead.submit(rdr.fetch_year, src, month.year + prefetch)
         path = out / "series" / f"year={month.year}" / f"{month.month:02d}.parquet"
         if path.exists():
             continue
@@ -133,3 +140,25 @@ def climatology(out: Path | str, period: tuple[int, int] = (1991, 2020), bands: 
         part.to_parquet(target / f"band={b:02d}.parquet", index=False)
         rows += len(part)
     return rows
+
+
+def static_table(source: str, out: Path | str, cells: pd.DataFrame | None = None) -> int:
+    """The fixed fields of `source` (ERA5: terrain, soil and vegetation type, lakes) for every cell, once.
+
+    -> <out>/static.parquet: grid_cell and one column per field; codes take each cell's dominant code.
+    """
+    from . import era5_catalogue as c
+    from .readers import zarr
+
+    src = SOURCES[source]
+    cells = all_cells() if cells is None else cells.reset_index(drop=True)
+    w = weights(cells, src.grid)
+    when = zarr.valid_range(src)[0]
+    table = {"grid_cell": cells["grid_cell"].to_numpy()}
+    for name, (arco, _) in c.ERA5_STATIC.items():
+        f = zarr._open(src.store)[arco].sel(time=when).to_numpy().astype(np.float32)
+        table[f"{src.name}_{name}"] = (cell_modes(w, f) if name in c.CATEGORICAL else cell_means(w, f))[0].astype(np.float32)
+    out = Path(out)
+    out.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(table).to_parquet(out / "static.parquet", index=False)
+    return len(cells)

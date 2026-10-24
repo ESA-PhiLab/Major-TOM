@@ -186,3 +186,11 @@ def _variables_tag(source) -> str:
     if len(names) <= 12:
         return ""
     return "_" + hashlib.sha1("|".join(names).encode()).hexdigest()[:8]
+
+
+def fetch_year(source, year: int) -> None:
+    """Download one year of a monthly source into the cache (used to keep several requests in flight)."""
+    try:
+        month_field(source, next(iter(source.variables)), pd.Timestamp(f"{year}-01-01"))
+    except Exception:                                    # beyond the record, or a failure the main loop will report
+        pass

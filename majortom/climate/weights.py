@@ -114,3 +114,20 @@ class ByCell:
         first = np.repeat(self.start[cells] - np.concatenate([[0], np.cumsum(lengths)[:-1]]), lengths)
         index = first + np.arange(lengths.sum())
         return Weights(np.repeat(np.arange(len(cells)), lengths), self.pixel[index], self.weight[index], len(cells))
+
+
+def cell_modes(w: Weights, field: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """(value, valid) per cell for category codes: the code of the pixel covering most of the cell.
+
+    Averaging codes is meaningless (rain = 1 and snow = 5 do not average to anything), so a cell takes its
+    dominant pixel's code; `valid` is the share of the cell with data, as for cell_means.
+    """
+    values = field.ravel()[w.pixel]
+    ok = np.isfinite(values)
+    valid = np.bincount(w.cell, w.weight * ok, minlength=w.n_cells)
+    order = np.lexsort((-np.where(ok, w.weight, -1.0), w.cell))       # per cell: largest valid weight first
+    cells, first = np.unique(w.cell[order], return_index=True)
+    out = np.full(w.n_cells, np.nan)
+    pick = order[first]
+    out[cells] = np.where(ok[pick], values[pick], np.nan)
+    return out, valid

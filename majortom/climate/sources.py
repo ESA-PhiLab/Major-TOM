@@ -34,6 +34,9 @@ class Source:
     accumulated: tuple[str, ...] = ()   # totals over the step ending at the time stamp, not instantaneous values
     land_only: tuple[str, ...] = ()     # meaningful over land only (ERA5 stores 0 over the sea): land-weighted
     land_mask: str | None = None        # the source's land fraction (0..1), a fixed field; land if >= 0.5
+    maxima: tuple[str, ...] = ()        # extremes within the step ending at the stamp: max per day
+    minima: tuple[str, ...] = ()        # ... min per day
+    categorical: tuple[str, ...] = ()   # codes: dominant code per cell, most frequent code per day
     reader: str = "zarr"                # module in majortom/climate/readers
     period: str = "hour"                # "hour": fields per time step; "day": one field per source day
     options: dict = dataclass_field(default_factory=dict)    # reader settings
@@ -213,6 +216,30 @@ SOURCES = {
                   options={"collections": _names(S5P_PRODUCTS, 0), "overpass_local": 13.5, "valid_per_variable": True,
                            "first_day": "2018-06-28"}),
 }
+
+
+def _era5_all() -> tuple[Source, Source]:
+    """ERA5 under principle A (docs/ERA5_VARIABLES.md): hourly from ARCO, monthly means from the Climate Data Store."""
+    from . import era5_catalogue as c
+
+    land = tuple(v for v in ("swvl1", "swvl2", "swvl3", "swvl4", "stl1", "stl2", "stl3", "stl4", "sd", "rsn", "asn",
+                             "tsn", "smlt", "es", "ro", "sro", "ssro", "src", "lai_hv", "lai_lv") if v in c.ERA5_ALL)
+    era5 = SOURCES["era5"]
+    hourly = Source("era5", era5.store, era5.grid, {k: v[0] for k, v in c.ERA5_ALL.items()},
+                    {k: v[1] for k, v in c.ERA5_ALL.items()}, step="1h", accumulated=c.ACCUMULATED, land_only=land,
+                    land_mask="land_sea_mask", maxima=c.MAXIMA, minima=c.MINIMA, categorical=c.CATEGORICAL)
+    extremes = set(c.MAXIMA) | set(c.MINIMA)
+    names = {k: v for k, v in c.ERA5_ALL.items() if k not in extremes}       # extremes have no monthly mean
+    monthly = Source("era5", "reanalysis-era5-single-levels-monthly-means", era5.grid, {k: v[0] for k, v in names.items()},
+                     {k: v[1] + (" day**-1" if k in c.ACCUMULATED else "") for k, v in names.items()}, step="1MS",
+                     land_only=land, reader="queue", period="month", categorical=c.CATEGORICAL,
+                     options={"url": "https://cds.climate.copernicus.eu/api", "files": {k: k for k in names},
+                              "product_type": "monthly_averaged_reanalysis", "land_from": "era5",
+                              "first_month": "1940-01-01"})
+    return hourly, monthly
+
+
+SOURCES["era5-all"], SOURCES["era5-monthly-all"] = _era5_all()
 
 
 def reader(source: Source):

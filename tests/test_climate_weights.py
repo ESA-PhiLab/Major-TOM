@@ -105,3 +105,15 @@ def test_land_weighting():
     value, valid = cell_means(w, field, land)
     east = (cell.lon + cell.dlon - 1.0) / cell.dlon
     assert np.isclose(plain[0], 0.3 * east) and np.isclose(value[0], 0.3) and np.isclose(valid[0], east)
+
+
+def test_category_codes_take_the_dominant_pixel():
+    """A cell mostly in a 'snow' (5) pixel and partly in a 'rain' (1) pixel is snow, not 3."""
+    from majortom.climate.weights import cell_modes
+
+    cell = across_lon(1.0)
+    field = np.full((180, 360), 5.0)
+    east = (cell.lon + cell.dlon - 1.0) / cell.dlon
+    field[:, 0 if east > 0.5 else 1] = 1.0                          # the smaller part: rain
+    value, valid = cell_modes(weights(table([cell]), ONE), field)
+    assert value[0] == 5.0 and np.isclose(valid[0], 1)

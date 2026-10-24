@@ -72,6 +72,10 @@ def main(argv: list[str] | None = None) -> int:
     month.add_argument("--out", type=Path, required=True)
     month.add_argument("--workers", type=int, default=4)
     month.add_argument("--cache", type=Path)
+    month.add_argument("--prefetch", type=int, default=0, help="years requested ahead (queued sources)")
+    still = sub.add_parser("static", help="fixed fields (ERA5: terrain, soil, vegetation, lakes) for every cell")
+    still.add_argument("--source", default="era5-all")
+    still.add_argument("--out", type=Path, required=True)
     clim = sub.add_parser("climatology", help="per cell and calendar month: mean, std, years, from a monthly series")
     clim.add_argument("--out", type=Path, required=True, help="the folder written by `monthly`")
     clim.add_argument("--period", type=int, nargs=2, default=(1991, 2020), metavar=("FIRST", "LAST"))
@@ -113,7 +117,12 @@ def main(argv: list[str] | None = None) -> int:
         os.environ["MAJORTOM_CLIMATE_CACHE"] = str(args.cache)
     if args.command == "monthly":
         from .monthly import monthly
-        print(f"{monthly(args.source, args.out, tuple(args.years), workers=args.workers)} months written", flush=True)
+        print(f"{monthly(args.source, args.out, tuple(args.years), workers=args.workers, prefetch=args.prefetch)} "
+              "months written", flush=True)
+        return 0
+    if args.command == "static":
+        from .monthly import static_table
+        print(f"{static_table(args.source, args.out):,} cells written", flush=True)
         return 0
     if args.command == "climatology":
         from .monthly import climatology

@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 
 from .sources import SOURCES, Source, field, land_pixels, on_step
-from .weights import cell_means, weights
+from .weights import cell_means, cell_modes, weights
 
 HOUR = np.timedelta64(1, "h")
 EXTREMES = ("t2m",)                  # daily min and max as well as the mean
@@ -71,8 +71,11 @@ def cell_hours(cells: pd.DataFrame, hours: pd.DatetimeIndex, source: Source, var
             if j == 0:
                 valid[i] = np.nan
         else:
-            mask = land if variables[j] in source.land_only else None
-            values[i, :, j], ok = cell_means(w, field(source, variables[j], hours[i]), mask)
+            f = field(source, variables[j], hours[i])
+            if variables[j] in source.categorical:
+                values[i, :, j], ok = cell_modes(w, f)
+            else:
+                values[i, :, j], ok = cell_means(w, f, land if variables[j] in source.land_only else None)
             if j == 0:
                 valid[i] = ok
         n = next(done)
@@ -121,6 +124,15 @@ def daily_table(acq: pd.DataFrame, cell_of: np.ndarray, hours, values, valid, so
                 total = np.nansum(window, axis=2)
                 columns[f"{source.name}_{v}_sum"] = np.where(np.isnan(window).all(axis=2), np.nan, total).ravel()
                 continue
+            if v in source.maxima:
+                columns[f"{source.name}_{v}_max"] = np.nanmax(window, axis=2).ravel()
+                continue
+            if v in source.minima:
+                columns[f"{source.name}_{v}_min"] = np.nanmin(window, axis=2).ravel()
+                continue
+            if v in source.categorical:
+                columns[f"{source.name}_{v}_mode"] = _mode(window).ravel()
+                continue
             columns[f"{source.name}_{v}_mean"] = np.nanmean(window, axis=2).ravel()
             if v in EXTREMES:
                 columns[f"{source.name}_{v}_min"] = np.nanmin(window, axis=2).ravel()
@@ -129,6 +141,17 @@ def daily_table(acq: pd.DataFrame, cell_of: np.ndarray, hours, values, valid, so
     return pd.DataFrame({"grid_cell": np.repeat(acq["grid_cell"].to_numpy(), len(steps)),
                          "acquired": np.repeat(acq["acquired"].to_numpy(), len(steps)),
                          "step_d": np.tile(steps, len(acq)), **columns})
+
+
+def _mode(window: np.ndarray) -> np.ndarray:
+    """Most frequent code along the last axis (ties: the smallest code); NaN where all are missing."""
+    codes = np.unique(window[np.isfinite(window)])
+    if not len(codes):
+        return np.full(window.shape[:-1], np.nan, np.float32)
+    counts = np.stack([(window == code).sum(axis=-1) for code in codes], axis=-1)
+    out = codes[counts.argmax(axis=-1)].astype(np.float32)
+    out[counts.max(axis=-1) == 0] = np.nan
+    return out
 
 
 def series(samples: pd.DataFrame, source: str = "era5", variables: list[str] | None = None,
