@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-24 Release design draft: COG default, rumi for training, TACO partitions + TACOCAT, source.coop first -> [design](docs/RELEASE.md)
 - 2026-10-24 ERA5 principle A: catalogue of 207 + 16 static (kinds from the Climate Data Store); builds started: Core-Weather in 8 groups, ERA5-Monthly v2 (202), static table
 - 2026-10-24 Climate overnight: ERA5 Core-Weather complete; monthly datasets started; CPC end-of-day map; IMERG via Earth Engine; six fixes -> [report](docs/reports/2026-10-24-climate-overnight.md)
 - 2026-10-23 Core-Weather ERA5 built: 3,704,013 acquisitions, 181M hourly and 226M daily rows, complete (docs/evidence/core_weather_validate.py)
