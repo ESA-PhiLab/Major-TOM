@@ -64,7 +64,7 @@ def main(argv: list[str] | None = None) -> int:
     run.add_argument("--daily", type=int, default=30, help="days either side of each acquisition")
     run.add_argument("--workers", type=int, default=32, help="read threads")
     run.add_argument("--progress", type=int, default=0, help="print progress every N fields")
-    run.add_argument("--max-fields", type=int, help="daily sources: stop after N fields (quota budget); rerun to continue")
+    run.add_argument("--max-fields", type=int, help="stop after N fields (quota budget); rerun to continue")
     run.add_argument("--cache", type=Path, help="downloads and per-day means (default ~/.cache/majortom/climate)")
     month = sub.add_parser("monthly", help="[Source]-Monthly: monthly values for every cell")
     month.add_argument("--source", required=True, help="era5-monthly, era5-land-monthly, cpc")
@@ -127,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
                             args.max_fields)
     else:
         reads = stream(samples, args.out, args.source, args.variables, args.hourly, args.daily, args.workers,
-                       args.progress)
+                       args.progress, args.max_fields)
     print(f"done: {reads:,} fields read", flush=True)
     return 0
 

@@ -46,8 +46,12 @@ def _write(table: pd.DataFrame, out: Path, kind: str, day: pd.Timestamp) -> None
 
 
 def stream(samples: pd.DataFrame, out: Path | str, source: str = "era5", variables: list[str] | None = None,
-           hourly: int = 24, daily: int = 30, workers: int = 32, progress: int = 0) -> int:
-    """Write the hourly and daily tables for `samples` to `out`, one file per acquisition day; returns fields read."""
+           hourly: int = 24, daily: int = 30, workers: int = 32, progress: int = 0, max_fields: int | None = None) -> int:
+    """Write the hourly and daily tables for `samples` to `out`, one file per acquisition day; returns fields read.
+
+    `max_fields` stops after that many field reads (a quota budget); days finished so far are written, and a rerun
+    continues from them.
+    """
     out, src = Path(out), SOURCES[source]
     variables = list(variables or src.variables)
     acq = acquisitions(samples)
@@ -70,6 +74,8 @@ def stream(samples: pd.DataFrame, out: Path | str, source: str = "era5", variabl
     reads, start, pending = 0, time.monotonic(), list(acq["day"].unique())   # acquisition days, in order
     total = int(((last.max() - first.min()) / HOUR + 1) * len(variables))
     for day in pd.date_range(first.min().normalize(), last.max().normalize(), freq="D"):
+        if max_fields is not None and reads >= max_fields:
+            break
         hours = pd.date_range(day, periods=24, freq="h")
         lo = np.searchsorted(last_ns, hours[0].to_datetime64(), side="left")     # last >= first hour of the day
         hi = np.searchsorted(first_ns, hours[-1].to_datetime64(), side="right")  # first <= last hour of the day

@@ -106,3 +106,12 @@ def test_hourly_window_wider_than_daily(reads, tmp_path):
     stream(samples(), tmp_path, "fake", hourly=24, daily=0)
     expected = hourly.sort_values(["acquired", "grid_cell", "step_h"]).reset_index(drop=True)
     pd.testing.assert_frame_equal(read_back(tmp_path, "hourly"), expected, check_dtype=False)
+
+
+def test_budget_stops_early_and_rerun_finishes(reads, tmp_path):
+    stream(samples(), tmp_path, "fake", hourly=3, daily=2, max_fields=60)
+    first = len(reads)
+    assert first <= 60 + 48                                         # stops within one day of reads past the budget
+    stream(samples(), tmp_path, "fake", hourly=3, daily=2)
+    hourly, _ = series(samples(), "fake", hourly=3, daily=2)
+    assert len(read_back(tmp_path, "hourly")) == len(hourly)
