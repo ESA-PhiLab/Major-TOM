@@ -70,7 +70,9 @@ def netcdf_variables(path: str) -> frozenset[str]:
     import rasterio
 
     with _netcdf, rasterio.open(path) as src:
-        return frozenset(name.rsplit(":", 1)[-1] for name in src.subdatasets)
+        if src.subdatasets:
+            return frozenset(name.rsplit(":", 1)[-1] for name in src.subdatasets)
+        return frozenset([src.tags(1).get("NETCDF_VARNAME", "")]) if src.count else frozenset()   # one variable
 
 
 @cache
