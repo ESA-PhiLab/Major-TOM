@@ -82,6 +82,7 @@ Workstreams are defined in `docs/STRATEGY.md`.
 - [x] IMERG-, CAMS-, ERA5- (12 variables), CPC-Monthly built; IMERG climatology
 - [x] ERA5 variable set decided: principle A, 207 + 16 static (docs/ERA5_VARIABLES.md, majortom/climate/era5_catalogue.py)
 - [ ] ERA5 207 in Core-Weather (8 groups, running), ERA5-Monthly v2 (202, running), static table (running)
+- [ ] ERA5-Land, the other 38 of its 49 distinct variables (evaporation split, deeper soil water and temperature, energy fluxes, runoff, snowpack, lakes, leaf area index): two passes of ~19 bands from 1 November on November's Earth Engine quota (~395 EECU-hours, ~10 TB as GeoTIFF); plus lake shape factor in an ERA5-Land static table (Miko, 2026-10-24, option 2)
 - [ ] Core-Weather: Sentinel-5P (stage 1 done, 55%), CAMS (downloading), IMERG, ERA5-Land hourly
 - [ ] ERA5Land-Monthly (running); climatologies for ERA5, ERA5-Land, CPC (1991-2020), CAMS (2003-2025)
 - [ ] Merge sources and publish Core-Weather and the monthly datasets: source.coop first, Hugging Face second (Miko, 2026-10-24)
