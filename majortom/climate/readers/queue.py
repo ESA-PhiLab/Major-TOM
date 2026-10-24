@@ -160,7 +160,7 @@ def month_field(source, variable: str, month: pd.Timestamp) -> np.ndarray:
     else:
         request = {"product_type": [source.options["product_type"]], "variable": list(source.variables.values()),
                    **year, "time": ["00:00"], "data_format": "netcdf", "download_format": "unarchived"}
-        target = cache_dir(source.name) / "monthly" / f"{source.store}_{month:%Y}.nc"
+        target = cache_dir(source.name) / "monthly" / f"{source.store}_{month:%Y}{_variables_tag(source)}.nc"
     target.parent.mkdir(parents=True, exist_ok=True)
     path = _fetch(source, request, target)
     when = pd.Timestamp(month).to_datetime64().astype("datetime64[ns]")
@@ -175,3 +175,14 @@ def land_pixels(source) -> np.ndarray | None:
     from ..sources import SOURCES
     from . import zarr
     return zarr.land_pixels(SOURCES[source.options["land_from"]])
+
+
+def _variables_tag(source) -> str:
+    """'' for the original 12 ERA5 variables (files cached before this tag existed), else a short hash of the
+    variable list, so a request with other variables never reuses a cached year."""
+    import hashlib
+
+    names = sorted(source.variables.values())
+    if len(names) <= 12:
+        return ""
+    return "_" + hashlib.sha1("|".join(names).encode()).hexdigest()[:8]
