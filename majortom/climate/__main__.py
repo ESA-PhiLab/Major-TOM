@@ -79,7 +79,34 @@ def main(argv: list[str] | None = None) -> int:
     join.add_argument("--root", type=Path, required=True, help="the folder holding one folder per source")
     join.add_argument("--sources", nargs="+", required=True, help="source folder names, e.g. era5 cams cpc s5p")
     join.add_argument("--out", type=Path, required=True)
+    get = sub.add_parser("fetch", help="download months of a queued source (CAMS) into the cache, several at a time")
+    get.add_argument("--source", default="cams")
+    get.add_argument("--months", nargs=2, required=True, metavar=("FIRST", "LAST"), help="YYYY-MM YYYY-MM")
+    get.add_argument("--parallel", type=int, default=3, help="months in flight (the store still runs one at a time)")
+    get.add_argument("--cache", type=Path)
     args = parser.parse_args(argv)
+    if args.command == "fetch":
+        if args.cache:
+            os.environ["MAJORTOM_CLIMATE_CACHE"] = str(args.cache)
+        import time
+        from concurrent.futures import ThreadPoolExecutor
+
+        import pandas as pd
+
+        from .readers import queue
+        src = SOURCES[args.source]
+        surface, single = src.options["surface"][0], next(v for v in src.variables if v not in src.options["surface"])
+        months = pd.date_range(f"{args.months[0]}-01", f"{args.months[1]}-01", freq="MS")
+        start = time.monotonic()
+
+        def one(month):
+            for v in (single, surface):                       # both of the month's requests
+                queue._cams(src, v, month)
+            print(f"{month:%Y-%m} cached after {(time.monotonic() - start) / 60:.0f} min", flush=True)
+
+        with ThreadPoolExecutor(args.parallel) as pool:
+            list(pool.map(one, months))
+        return 0
     if args.command == "merge":
         from .merge import merge
         print(f"{merge(args.root, args.sources, args.out)} day files written", flush=True)
