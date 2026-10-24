@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** unreviewed draft of the dataset cards for Major-TOM/[Source]-Monthly (2026-10-24).
+> **Review status:** reviewed (Miko, 2026-10-24); draft of the dataset cards for Major-TOM/[Source]-Monthly (2026-10-24).
 
 # [Source]-Monthly
 
@@ -32,7 +32,7 @@ Units are as published; values are cell means, not converted.
 
 ## Climatology period
 
-1991–2020, the current WMO standard normal, for sources that cover it (ERA5, ERA5-Land, CPC). IMERG (1998–) and CAMS (2003–) need a shorter period: to be decided.
+1991–2020, the current WMO standard normal, for sources that cover it (ERA5, ERA5-Land, CPC). IMERG and CAMS use their full record (1998–2024, 2003–2025; Miko, 2026-10-24); `n_years` says how many years each value rests on.
 
 ## Licences and attribution
 
