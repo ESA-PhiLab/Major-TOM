@@ -98,3 +98,11 @@ def test_command_line(reads, tmp_path):
     links = pd.read_parquet(tmp_path / "out" / "acquisitions.parquet")
     assert len(links) == 4 and set(links.dataset) == {"Core-S2L2A", "Core-S2L1C"}
     assert len(read_back(tmp_path / "out", "daily")) == 2 * 5               # 2 acquisitions x 5 daily steps
+
+
+def test_hourly_window_wider_than_daily(reads, tmp_path):
+    """--daily 0 covers only +-12 h; the +-24 h hourly window must still be read."""
+    hourly, daily = series(samples(), "fake", hourly=24, daily=0)
+    stream(samples(), tmp_path, "fake", hourly=24, daily=0)
+    expected = hourly.sort_values(["acquired", "grid_cell", "step_h"]).reset_index(drop=True)
+    pd.testing.assert_frame_equal(read_back(tmp_path, "hourly"), expected, check_dtype=False)

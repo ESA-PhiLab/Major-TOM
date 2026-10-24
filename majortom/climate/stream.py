@@ -26,10 +26,13 @@ from .weights import ByCell, cell_means, weights
 HOUR = pd.Timedelta(hours=1)
 
 
-def _window_bounds(acquired: pd.Series, daily: int) -> tuple[pd.Series, pd.Series]:
-    """First and last stamped hour of each acquisition's daily window (the hourly window lies inside it)."""
+def _window_bounds(acquired: pd.Series, daily: int, hourly: int) -> tuple[pd.Series, pd.Series]:
+    """First and last stamped hour each acquisition needs: the union of its daily and hourly windows."""
     first = (acquired - pd.Timedelta(hours=24 * daily + 12)).dt.floor("h") + HOUR
-    return first, first + pd.Timedelta(hours=24 * (2 * daily + 1) - 1)
+    last = first + pd.Timedelta(hours=24 * (2 * daily + 1) - 1)
+    nearest = (acquired + pd.Timedelta(minutes=30)).dt.floor("h")
+    return (pd.concat([first, nearest - hourly * HOUR], axis=1).min(axis=1),
+            pd.concat([last, nearest + hourly * HOUR], axis=1).max(axis=1))
 
 
 def _done(out: Path) -> set[pd.Timestamp]:
@@ -59,7 +62,7 @@ def stream(samples: pd.DataFrame, out: Path | str, source: str = "era5", variabl
     land = land_pixels(src)
     land_share = cell_means(w, land)[0] if land is not None else None
     land_vars = set(src.land_only) & set(variables)
-    first, last = _window_bounds(acq["acquired"], daily)
+    first, last = _window_bounds(acq["acquired"], daily, hourly)
     first_ns, last_ns = first.to_numpy(), last.to_numpy()
     day_last = last.groupby(acq["day"]).max()
 
@@ -111,7 +114,7 @@ def _emit(acq, day, cell_of, buffer, src, variables, hourly, daily, land_share, 
     rows = np.flatnonzero((acq["day"] == day).to_numpy())
     batch = acq.iloc[rows].reset_index(drop=True)
     batch_cells, local = np.unique(cell_of[rows], return_inverse=True)
-    first, last = _window_bounds(batch["acquired"], daily)
+    first, last = _window_bounds(batch["acquired"], daily, hourly)
     hours = pd.date_range(first.min(), last.max(), freq="h")
     values = np.full((len(hours), len(batch_cells), len(variables)), np.nan, np.float32)
     valid = np.full((len(hours), len(batch_cells)), np.nan, np.float32)

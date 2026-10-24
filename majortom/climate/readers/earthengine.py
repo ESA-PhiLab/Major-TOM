@@ -62,7 +62,7 @@ def period_start(source, day: np.ndarray, group: np.ndarray) -> np.ndarray:
 def field(source, variable: str, key) -> np.ndarray:
     """Sentinel-5P: the UTC-day mosaic of one product on the global 0.05° grid. IMERG: the hour ending at `key`."""
     if source.period == "hour":
-        return _imerg(source, variable, key)
+        return _hourly_bands(source, key)[variable] if source.options.get("all_bands") else _imerg(source, variable, key)
     ee = _ee()
     day, _ = key
     date = str(np.datetime64(int(day), "D"))
@@ -138,3 +138,51 @@ def month_field(source, variable: str, month) -> np.ndarray:
     values = block[block.dtype.names[0]].astype(np.float32)
     values[values < 0] = np.nan
     return values
+
+
+# Hourly multi-band images (ERA5-Land): every band of an hour fetched once, kept for the other variables ------------
+
+_hours: dict = {}
+_hours_lock = threading.Lock()
+_hour_locks: dict = {}
+KEEP = 8                                                # hours kept in memory (11 bands x 0.1° global ~ 285 MB each)
+
+
+def _hourly_bands(source, hour) -> dict[str, np.ndarray]:
+    """All of the source's bands for one hour, as {our name: global field}; fetched once, as float32 tiles."""
+    import pandas as pd
+
+    hour = pd.Timestamp(hour)
+    key = (source.store, hour)
+    with _hours_lock:
+        if key in _hours:
+            return _hours[key]
+        lock = _hour_locks.setdefault(key, threading.Lock())
+    with lock:
+        if key in _hours:
+            return _hours[key]
+        ee = _ee()
+        names = list(source.variables)
+        image = ee.Image(f"{source.store}/{hour:%Y%m%dT%H}").select([source.variables[n] for n in names]).toFloat()
+        grid, step = source.grid, source.options.get("tile", 600)
+        out = {n: np.full((grid.height, grid.width), np.nan, np.float32) for n in names}
+
+        def tile(r0: int, c0: int) -> None:
+            h, w = min(step, grid.height - r0), min(step, grid.width - c0)
+            block = ee.data.computePixels({
+                "expression": image, "fileFormat": "NUMPY_NDARRAY",
+                "grid": {"dimensions": {"width": w, "height": h}, "crsCode": "EPSG:4326",
+                         "affineTransform": {"scaleX": grid.step, "shearX": 0, "translateX": grid.west + c0 * grid.step,
+                                             "shearY": 0, "scaleY": -grid.step, "translateY": grid.north - r0 * grid.step}}})
+            for n in names:
+                out[n][r0:r0 + h, c0:c0 + w] = block[source.variables[n]]
+
+        with ThreadPoolExecutor(8) as pool:
+            list(pool.map(lambda rc: tile(*rc), [(r, c) for r in range(0, grid.height, step)
+                                                 for c in range(0, grid.width, step)]))
+        with _hours_lock:
+            _hours[key] = out
+            while len(_hours) > KEEP:
+                _hours.pop(next(iter(_hours)))
+            _hour_locks.pop(key, None)
+        return out

@@ -137,6 +137,20 @@ SOURCES = {
                         reader="queue", period="day",
                         options={"url": "https://cds.climate.copernicus.eu/api", "files": _names(ERA5_LAND_VARIABLES, 1),
                                  "suffix": "_mean", "offset_step": 3}),
+    # ERA5-Land hourly from Earth Engine's stored images (ECMWF/ERA5_LAND/HOURLY), read as they are: all bands of an
+    # hour in one pass (~0.21 EECU-s per 600 x 600 tile); accumulations from the "_hourly" bands, like ERA5's
+    "era5-land-hourly": Source("era5land", "ECMWF/ERA5_LAND/HOURLY",
+                               Grid(west=-180.05, north=90.05, step=0.1, width=3600, height=1801),
+                               {"t2m": "temperature_2m", "d2m": "dewpoint_temperature_2m", "u10": "u_component_of_wind_10m",
+                                "v10": "v_component_of_wind_10m", "sp": "surface_pressure", "snowc": "snow_cover",
+                                "sd": "snow_depth_water_equivalent", "swvl1": "volumetric_soil_water_layer_1",
+                                "tp": "total_precipitation_hourly", "ssrd": "surface_solar_radiation_downwards_hourly",
+                                "sf": "snowfall_hourly"},
+                               {"t2m": "K", "d2m": "K", "u10": "m s**-1", "v10": "m s**-1", "sp": "Pa", "snowc": "%",
+                                "sd": "m of water equivalent", "swvl1": "m**3 m**-3", "tp": "m", "ssrd": "J m**-2",
+                                "sf": "m of water equivalent"},
+                               step="1h", accumulated=("tp", "ssrd", "sf"), reader="earthengine",
+                               options={"all_bands": True}),
     # CAMS global reanalysis EAC4 (Atmosphere Data Store): 3-hourly, 0.75°, 2003-2025
     "cams": Source("cams", "cams-global-reanalysis-eac4",
                    Grid(west=-0.375, north=90.375, step=0.75, width=480, height=241),
