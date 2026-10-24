@@ -169,10 +169,14 @@ SOURCES = {
                            options={"url": "https://ads.atmosphere.copernicus.eu/api", "surface": tuple(CAMS_SURFACE),
                                     "files": {**_names(CAMS_SINGLE, 1), **_names(CAMS_SURFACE, 1)}, "model_level": "60",
                                     "product_type": "monthly_mean", "first_month": "2003-01-01"}),
-    "imerg-monthly": Source("imerg", "https://gpm1.gesdisc.eosdis.nasa.gov/data/GPM_L3/GPM_3IMERGM.07",
+    "imerg-monthly": Source("imerg", "NASA/GPM_L3/IMERG_MONTHLY_V07",                   # Earth Engine, from 1998
                             Grid(west=-180.0, north=90.0, step=0.1, width=3600, height=1800),
-                            {"precip": "precipitation"}, {"precip": "mm hr**-1"}, step="1MS", reader="files",
-                            period="month", options={"first_month": "2000-06-01"}),
+                            {"precip": "precipitation"}, {"precip": "mm hr**-1"}, step="1MS", reader="earthengine",
+                            period="month", options={"first_month": "1998-01-01"}),
+    "imerg-monthly-gesdisc": Source("imerg", "https://gpm1.gesdisc.eosdis.nasa.gov/data/GPM_L3/GPM_3IMERGM.07",
+                                    Grid(west=-180.0, north=90.0, step=0.1, width=3600, height=1800),
+                                    {"precip": "precipitation"}, {"precip": "mm hr**-1"}, step="1MS", reader="files",
+                                    period="month", options={"first_month": "2000-06-01"}),
     # NOAA CPC Global Unified (PSL): daily gauge analyses, 0.5°, yearly netCDF files
     "cpc": Source("cpc", "https://downloads.psl.noaa.gov/Datasets",
                   Grid(west=0.0, north=90.0, step=0.5, width=720, height=360),

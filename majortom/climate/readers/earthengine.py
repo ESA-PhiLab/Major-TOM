@@ -115,3 +115,26 @@ def _imerg(source, variable: str, hour) -> np.ndarray:
         values[values < 0] = np.nan
         halves.append(values)
     return (halves[0] + halves[1]) / 2
+
+
+def valid_months(source):
+    import pandas as pd
+    last = (pd.Timestamp.now().normalize() - pd.DateOffset(months=4)).to_period("M").start_time
+    return pd.Timestamp(source.options["first_month"]), last
+
+
+def month_field(source, variable: str, month) -> np.ndarray:
+    """IMERG monthly: the month's stored image (mean rate, mm/hr), read with getPixels."""
+    import pandas as pd
+
+    ee = _ee()
+    grid = source.grid
+    block = ee.data.getPixels({
+        "assetId": f"{source.store}/{pd.Timestamp(month):%Y%m%d%H%M%S}", "fileFormat": "NUMPY_NDARRAY",
+        "bandIds": [source.variables[variable]],
+        "grid": {"dimensions": {"width": grid.width, "height": grid.height}, "crsCode": "EPSG:4326",
+                 "affineTransform": {"scaleX": grid.step, "shearX": 0, "translateX": grid.west,
+                                     "shearY": 0, "scaleY": -grid.step, "translateY": grid.north}}})
+    values = block[block.dtype.names[0]].astype(np.float32)
+    values[values < 0] = np.nan
+    return values
