@@ -1,4 +1,6 @@
-"""Sentinel-5P OFFL L3 on Earth Engine: one UTC-day mosaic per product, served on a 0.05° grid.
+"""Earth Engine: Sentinel-5P daily mosaics (computed), and IMERG half-hours (stored images, read as they are).
+
+Sentinel-5P OFFL L3: one UTC-day mosaic per product, served on a 0.05° grid.
 
     source day (UTC date) -> ImageCollection(product).filterDate(day, day + 1).mean()    (orbits averaged)
       -> 32 tiles of 900 x 900 at 0.05° (computePixels, in threads) -> one global field, NaN where no data
@@ -58,7 +60,9 @@ def period_start(source, day: np.ndarray, group: np.ndarray) -> np.ndarray:
 
 
 def field(source, variable: str, key) -> np.ndarray:
-    """The UTC-day mosaic of one product on the global 0.05° grid."""
+    """Sentinel-5P: the UTC-day mosaic of one product on the global 0.05° grid. IMERG: the hour ending at `key`."""
+    if source.period == "hour":
+        return _imerg(source, variable, key)
     ee = _ee()
     day, _ = key
     date = str(np.datetime64(int(day), "D"))
@@ -84,3 +88,30 @@ def field(source, variable: str, key) -> np.ndarray:
     with ThreadPoolExecutor(8) as pool:
         list(pool.map(lambda rc: tile(*rc), [(r, c) for r in range(grid.height // TILE) for c in range(grid.width // TILE)]))
     return out
+
+
+# IMERG V07 half-hours (stored images): read with getPixels, no computation ---------------------------------------
+
+def _imerg(source, variable: str, hour) -> np.ndarray:
+    """The hour ending at `hour`: mean rate of its two half-hours (mm/hr) = mm in that hour.
+
+    Each half-hour is one stored global image on the source grid (0.1°, 3600 x 1800, 26 MB): ~0.33 EECU-s and
+    ~2 s per image with 8 at a time, measured 2026-10-24; GES DISC gave 0.09 MB/s from cirrus.
+    """
+    import pandas as pd
+
+    ee = _ee()
+    hour = pd.Timestamp(hour)
+    grid = source.grid
+    request = {"fileFormat": "NUMPY_NDARRAY", "bandIds": [source.variables[variable]],
+               "grid": {"dimensions": {"width": grid.width, "height": grid.height}, "crsCode": "EPSG:4326",
+                        "affineTransform": {"scaleX": grid.step, "shearX": 0, "translateX": grid.west,
+                                            "shearY": 0, "scaleY": -grid.step, "translateY": grid.north}}}
+    halves = []
+    for minutes in (60, 30):
+        start = hour - pd.Timedelta(minutes=minutes)
+        block = ee.data.getPixels({**request, "assetId": f"{source.store}/{start:%Y%m%d%H%M%S}"})
+        values = block[block.dtype.names[0]].astype(np.float32)
+        values[values < 0] = np.nan
+        halves.append(values)
+    return (halves[0] + halves[1]) / 2

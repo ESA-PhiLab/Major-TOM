@@ -180,8 +180,13 @@ SOURCES = {
                   {"precip": "mm", "tmax": "degC", "tmin": "degC"}, step="1D", reader="files", period="day",
                   options={"end_of_day": "https://ftp.cpc.ncep.noaa.gov/precip/CPC_UNI_PRCP/GAUGE_GLB/DOCU/"
                                          "PRCP_CU_GAUGE_V1.0GLB_0.50deg_EOD.lnx"}),     # day boundaries per country
+    # GPM IMERG Final V07, half-hourly 0.1°, as stored on Earth Engine (NASA/GPM_L3/IMERG_V07): the hour ending at the
+    # stamp; ~140x faster from cirrus than GES DISC. The GES DISC route stays as "imerg-gesdisc".
+    "imerg": Source("imerg", "NASA/GPM_L3/IMERG_V07", Grid(west=-180.0, north=90.0, step=0.1, width=3600, height=1800),
+                    {"precip": "precipitation"}, {"precip": "mm"}, step="1h", accumulated=("precip",),
+                    reader="earthengine"),
     # GPM IMERG Final V07 (NASA GES DISC, Earthdata token): half-hourly 0.1°, summed to the hour ending at the stamp
-    "imerg": Source("imerg", "https://gpm1.gesdisc.eosdis.nasa.gov/data/GPM_L3/GPM_3IMERGHH.07",
+    "imerg-gesdisc": Source("imerg", "https://gpm1.gesdisc.eosdis.nasa.gov/data/GPM_L3/GPM_3IMERGHH.07",
                     Grid(west=-180.0, north=90.0, step=0.1, width=3600, height=1800),
                     {"precip": "precipitation"}, {"precip": "mm"}, step="1h", accumulated=("precip",), reader="files"),
     # Sentinel-5P OFFL L3 (Earth Engine, project from EE_PROJECT): UTC-day mosaics on a 0.05° grid
