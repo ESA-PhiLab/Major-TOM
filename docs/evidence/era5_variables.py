@@ -59,8 +59,10 @@ THEMES: dict[str, list[tuple[str, str, list[str]]]] = {
         ("Keep", "height of the cloud base", ["cloud_base_height"]),
         ("Keep", "cloud water and ice (cloud thickness, radar and microwave effects)",
          ["total_column_cloud_liquid_water", "total_column_cloud_ice_water"]),
+        ("Keep", "supercooled liquid water: marks mixed-phase clouds, which drive precipitation formation and the "
+                 "radiation budget, and change optical, thermal and microwave signatures",
+         ["total_column_supercooled_liquid_water"]),
         ("Optional", "falling rain and snow in the column", ["total_column_rain_water", "total_column_snow_water"]),
-        ("Skip", "aviation icing diagnostic", ["total_column_supercooled_liquid_water"]),
     ],
     "Precipitation": [
         ("Keep", "amount in the hour ending at the stamp", ["total_precipitation"]),

@@ -4,7 +4,7 @@
 
 # ERA5 variables for Core-Weather and ERA5-Monthly
 
-All 262 hourly single-level variables in ARCO-ERA5, by theme, with a recommendation. Keep 63, Optional 50, Skip 133, Static 16 (fixed in time: one table per cell). ✓ marks the 12 built so far.
+All 262 hourly single-level variables in ARCO-ERA5, by theme, with a recommendation. Keep 64, Optional 50, Skip 132, Static 16 (fixed in time: one table per cell). ✓ marks the 12 built so far.
 
 - **Keep:** clearly useful for Major TOM users (EO context, weather at acquisition, land and sea state).
 - **Optional:** useful for some uses; cheap to add (~40 min of Core-Weather reading each, no quota).
@@ -66,9 +66,9 @@ All 262 hourly single-level variables in ARCO-ERA5, by theme, with a recommendat
 |  | `total_cloud_cover` | Total cloud cover | (0 - 1) | Keep | cloudiness at the time of an optical image |
 |  | `total_column_cloud_ice_water` | Total column cloud ice water | kg m**-2 | Keep | cloud water and ice (cloud thickness, radar and microwave effects) |
 |  | `total_column_cloud_liquid_water` | Total column cloud liquid water | kg m**-2 | Keep | cloud water and ice (cloud thickness, radar and microwave effects) |
+|  | `total_column_supercooled_liquid_water` | Total column supercooled liquid water | kg m**-2 | Keep | supercooled liquid water: marks mixed-phase clouds, which drive precipitation formation and the radiation budget, and change optical, thermal and microwave signatures |
 |  | `total_column_rain_water` | Total column rain water | kg m**-2 | Optional | falling rain and snow in the column |
 |  | `total_column_snow_water` | Total column snow water | kg m**-2 | Optional | falling rain and snow in the column |
-|  | `total_column_supercooled_liquid_water` | Total column supercooled liquid water | kg m**-2 | Skip | aviation icing diagnostic |
 
 ## Precipitation (10)
 
