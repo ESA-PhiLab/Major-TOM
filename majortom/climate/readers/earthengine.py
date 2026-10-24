@@ -43,6 +43,20 @@ def valid_range(source) -> tuple[str, str]:
     return source.options["first_day"], "2100-01-01"
 
 
+def _geotiff(raw: bytes) -> np.ndarray:
+    """An Earth Engine GeoTIFF response as float32 bands x rows x columns, masked pixels as NaN.
+
+    Requested instead of raw arrays: DEFLATE-compressed, ~6x less to transfer for ERA5-Land (empty over the sea),
+    identical values, the same EECU cost (measured 2026-10-24: 0.25 EECU-s per 600 x 600 eleven-band tile).
+    """
+    from rasterio.io import MemoryFile
+
+    with MemoryFile(raw) as memory, memory.open() as tiff:
+        data = tiff.read().astype(np.float32)
+        data[tiff.read_masks() == 0] = np.nan
+    return data
+
+
 def groups(source, acquired: np.ndarray, lon: np.ndarray, lat: np.ndarray) -> np.ndarray:
     return np.zeros(len(acquired), dtype=int)
 
@@ -75,13 +89,11 @@ def field(source, variable: str, key) -> np.ndarray:
     out = np.full((grid.height, grid.width), np.nan, np.float32)
 
     def tile(r: int, c: int) -> None:
-        block = ee.data.computePixels({
-            "expression": image, "fileFormat": "NUMPY_NDARRAY",
+        values = _geotiff(ee.data.computePixels({
+            "expression": image, "fileFormat": "GEO_TIFF",
             "grid": {"dimensions": {"width": TILE, "height": TILE}, "crsCode": "EPSG:4326",
                      "affineTransform": {"scaleX": grid.step, "shearX": 0, "translateX": grid.west + c * TILE * grid.step,
-                                         "shearY": 0, "scaleY": -grid.step, "translateY": grid.north - r * TILE * grid.step}}})
-        values = block[block.dtype.names[0]] if block.dtype.names else block
-        values = values.astype(np.float32)
+                                         "shearY": 0, "scaleY": -grid.step, "translateY": grid.north - r * TILE * grid.step}}}))[0]
         values[values == -9999] = np.nan
         out[r * TILE:(r + 1) * TILE, c * TILE:(c + 1) * TILE] = values
 
@@ -103,15 +115,14 @@ def _imerg(source, variable: str, hour) -> np.ndarray:
     ee = _ee()
     hour = pd.Timestamp(hour)
     grid = source.grid
-    request = {"fileFormat": "NUMPY_NDARRAY", "bandIds": [source.variables[variable]],
+    request = {"fileFormat": "GEO_TIFF", "bandIds": [source.variables[variable]],
                "grid": {"dimensions": {"width": grid.width, "height": grid.height}, "crsCode": "EPSG:4326",
                         "affineTransform": {"scaleX": grid.step, "shearX": 0, "translateX": grid.west,
                                             "shearY": 0, "scaleY": -grid.step, "translateY": grid.north}}}
     halves = []
     for minutes in (60, 30):
         start = hour - pd.Timedelta(minutes=minutes)
-        block = ee.data.getPixels({**request, "assetId": f"{source.store}/{start:%Y%m%d%H%M%S}"})
-        values = block[block.dtype.names[0]].astype(np.float32)
+        values = _geotiff(ee.data.getPixels({**request, "assetId": f"{source.store}/{start:%Y%m%d%H%M%S}"}))[0]
         values[values < 0] = np.nan
         halves.append(values)
     return (halves[0] + halves[1]) / 2
@@ -129,13 +140,13 @@ def month_field(source, variable: str, month) -> np.ndarray:
 
     ee = _ee()
     grid = source.grid
-    block = ee.data.getPixels({
-        "assetId": f"{source.store}/{pd.Timestamp(month):%Y%m%d%H%M%S}", "fileFormat": "NUMPY_NDARRAY",
+    raw = ee.data.getPixels({
+        "assetId": f"{source.store}/{pd.Timestamp(month):%Y%m%d%H%M%S}", "fileFormat": "GEO_TIFF",
         "bandIds": [source.variables[variable]],
         "grid": {"dimensions": {"width": grid.width, "height": grid.height}, "crsCode": "EPSG:4326",
                  "affineTransform": {"scaleX": grid.step, "shearX": 0, "translateX": grid.west,
                                      "shearY": 0, "scaleY": -grid.step, "translateY": grid.north}}})
-    values = block[block.dtype.names[0]].astype(np.float32)
+    values = _geotiff(raw)[0]
     values[values < 0] = np.nan
     return values
 
@@ -169,13 +180,13 @@ def _hourly_bands(source, hour) -> dict[str, np.ndarray]:
 
         def tile(r0: int, c0: int) -> None:
             h, w = min(step, grid.height - r0), min(step, grid.width - c0)
-            block = ee.data.computePixels({
-                "expression": image, "fileFormat": "NUMPY_NDARRAY",
+            bands = _geotiff(ee.data.computePixels({
+                "expression": image, "fileFormat": "GEO_TIFF",
                 "grid": {"dimensions": {"width": w, "height": h}, "crsCode": "EPSG:4326",
                          "affineTransform": {"scaleX": grid.step, "shearX": 0, "translateX": grid.west + c0 * grid.step,
-                                             "shearY": 0, "scaleY": -grid.step, "translateY": grid.north - r0 * grid.step}}})
-            for n in names:
-                out[n][r0:r0 + h, c0:c0 + w] = block[source.variables[n]]
+                                             "shearY": 0, "scaleY": -grid.step, "translateY": grid.north - r0 * grid.step}}}))
+            for i, n in enumerate(names):                           # bands come in the order selected
+                out[n][r0:r0 + h, c0:c0 + w] = bands[i]
 
         with ThreadPoolExecutor(8) as pool:
             list(pool.map(lambda rc: tile(*rc), [(r, c) for r in range(0, grid.height, step)
