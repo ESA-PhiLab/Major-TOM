@@ -91,8 +91,6 @@ def main(argv: list[str] | None = None) -> int:
         import time
         from concurrent.futures import ThreadPoolExecutor
 
-        import pandas as pd
-
         from .readers import queue
         src = SOURCES[args.source]
         surface, single = src.options["surface"][0], next(v for v in src.variables if v not in src.options["surface"])
