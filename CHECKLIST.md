@@ -70,6 +70,18 @@ Workstreams are defined in `docs/STRATEGY.md`.
 - [ ] Draft notebook with figures and backend comparison
 
 ## WS8 — Releases
+- [ ] `majortom.release` (extra `[release]`, proposed): writers for COG, zarr and rumi; TACO containers via the taco package (its own repo); upload to Hugging Face and source.coop
 - [ ] Xet dedup test on one Core parquet
 - [ ] Core v1.1 on HF
 - [ ] Major TOM v2 on source.coop
+- [ ] Merge `refactor/v1`, then a new Sentinel-2 Core version on source.coop
+
+## WS9 — Climate (`majortom.climate`, docs/CLIMATE.md)
+- [x] Design reviewed; readers for ERA5, ERA5-Land, CAMS, NOAA CPC, IMERG, Sentinel-5P; hourly and daily paths; monthly series and climatology; merge
+- [x] Core-Weather ERA5 (12 variables): 3,704,013 acquisitions, complete
+- [x] IMERG-, CAMS-, ERA5- (12 variables), CPC-Monthly built; IMERG climatology
+- [ ] ERA5 comprehensive variable set (proposed: 49), Core-Weather and ERA5-Monthly
+- [ ] Core-Weather: Sentinel-5P (stage 1 done, 55%), CAMS (downloading), IMERG, ERA5-Land hourly
+- [ ] ERA5Land-Monthly (running); climatologies for ERA5, ERA5-Land, CPC (1991-2020), CAMS (2003-2025)
+- [ ] Merge sources and publish Core-Weather and the monthly datasets
+- [ ] Climate datasets in the Major TOM viewing app (HF Space; final task)
