@@ -80,7 +80,8 @@ Workstreams are defined in `docs/STRATEGY.md`.
 - [x] Design reviewed; readers for ERA5, ERA5-Land, CAMS, NOAA CPC, IMERG, Sentinel-5P; hourly and daily paths; monthly series and climatology; merge
 - [x] Core-Weather ERA5 (12 variables): 3,704,013 acquisitions, complete
 - [x] IMERG-, CAMS-, ERA5- (12 variables), CPC-Monthly built; IMERG climatology
-- [ ] ERA5 variable set: review docs/ERA5_VARIABLES.md (262 classified: Keep 63, Optional 50, Skip 133, Static 16), then Core-Weather, ERA5-Monthly and a static table
+- [x] ERA5 variable set decided: principle A, 207 + 16 static (docs/ERA5_VARIABLES.md, majortom/climate/era5_catalogue.py)
+- [ ] ERA5 207 in Core-Weather (8 groups, running), ERA5-Monthly v2 (202, running), static table (running)
 - [ ] Core-Weather: Sentinel-5P (stage 1 done, 55%), CAMS (downloading), IMERG, ERA5-Land hourly
 - [ ] ERA5Land-Monthly (running); climatologies for ERA5, ERA5-Land, CPC (1991-2020), CAMS (2003-2025)
 - [ ] Merge sources and publish Core-Weather and the monthly datasets: source.coop first, Hugging Face second (Miko, 2026-10-24)
