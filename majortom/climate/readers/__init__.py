@@ -13,6 +13,7 @@ row 0 north, NaN where missing.
 from __future__ import annotations
 
 import os
+import threading
 from functools import cache
 from pathlib import Path
 
@@ -60,12 +61,24 @@ def netcdf_times(tags: dict, dimension: str) -> np.ndarray:
     return (pd.Timestamp(origin.strip()) + pd.to_timedelta(values, unit=step)).to_numpy()
 
 
+_netcdf = threading.Lock()                          # GDAL's netCDF driver is not thread-safe: one access at a time
+
+
+@cache
+def netcdf_variables(path: str) -> frozenset[str]:
+    """The variables a netCDF file holds (from its subdataset names)."""
+    import rasterio
+
+    with _netcdf, rasterio.open(path) as src:
+        return frozenset(name.rsplit(":", 1)[-1] for name in src.subdatasets)
+
+
 @cache
 def band_times(path: str, variable: str) -> tuple[np.ndarray, tuple]:
     """Times of each band of `variable` in a netCDF file, and the file's transform."""
     import rasterio
 
-    with rasterio.open(f'netcdf:"{path}":{variable}') as src:
+    with _netcdf, rasterio.open(f'netcdf:"{path}":{variable}') as src:
         tags = src.tags()
         dim = next(k.removeprefix("NETCDF_DIM_").removesuffix("_VALUES") for k in tags
                    if k.startswith("NETCDF_DIM_") and k.endswith("_VALUES") and "time" in k)
@@ -79,18 +92,17 @@ def read_netcdf(path: Path, variable: str, when: np.datetime64, grid: Grid, unti
     import rasterio
 
     files = [path] if path.is_file() else sorted(path.glob("*.nc"))
-    for f in files:
-        try:
-            times, transform = band_times(str(f), variable)
-        except Exception:                                  # this file of the folder has no such variable
-            continue
-        band = np.flatnonzero(times == when) if until is None else np.flatnonzero((times >= when) & (times < until))
-        if not len(band):
-            raise KeyError(f"{variable} has no band for {when} in {f}")
-        with rasterio.open(f'netcdf:"{f}":{variable}') as src:
-            raw = src.read(int(band[0]) + 1)
-            data = raw.astype(np.float32) * (src.scales[band[0]] or 1) + (src.offsets[band[0]] or 0)
-            if src.nodata is not None:
-                data[raw == src.nodata] = np.nan
-        return place(data, Affine(*transform), grid)
-    raise KeyError(f"no file in {path} holds {variable}")
+    holding = [f for f in files if variable in netcdf_variables(str(f))]
+    if not holding:
+        raise KeyError(f"no file in {path} holds {variable}")
+    f = holding[0]
+    times, transform = band_times(str(f), variable)
+    band = np.flatnonzero(times == when) if until is None else np.flatnonzero((times >= when) & (times < until))
+    if not len(band):
+        raise KeyError(f"{variable} has no band for {when} in {f}")
+    with _netcdf, rasterio.open(f'netcdf:"{f}":{variable}') as src:
+        raw = src.read(int(band[0]) + 1)
+        data = raw.astype(np.float32) * (src.scales[band[0]] or 1) + (src.offsets[band[0]] or 0)
+        if src.nodata is not None:
+            data[raw == src.nodata] = np.nan
+    return place(data, Affine(*transform), grid)

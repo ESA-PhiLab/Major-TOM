@@ -12,6 +12,7 @@ application approved on the Earthdata profile.
 from __future__ import annotations
 
 import threading
+import time
 from pathlib import Path
 
 import numpy as np
@@ -36,22 +37,23 @@ def _download(url: str, target: Path, headers: dict | None = None) -> Path:
             return target
         target.parent.mkdir(parents=True, exist_ok=True)
         partial = target.with_name(target.name + ".part")
-        for _ in range(5):
+        error = None
+        for attempt in range(6):
             have = partial.stat().st_size if partial.exists() else 0
             ranged = {**(headers or {}), **({"Range": f"bytes={have}-"} if have else {})}
             try:
                 with requests.get(url, headers=ranged, stream=True, timeout=120) as r:
-                    if r.status_code == 416:                       # nothing left to fetch
-                        break
-                    r.raise_for_status()
-                    with open(partial, "ab" if have and r.status_code == 206 else "wb") as f:
-                        for chunk in r.iter_content(1 << 20):
-                            f.write(chunk)
-                break
-            except requests.RequestException:
-                continue
-        partial.rename(target)
-        return target
+                    if r.status_code != 416:                       # 416: nothing left to fetch
+                        r.raise_for_status()
+                        with open(partial, "ab" if have and r.status_code == 206 else "wb") as f:
+                            for chunk in r.iter_content(1 << 20):
+                                f.write(chunk)
+                partial.rename(target)
+                return target
+            except requests.RequestException as e:                 # network trouble or refusal: wait, then resume
+                error = e
+                time.sleep(min(300, 10 * 2 ** attempt))
+        raise RuntimeError(f"could not download {url} after 6 attempts: {error}")
 
 
 # NOAA CPC Global Unified: daily, yearly files ------------------------------------------------------------------
@@ -154,7 +156,7 @@ def month_field(source, variable: str, month: pd.Timestamp) -> np.ndarray:
         _download(f"{source.store}/{month:%Y}/{name}", target, {"Authorization": f"Bearer {earthdata_token()}"})
         return place(_imerg_half_hour(target), Affine(0.1, 0, -180, 0, -0.1, 90), source.grid)
 
-    from . import band_times
+    from . import _netcdf, band_times
 
     path = source.variables[variable]
     target = cache_dir(source.name) / f"{Path(path).name}.{month.year}.nc"
@@ -162,7 +164,7 @@ def month_field(source, variable: str, month: pd.Timestamp) -> np.ndarray:
     name = Path(path).name
     times, transform = band_times(str(target), name)
     bands = np.flatnonzero((times >= np.datetime64(month)) & (times < np.datetime64(month + pd.offsets.MonthBegin())))
-    with rasterio.open(f'netcdf:"{target}":{name}') as src:
+    with _netcdf, rasterio.open(f'netcdf:"{target}":{name}') as src:
         stack = src.read([int(b) + 1 for b in bands]).astype(np.float32)
         if src.nodata is not None:
             stack[stack == np.float32(src.nodata)] = np.nan
