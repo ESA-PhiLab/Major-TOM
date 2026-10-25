@@ -28,6 +28,8 @@ Each sample is written as `chips/<product>/<index>.npz` (one array per band) wit
 
 Asking for dates outside a source's period, or a product an archive does not have, raises an error that names the archives that do.
 
+**Which window.** `window="v2"` (default) is this package's window (docs/SPEC.md section 3). `window="v1"` is Core v1's 1068 px window, for samples that match existing Core samples pixel for pixel (docs/SPEC.md 7.5).
+
 **Which scene.** `download` tries up to five scenes per sample, in the order of `prefer` (`"clearest"`, `"cloudiest"`, `"nearest"` to the date, `"newest"`), and takes the first whose window meets both `cloud` (accepted cloud share, default `(0, 0.05)`; `None` accepts any) and `max_nodata` (accepted share of missing pixels, default `0.01`). If none does:
 
 | `strict` | `fallback` | Result |

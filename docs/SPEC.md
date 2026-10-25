@@ -284,11 +284,29 @@ When the v2 window (section 3) lies inside a Core sample's window, in the same C
 
 where `x_v2`, `y_v2` is the v2 window's top-left corner and `x'_v1`, `y'_v1` the corrected Core origin. This is possible for 48% of Core cells (more near the equator and central meridians, fewer at high latitudes); the others need a new read from the source product.
 
+In code: `majortom.spec.crop_core_to_v2(data, transform, crs, cell, dataset)` returns the cropped band and its transform, or `None` when the v2 window is not inside the sample.
+
 ### 7.4 Other properties of Core to know
 
 - 8.3% of Core cells are not fully inside their Core window (mostly above 40° latitude and far from a zone's central meridian), against 0.32% with v2.
 - Duplicate cells and samples with no data occur (issues #17, #8); quality reports flag them (strategy WS4).
 - Finding a cell's sample means querying `metadata.parquet`; filtering on the integer `grid_row_u`, `grid_col_r` columns is much faster than on `grid_cell` (strategy, known issues).
+
+### 7.5 Building on the legacy window, and reading Core
+
+The v2 window is the default. Core v1's window is kept as an option for samples that line up pixel for pixel with existing Core samples, e.g. a new date for a Core cell, or a source that Core does not have:
+
+    download(cells, "sentinel-2-l2a", datetime="2024-07", window="v1")   # 1068 / 534 / 178 px at 10 / 20 / 60 m
+
+`window="v1"` uses section 7.1's rule (the grid point minus 340 m, 10,680 m wide). Each band is read on its own pixel grid at the corner rounded to that grid (section 7.2), and the sidecar stores that corrected corner. In code: `majortom.spec.legacy_window(cell, crs)`, or `window(cell, ..., margin="v1")`. The v1 window has v1's properties (section 7.4), including the 8.3% of cells not fully inside it.
+
+Readers of Core samples correct the stored transform by default (section 7.2):
+
+- `filter_download` writes each GeoTIFF with the corrected transform (header only; pixels unchanged). `raw=True` keeps the stored one.
+- `read_row(row, columns, georef=True)` returns `(array, transform, crs)` per band, corrected unless `raw=True`. Without `georef`, it returns arrays as before.
+- `majortom.sample.read_tif(tif_bytes, dataset)` does the same for one band.
+
+Core-DEM keeps its stored transform: it was resampled onto it.
 
 ## 8. Required metadata per sample
 

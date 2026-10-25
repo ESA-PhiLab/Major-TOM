@@ -159,9 +159,10 @@ def read_tile(archive: Archive, item: pystac.Item, key: str, win: Window, res: f
     ee = _ee()
     image_id, band = _parse(item.assets[key].href)
     n = win.pixels(res)
+    corner = win.transform(res)                          # a legacy (Core v1) window rounds its corner per band
     grid = {"crsCode": win.crs, "dimensions": {"width": n, "height": n},
-            "affineTransform": {"scaleX": res, "shearX": 0, "translateX": win.left,
-                                "shearY": 0, "scaleY": -res, "translateY": win.top}}
+            "affineTransform": {"scaleX": res, "shearX": 0, "translateX": corner.c,
+                                "shearY": 0, "scaleY": -res, "translateY": corner.f}}
     with session(archive):
         image = ee.Image(image_id).select(band)
         if item.assets[key].extra_fields["ee:crs"] != win.crs and method != "nearest":

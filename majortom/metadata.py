@@ -12,6 +12,8 @@ from tqdm.notebook import tqdm
 import os
 
 from .sample import *
+from .spec import core_dataset, correct_core_transform
+import rasterio
 
 def metadata_from_url(access_url, local_url):
     local_url, response = urllib.request.urlretrieve(access_url, local_url)
@@ -62,12 +64,15 @@ def filter_metadata(df,
 
     return df
 
-def read_row(row, columns=["thumbnail"]):
+def read_row(row, columns=["thumbnail"], georef=False, raw=False):
     """Reads a row from a Major-TOM dataframe
 
     Args:
         row (row from geopandas dataframe): The row of metadata
         columns (list): columns to be read from the file
+        georef (bool): if True, each raster column gives (array, transform, crs) instead of the array alone
+        raw (bool): with georef, keep the stored transform; by default Core transforms are corrected to the
+            grid the pixels were read on (majortom.spec.correct_core_transform, docs/SPEC.md 7.2)
 
     Returns:
         data (dict): dictionary with returned data from requested columns
@@ -85,14 +90,15 @@ def read_row(row, columns=["thumbnail"]):
             bytes = row_group[col][0].as_py()
 
             if col != 'thumbnail':
-                row_output[col] = read_tif_bytes(bytes)
+                row_output[col] = (read_tif(bytes, core_dataset(row.parquet_url), raw) if georef
+                                   else read_tif_bytes(bytes))
             else:
                 stream = BytesIO(bytes)
                 row_output[col] = Image.open(stream)
 
         return row_output
 
-def filter_download(df, local_dir, source_name, by_row = False, verbose = False, tif_columns=None):
+def filter_download(df, local_dir, source_name, by_row = False, verbose = False, tif_columns=None, raw=False):
     """Downloads and unpacks the data of Major-TOM based on a metadata dataframe
 
     Args:
@@ -102,6 +108,8 @@ def filter_download(df, local_dir, source_name, by_row = False, verbose = False,
         by_row (bool): If True, it will access individual rows of parquet via http - otherwise entire parquets are downloaded temporarily
         verbose (bool) : option for potential internal state printing
         tif_columns (list of str) : Optionally specified columns to be downloaded as .tifs, e.g. ['B04', 'B03', 'B02']
+        raw (bool) : keep the stored geotransforms; by default Core GeoTIFFs are saved with the transform corrected
+            to the grid their pixels were read on (majortom.spec.correct_core_transform, docs/SPEC.md 7.2)
 
     Returns:
         None
@@ -142,10 +150,14 @@ def filter_download(df, local_dir, source_name, by_row = False, verbose = False,
 
                 columns = [col for col in table.column_names if col[0] == 'B'] + ['cloud_mask'] if tif_columns is None else tif_columns
                 # tifs
+                dataset = None if raw else core_dataset(url)
                 for col in columns:
                     with open(dest / "{}.tif".format(col), "wb") as f:
                         # Write bytes to file
                         f.write(table[col][0].as_py())
+                    if dataset is not None:                      # header edit only: pixels unchanged
+                        with rasterio.open(dest / "{}.tif".format(col), "r+") as tif:
+                            tif.transform = correct_core_transform(tif.transform, dataset)
 
                 # thumbnail (png)
                 col = 'thumbnail'

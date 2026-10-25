@@ -62,15 +62,45 @@ class Window:
         return Affine(res, 0.0, self.left, 0.0, -res, self.top)
 
 
+LEGACY_V1 = "v1"                         # margin value selecting Core v1's window rule (docs/SPEC.md 7.1, 7.5)
+V1_PAD, V1_SIDE = 340.0, 10_680.0        # Core v1: the grid point minus 340 m, 10,680 m wide (1068 px at 10 m)
+
+
+@dataclass(frozen=True)
+class LegacyWindow(Window):
+    """Core v1's window: its corner is not on any lattice, so each band is read on its own pixel grid at the
+    corner rounded to that grid (docs/SPEC.md 7.2), exactly as Core v1 was. `origin` is a point of the source's
+    pixel grids (Sentinel-2: a multiple of 60 m)."""
+    origin: tuple[float, float] = (0.0, 0.0)
+
+    def transform(self, res: float) -> Affine:
+        x0, y0 = self.origin
+        return Affine(res, 0.0, x0 + res * round((self.left - x0) / res),
+                      0.0, -res, y0 + res * round((self.top - y0) / res))
+
+
+def legacy_window(cell: Cell, crs: str, origin: tuple[float, float] | None = None) -> LegacyWindow:
+    """Core v1's window (docs/SPEC.md 7.1): the cell's grid point (south-west corner) projected into `crs`,
+    minus 340 m, 10,680 m wide; 1068 / 534 / 178 px at 10 / 20 / 60 m."""
+    x, y = Transformer.from_crs("EPSG:4326", crs, always_xy=True).transform(cell.lon, cell.lat)
+    return LegacyWindow(crs, x - V1_PAD, y - V1_PAD + V1_SIDE, V1_SIDE,
+                        origin if origin is not None else default_origin(crs, 60.0))
+
+
 def window(cell: Cell, lattice: float, origin: tuple[float, float] | None = None,
-           margin: float = MARGIN, crs: str | None = None) -> Window:
+           margin: float | str = MARGIN, crs: str | None = None) -> Window:
     """The window for `cell` on a lattice of spacing `lattice` metres through the point `origin`.
+
+    `margin="v1"` (LEGACY_V1) gives Core v1's window instead (legacy_window), for samples that line up pixel
+    for pixel with existing Core v1 samples.
 
     Anchor: the cell centroid (the pole itself for a cell around a pole), moved to the nearest lattice
     point. Side: the smallest multiple of 2 * lattice that is at least (1 + margin) * d, so both edges
     fall on the lattice.
     """
     crs = crs or cell_crs(cell)
+    if margin == LEGACY_V1:
+        return legacy_window(cell, crs, origin)
     x0, y0 = origin if origin is not None else default_origin(crs, lattice)
     lon, lat = cell.centroid
     if cell.dlon >= 360:                              # a single cell around a pole
@@ -95,6 +125,37 @@ def correct_core_transform(transform: Affine, dataset: str) -> Affine:
         return transform
     rx, ry = transform.a, -transform.e
     return Affine(rx, 0.0, rx * round(transform.c / rx), 0.0, -ry, ry * round(transform.f / ry))
+
+
+def core_dataset(url: str) -> str | None:
+    """The Core dataset a parquet or sample URL belongs to (e.g. Core-S2L2A), from the Hugging Face path."""
+    import re
+
+    found = re.search(r"/(Core-[A-Za-z0-9]+)/", url)
+    return found.group(1) if found else None
+
+
+def crop_core_to_v2(data: np.ndarray, transform: Affine, crs: str, cell: Cell, dataset: str,
+                    margin: float = MARGIN) -> tuple[np.ndarray, Affine] | None:
+    """Cut this spec's (v2) window out of one band of a Core v1 sample (docs/SPEC.md 7.3), or None.
+
+    The stored transform is corrected first (correct_core_transform); the v2 window is taken in the sample's
+    CRS on the band's own pixel grid. None when the v2 window is not inside the sample (about half of Core
+    cells, more at high latitudes): those need a new read from the source product.
+    """
+    t = correct_core_transform(transform, dataset)
+    res = t.a
+    win = window(cell, lattice=60.0, margin=margin, crs=crs)             # Sentinel-2: a 60 m lattice in every zone
+    col = (win.left - t.c) / res
+    row = (t.f - win.top) / res
+    n = win.pixels(res)
+    if abs(col - round(col)) > 1e-6 or abs(row - round(row)) > 1e-6:
+        raise ValueError(f"v2 window not on the sample's pixel grid (offsets {col}, {row})")
+    col, row = int(round(col)), int(round(row))
+    height, width = data.shape[-2:]
+    if col < 0 or row < 0 or col + n > width or row + n > height:
+        return None
+    return data[..., row:row + n, col:col + n], win.transform(res)
 
 
 def cell_polygon(cell: Cell, crs: str, n: int = 32) -> shapely.Polygon:

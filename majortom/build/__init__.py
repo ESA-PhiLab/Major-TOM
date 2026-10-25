@@ -37,7 +37,7 @@ from rasterio.warp import transform_bounds
 from tqdm.auto import tqdm
 
 from ..cells import Cell, cells_from_points, cells_in   # noqa: F401  re-exported for convenience
-from ..spec import MARGIN, cell_coverage, window
+from ..spec import LEGACY_V1, MARGIN, cell_coverage, window
 from .archives import ARCHIVES, Archive
 from .collections import COLLECTIONS, Collection, Source, declared_scaling, find_asset, processing_baseline
 from .backends import backend, retries
@@ -246,7 +246,8 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
     """Build and write one sample."""
     path = outdir / f"{row.Index:06d}.npz"
     cell = Cell(int(row.row), int(row.col), float(row.grid_km))
-    margin = float(_field(row, "margin") if _field(row, "margin") is not None else margin)
+    margin = _field(row, "margin") if _field(row, "margin") is not None else margin
+    margin = margin if margin == LEGACY_V1 else float(margin)
     days = _field(row, "days") if _field(row, "days") is not None else days
     query = interval(_field(row, "datetime") or datetime, days)
     source = collection.source(name, archive.name)
@@ -290,7 +291,8 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
         items=[it.id for it in tiles], datetime=acquired(tiles[0]).floor("us").isoformat(),
         cloud=cloud, cloud_source=pick.cloud_source, cloud_items=pick.cloud_items, nodata=float(nodata),
         crs=win.crs, epsg=int(win.crs.split(":")[1]),
-        left=win.left, top=win.top, res=finest, size=win.pixels(finest), bands=list(planes),
+        left=win.transform(finest).c, top=win.transform(finest).f, res=finest, size=win.pixels(finest),
+        bands=list(planes),
         grid_cell=cell.name, grid_km=cell.d, window_m=win.side, cell_coverage=cell_coverage(cell, win),
         profile=PROFILE, resampled=[] if native else list(arrays),
         query=dict(datetime=query, margin=margin, dates_used=pick.note), choice=asdict(choice),
@@ -308,7 +310,7 @@ def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, 
              margin: float = MARGIN, prefer: str = "clearest", cloud: tuple[float, float] | None = (0.0, 0.05),
              max_nodata: float = 0.01, strict: bool = False, fallback: str = "complete",
              platform: str | list[str] | None = None,
-             archive: str = "planetary-computer",
+             archive: str = "planetary-computer", window: str = "v2",
              outdir: str | Path = "chips", workers: int | None = None, force: bool = False) -> pd.DataFrame:
     """Build one sample per row of `cells` from a Planetary Computer collection.
 
@@ -324,11 +326,18 @@ def download(cells: pd.DataFrame, collection: str, datetime: str | None = None, 
                  "clear" (clouds closest to the range, then least missing data)
     platform     only scenes from this satellite or these satellites, e.g. "terra" or ["landsat-8", "landsat-9"]
     archive      where to search and read, one of ARCHIVES
+    window       "v2" (default): this spec's window, centred on the cell, 1056 px at 10 m (docs/SPEC.md 3).
+                 "v1": Core v1's window, from the cell's grid point minus 340 m, 1068 px at 10 m, each band at
+                 its own pixel grid (docs/SPEC.md 7.5), so samples line up with existing Core v1 samples.
+                 With "v1", `margin` is ignored
     workers      parallel samples; None: what the archive allows
     force        True: rebuild every sample. False: reuse a sample on disk if it was built for the same
                  cell, dates, margin and scene choice. Samples in outdir for rows not in `cells` are removed
     Returns the samples that failed, with the reason.
     """
+    if window not in ("v1", "v2"):
+        raise ValueError(f"window must be 'v2' or 'v1', not {window!r}")
+    margin = LEGACY_V1 if window == "v1" else margin
     platforms = None if platform is None else tuple([platform] if isinstance(platform, str) else platform)
     choice = Choice(prefer, tuple(cloud) if cloud is not None else None, max_nodata, strict, fallback, platforms)
     if fallback not in ("complete", "clear"):
