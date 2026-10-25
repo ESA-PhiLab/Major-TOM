@@ -29,7 +29,7 @@ Major TOM (Terrestrial Observation Metaset) is a standard for large EO datasets:
 
 ## Development environment
 
-- Package development uses **uv** with Python 3.10: `.venv/` in the repo root (not committed), built from `pyproject.toml`; `uv.lock` is committed once it exists. Activate with `source .venv/bin/activate`, or prefix commands with `uv run`. In Slurm jobs, activate inside the job.
+- Package development uses **uv** with Python 3.11 (3.10 until 2026-10-25; the running climate builds still use the 3.10 `.venv`, the 3.11 environment is `.venv311` until they finish): `.venv/` in the repo root (not committed), built from `pyproject.toml`; `uv.lock` is committed once it exists. Activate with `source .venv/bin/activate`, or prefix commands with `uv run`. In Slurm jobs, activate inside the job.
 - uv lives in `~/.local/bin/uv` (add `~/.local/bin` to `PATH`).
 - Optional extras: `build` (archives), `gee` (Earth Engine), `viz` (gallery), `torch`, `embed`: `uv sync --extra build --extra gee --extra viz`.
 - The tutorial scripts in `docs/animations/` still run in the conda env `miko-torch`.

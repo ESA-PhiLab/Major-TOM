@@ -8,7 +8,7 @@ authors = [
     { name = "Alistair Francis" },
     { name = "Mikolaj Czerkawski", email = "mikolaj.czerkawski@esa.int" },
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "numpy",
     "pandas",
