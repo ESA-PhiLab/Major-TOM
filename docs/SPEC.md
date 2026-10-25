@@ -300,6 +300,8 @@ The v2 window is the default. Core v1's window is kept as an option for samples 
 
 `window="v1"` uses section 7.1's rule (the grid point minus 340 m, 10,680 m wide). Each band is read on its own pixel grid at the corner rounded to that grid (section 7.2), and the sidecar stores that corrected corner. In code: `majortom.spec.legacy_window(cell, crs)`, or `window(cell, ..., margin="v1")`. The v1 window has v1's properties (section 7.4), including the 8.3% of cells not fully inside it.
 
+Checked on 2026-10-25: 4 random Core-S2L2A samples at baseline N0510, rebuilt from CDSE with `window="v1"`, are identical to Core in every B04 pixel. Products Core read at older baselines (e.g. 400k samples at N0509) have since been reprocessed (N0510, 2024) on CDSE and Planetary Computer: rebuilt samples line up (best correlation at zero shift in 3 of 4 tested) but differ by a few DN, and geometric refinement can move the image by about a pixel (1 of 4 tested). The window is the same; the product is not.
+
 Readers of Core samples correct the stored transform by default (section 7.2):
 
 - `filter_download` writes each GeoTIFF with the corrected transform (header only; pixels unchanged). `raw=True` keeps the stored one.
