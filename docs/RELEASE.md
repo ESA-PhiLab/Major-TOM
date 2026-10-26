@@ -77,7 +77,7 @@ The sample is 1056 px at 10 m (10,560 m): the v2 window (docs/SPEC.md section 3)
 |---|---|---|
 | Lossless (default) | ZSTD + predictor | lossless graph chosen by `geozl.profile` per raster group |
 | Near-lossless | plain LERC, `MAX_Z_ERROR` 1-2 DN | `error=1` or `error=2` (absolute bound, `quant_linear`) |
-| Heavily lossy | JPEG XL lossy (16-bit, recent GDAL) | large bounds: relative (`error="5%"`, `quant_log`) or noise-scaled (`quant_sqrt`) |
+| Heavily lossy | plain LERC with a large bound, e.g. `MAX_Z_ERROR` 20-50 DN | large bounds: relative (`error="5%"`, `quant_log`) or noise-scaled (`quant_sqrt`); profiles by Cesar, pending |
 
 Near-lossless COG uses plain `LERC`, not `LERC_ZSTD` or `LERC_DEFLATE`: Cesar has seen problems with `LERC_ZSTD` (2026-10-26), and the extra layer gains little. Measured on 20 Sentinel-2 samples (60 files, all groups, 176 px tiles, tile interleave; GDAL 3.12.2): every variant kept its bound (worst error exactly 1 or 2, no file over it), and no `LERC_ZSTD` fault appeared here.
 
@@ -100,6 +100,15 @@ RUMI_PROFILES = {                                   # majortom/release/profiles.
 ```
 
 A profile is a GeoZL recipe string (or `None` to profile one per group) and an error bound. The release records, in collection metadata, the profile name, the graph actually used per raster group, the bound, and the rumi and GeoZL versions, so any file can be decoded and re-encoded later.
+
+Heavily lossy COG stays on LERC, not JPEG XL: the rasterio wheels' GDAL has no JPEG XL codec ("missing codec for JXL", GDAL 3.12.2), so writing and every reader would need a JPEG XL-enabled GDAL, which defeats COG's purpose of opening anywhere; LERC also keeps a per-pixel bound. Measured on 20 Sentinel-2 samples (10 m group, uint16; 50 DN = 0.005 reflectance):
+
+| LERC bound | Ratio | Mean error | RMSE |
+|---|---|---|---|
+| 0 (ZSTD, lossless) | 1.57 | 0 | 0 |
+| 5 DN | 2.62 | 2.4 DN | 2.9 DN |
+| 20 DN | 3.81 | 9.9 DN | 11.6 DN |
+| 50 DN | 5.28 | 25.8 DN | 29.5 DN |
 
 GeoZL's lossy modes are error-bounded quantisation at the head of the graph, then lossless stages; there is no transform codec. So "heavily lossy" in rumi guarantees a per-pixel bound, while JPEG XL in COG does not. The dataset records the level and its bound in collection metadata.
 

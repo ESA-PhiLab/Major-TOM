@@ -22,8 +22,9 @@ def write_cog(dest: str | Path | MemoryFile, data: np.ndarray, transform: Affine
               max_error: float | None = None) -> None:
     """Write one raster group as a COG with the Major TOM profile.
 
-    Lossless by default: ZSTD with predictor 2 (integers) or 3 (floats). `max_error` > 0 writes LERC with that
-    absolute bound instead (near-lossless; plain LERC, not LERC_ZSTD: docs/RELEASE.md section 4).
+    Lossless by default: ZSTD with predictor 2 (integers) or 3 (floats). `max_error` > 0 writes plain LERC with
+    that absolute bound instead: 1-2 for near-lossless, tens of units for heavily lossy (docs/RELEASE.md
+    section 4; not LERC_ZSTD, and not JPEG XL, which GDAL wheels cannot write or read).
     """
     if max_error:
         codec = dict(COMPRESS="LERC", MAX_Z_ERROR=max_error)
