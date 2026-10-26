@@ -22,7 +22,7 @@ majortom.build output: one sample per cell (bands as arrays + JSON sidecar: CRS,
 
 | Topic | Default | Options |
 |---|---|---|
-| Payload | open: rumi (as Core-DEM) with a COG read path and converter (section 5), or COG; decided by the benchmark (section 10) | both side by side (about double the storage) |
+| Payload | **rumi, lossless** (Miko, 2026-10-26, after the benchmark in section 10; as Core-DEM) | COG: release with `payload="cog"` or `"both"`, read any rumi sample as a COG, convert a selection to COG files (section 5) |
 | Compression | lossless | near-lossless, heavily lossy (section 4) |
 | Container | TACO ZIP partitions + TACOCAT; built as FOLDER | — |
 | Partitions | by size: at most ~2 GB per ZIP, any modality (section 7) | — |
@@ -59,11 +59,30 @@ GeoZL's lossy modes are error-bounded quantisation at the head of the graph, the
 
 ## 5. rumi
 
-Core-DEM (`https://source.coop/major-tom/core-dem`) is published as rumi only: `dem.rumi` per sample, GeoZL `med>zigzag>transpose>entropy` with a 2 m error bound, read with `taco.open_dataset(...)` then `rumi.read(location, header)`. Sentinel-2 Core v2 follows it unless the benchmark (section 10) shows lossless rumi gains little over COG. Proposal discussed 2026-10-26: rumi as the default payload, with a COG path for everything that expects GeoTIFF:
+**Decision (Miko, 2026-10-26): rumi lossless is the default payload**, as in Core-DEM (`https://source.coop/major-tom/core-dem`: `dem.rumi` per sample, read with `taco.open_dataset(...)` then `rumi.read(location, header)`). The benchmark (section 10) found it 19% smaller than the best COG, ~5.5x faster to write and 1.8x faster for training crops. Sentinel-2 bands stay lossless (Core-DEM uses a 2 m bound); near-lossless and lossy remain options (section 4).
 
-- `majortom.release.read(sample, as_="array" | "xarray" | "cog")`: `"cog"` returns an in-memory GeoTIFF (rasterio `MemoryFile`) with CRS, geotransform, band names, scale and offset from the rumi header, so GDAL-based tools open it unchanged.
-- `majortom.release.to_cog(dataset, out, ...)`: converts a selection (SQL over the TACOCAT) to COG files with section 3's parameters, for QGIS or other GIS use.
-- Sentinel-2 bands are kept lossless by default (unlike Core-DEM's 2 m bound); near-lossless and lossy remain options (section 4).
+COG stays a first-class option, three ways:
+
+| Need | How | Result |
+|---|---|---|
+| Publish (or rebuild) a release as COGs | `release(samples, out, payload="cog")`, or `payload="both"` for rumi and COG side by side | the same TACO layout, `cog/<group>.tif` instead of (or beside) `rumi/<group>.rumi`, section 3's COG parameters |
+| Open one rumi sample in GDAL-based tools | `majortom.release.read(sample, as_="cog")` | an in-memory GeoTIFF (rasterio `MemoryFile`) with CRS, geotransform, band names, scale and offset from the rumi header |
+| Get COG files for part of a rumi release (e.g. for QGIS) | `majortom.release.to_cog(dataset, out, where="...")`, or `python -m majortom.release to-cog <dataset> <out> --where "..."` | one COG per sample and group, section 3's parameters, pixel for pixel equal to the rumi values (lossless) |
+
+Reading, both ways, in the dataset card and the README:
+
+```python
+import taco, rumi
+ds = taco.open_dataset("https://data.source.coop/major-tom/<dataset>")
+rows = ds.sql("SELECT id, \"rumi/10m.rumi::location\" AS loc, \"rumi/10m.rumi::header\" AS hdr FROM ... LIMIT 8")
+array = rumi.read(rows.loc[0], rows.hdr[0])                         # (bands, y, x) numpy
+
+from majortom.release import read
+with read(rows.iloc[0], as_="cog") as cog, cog.open() as f:        # any rasterio/GDAL code
+    print(f.crs, f.transform, f.descriptions)
+```
+
+rumi is GPL-3.0 and pre-1.0: the release records the rumi and GeoZL versions in its collection metadata, and `to_cog` gives a stable, permissive copy of any part of it.
 
 - One `.rumi` file per raster group per sample, beside or instead of the COG.
 - Frames: tile size chosen by profiling (frames are not bound to multiples of 16, so 256-friendly sizes are possible, e.g. 264 = 1056 / 4).
@@ -120,14 +139,15 @@ samples (grid cell, time, bytes as written in the FOLDER)
 
 ```
 majortom/release/
-  __init__.py    release(samples, out, payload="cog", rumi=False, level="lossless", ...) -> TACOCAT path
+  __init__.py    release(samples, out, payload="rumi" | "cog" | "both", level="lossless", ...) -> TACOCAT path
   groups.py      raster groups by pixel size, per product (from majortom.build.collections)
   cog.py         write one COG per group (section 3, levels from section 4)
-  rumi.py        write one .rumi per group; read(as_="cog"), to_cog() (section 5)
+  rumi.py        write one .rumi per group
+  read.py        read(sample, as_="array" | "xarray" | "cog"), to_cog(dataset, out, where) (section 5)
   partition.py   size-targeted partitions along a Hilbert curve (section 7)
   taco.py        contract, samples, partitions, TACOCAT (taco package, own repository)
   publish.py     source.coop and Hugging Face upload, resumable
-  __main__.py    python -m majortom.release build | publish
+  __main__.py    python -m majortom.release build | publish | to-cog
 ```
 
 Dependencies (`[release]`): `taco-eo[writer]`, `rumi-eo` (GPL-3.0), `geozl` (BSD-3-Clause), `huggingface_hub`, an S3 client for source.coop, and GDAL >= 3.11 for tile-interleaved COGs (rasterio 1.5 wheels, which need Python >= 3.12, or a conda GDAL). rumi and GeoZL need Python 3.11 or newer; the package moved to 3.11 on 2026-10-25.
@@ -172,7 +192,7 @@ Script: `docs/evidence/release_bench.py`; results in `/data/Major-TOM/release-be
 
 ## 11. Questions for the TACO / rumi / GeoZL maintainer
 
-Answered 2026-10-26: COG interleave (tile); COG tile size (multiples of 16; 176 works); reference layout (Core-DEM). Benchmark results (section 10) favour rumi lossless as default; final choice open.
+Answered 2026-10-26: COG interleave (tile); COG tile size (multiples of 16; 176 works); reference layout (Core-DEM); payload (rumi lossless by default, COG as an option: section 5).
 
 
 1. TACO partitions: recommended partition size, and is partitioning by grid row band sensible for a global dataset?
