@@ -1,17 +1,17 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** draft for review (Miko and the TACO / rumi / GeoZL maintainer), 2026-10-24. Updated 2026-10-26 after the review meeting with Cesar (sections 2, 3, 5, 6, 7, 10). Design only; no code yet.
+> **Review status:** draft for review (Miko and the TACO / rumi / GeoZL maintainer), 2026-10-24. Updated 2026-10-26 after the review meeting with Cesar and the benchmarks (sections 2-7, 10). Design only; no code yet.
 
 # Releasing Major TOM datasets — design
 
-How built Major TOM samples become a published dataset: raster payloads (rumi proposed as default, readable as COG; under benchmark), TACO containers, and upload to source.coop (Hugging Face optional). A new module, `majortom.release`, with an extra `[release]`, alongside `majortom.build`. First target: a new version of Sentinel-2 Core on source.coop.
+How built Major TOM samples become a published dataset: raster payloads (rumi lossless by default; COG as an option, section 5), TACO containers, and upload to source.coop (Hugging Face optional). A new module, `majortom.release`, with an extra `[release]`, alongside `majortom.build`. First target: a new version of Sentinel-2 Core on source.coop.
 
 ## 1. Flow
 
 ```
 majortom.build output: one sample per cell (bands as arrays + JSON sidecar: CRS, transform, times, sources)
   -> raster groups by pixel size (Sentinel-2: 10 m, 20 m, 60 m)
-  -> payload writers: rumi per group (proposed default) or COG per group
+  -> payload writers: rumi per group (default) and/or COG per group (the profile of section 3)
   -> TACO FOLDER: contract (structure + metadata levels) + samples
   -> partitions: ZIPs of at most a few GB, cut by size along a space-filling curve (section 7), one contract for all
   -> TACOCAT: consolidated metadata over the partitions, opened as one collection
@@ -32,28 +32,61 @@ majortom.build output: one sample per cell (bands as arrays + JSON sidecar: CRS,
 | Climate datasets | plain partitioned parquet, not TACO | — |
 | Overviews | none | on request (map viewers) |
 
-## 3. COG parameters
+## 3. The Major TOM COG profile
 
-Chosen for training reads, not only for viewing. Sample size is 1056 px at 10 m (10,560 m windows, docs/SPEC.md).
+The COG option (section 5) writes every raster group with one profile. It is chosen for analysis and GIS use (band subsets, windows), with training reads still fast. Each setting below gives its reason and, where measured, the evidence (section 10 and the band-subset test of 2026-10-26).
 
-| Setting | Value | Reason |
-|---|---|---|
-| Tiles | 176 x 176 px at 10 m (6 x 6 per sample) and 20 m (3 x 3); the 60 m image (176 px) is one tile | TIFF tiles must be multiples of 16 (not 32): GDAL wrote 176 and rejected 168 and 264 ("Bad value for TileWidth"), tested 2026-10-26. The sizes that divide 1056 are 96, 176, 352, 528. For random 256 px training crops, 176 decodes ~2.8x the crop on average (96: ~1.9x with 121 tiles per sample; 352: ~5.6x) |
-| Interleave | tile (`INTERLEAVE=TILE`: all bands of a tile stored next to each other, each band compressed on its own) | Cesar's suggestion (2026-10-26): training reads all bands of a tile in one range request, and single-band reads still work, with better compression than pixel interleave. Needs GDAL >= 3.11; GDAL 3.10 silently writes pixel interleave instead (tested) |
-| Compression | ZSTD, horizontal predictor (floating-point predictor for floats) | fast decode, good ratio for 16-bit EO data |
-| Overviews | none | training reads full resolution; a full pyramid adds about a third |
-| Data type | as delivered (Sentinel-2: uint16) | no conversion |
-| Metadata | band names, nodata, scale and offset (e.g. Sentinel-2 L2A: -1000 offset, 1e-4 scale), CRS, transform with the corrected origin | values interpretable without the sidecar |
+```
+driver=COG  BLOCKSIZE=176  INTERLEAVE=TILE  COMPRESS=ZSTD  PREDICTOR=2 (integers) / 3 (floats)  OVERVIEWS=NONE
+dtype as delivered; NODATA, band descriptions, scale and offset, CRS and the corrected geotransform set per file
+GDAL >= 3.11 (rasterio >= 1.5 wheels bundle GDAL 3.12); the writer reads the file back and fails unless INTERLEAVE=TILE
+```
 
-Tiles of the 10 m and 20 m groups cover different ground (1.76 km and 3.52 km). Equal ground per tile across 10, 20 and 60 m would need 96 px tiles at 10 m (16 px at 60 m).
+### 3.1 Why 1056 px, and tiles of 176 px
+
+The sample is 1056 px at 10 m (10,560 m): the v2 window (docs/SPEC.md section 3), whose side is the smallest multiple of 120 m (twice the 60 m lattice, so both edges fall on it) that is at least (1 + 0.056) x 10 km. That number also tiles well:
+
+| Group | Pixels | 1056-px window (v2) | 1068-px window (Core v1) |
+|---|---|---|---|
+| 10 m | 1056 / 1068 | 6 x 6 tiles of 176 | 6 full + 1 partial tile of 12 px per side: 49 tiles, 13 of them mostly empty |
+| 20 m | 528 / 534 | 3 x 3 tiles of 176 | 3 full + 1 partial of 6 px per side |
+| 60 m | 176 / 178 | 1 tile | 1 full + 1 partial of 2 px per side |
+
+- TIFF tile sizes must be multiples of 16 (GDAL rejected 168 and 264: "Bad value for TileWidth"; 32 is not required). 1056 = 2⁵ x 3 x 11 has four such divisors: 96, 176, 352, 528. 1068 = 2² x 3 x 89 has none, and neither do 534 or 178: every tile size leaves ragged edge tiles, which cost a request and a decode for a few pixels.
+- With 176 px, the tile grids of the three groups nest: one 20 m tile covers exactly 2 x 2 tiles of 10 m, and the 60 m tile covers the whole sample. A window on the ground maps onto the same tile edges in every group.
+- Among 96, 176, 352 and 528, 176 balances decode and request counts for random 256 px crops: a crop touches 6.0 tiles of 176 on average and decodes 2.8x its own area (96: 13.4 tiles, 1.9x; 352: 3.0 tiles, 5.6x; 528: 2.2 tiles, 9.4x). Equal ground per tile in all groups would need 96 px at 10 m (16 px at 60 m), with 121 tiles per 10 m image.
+- rumi frames use 176 px for the same alignment; 264 px frames (not bound to 16) were no better (section 10, first run).
+
+### 3.2 The other settings
+
+| Setting | Value | Why | Evidence |
+|---|---|---|---|
+| Interleave | `TILE`: for each tile, every band stored next to each other, each compressed on its own | Reads of band subsets decode only those bands; all bands of a tile are still adjacent in the file (one range request) | 1 band: 587 against 315 crops/s with pixel interleave (1.9x); 3 bands (RGB): equal; all 4 bands: 239 against 283 (16% slower); files 2% larger. Training reads all bands and uses rumi; COG users mostly read subsets. Cesar's recommendation, 2026-10-26 |
+| Compression | ZSTD (GDAL's default level, 9) | Fast decode, ratio at least as good as DEFLATE for 16-bit imagery; read by GDAL >= 2.3 and current browsers' COG libraries | Ratio 1.59-1.63 on Sentinel-2 (section 10); against DEFLATE and LZW not measured here |
+| Predictor | 2 (horizontal differencing) for integers, 3 (floating point) for floats | Neighbouring pixels are similar, so differences compress better than values | Standard for EO imagery; not measured here |
+| Overviews | none | Training and analysis read full resolution; a full pyramid adds about a third to the size. Map viewers can add them (`gdaladdo`) or use `release(..., overviews=True)` | |
+| Data type | as delivered (Sentinel-2: uint16, Sentinel-1 RTC: float32, DEM: int16) | No conversion, no rounding | |
+| NODATA | the product's own (Sentinel-2: 0) | Missing pixels marked in the file, not only in the sidecar | |
+| Metadata | band descriptions (e.g. `B04`), scale and offset per sample (Sentinel-2 L2A: scale 1e-4, offset -1000 from processing baseline 04.00, 0 before), CRS, geotransform | Values interpretable without the sidecar; offsets differ between samples, so they are written per file | |
+| Georeferencing | the window's transform on the band's own pixel grid (corrected, docs/SPEC.md 7.2) | Pixels land where they were read | |
+| GDAL version | >= 3.11 | `INTERLEAVE=TILE` arrived in GDAL 3.11; GDAL 3.10 silently writes pixel interleave instead (tested), so the writer checks the result | |
 
 ## 4. Compression levels
 
 | Level | COG | rumi (GeoZL) |
 |---|---|---|
 | Lossless (default) | ZSTD + predictor | lossless graph chosen by `geozl.profile` per raster group |
-| Near-lossless | LERC with a maximum error of 1-2 DN (or LERC_ZSTD) | `error=1` or `error=2` (absolute bound, `quant_linear`) |
+| Near-lossless | plain LERC, `MAX_Z_ERROR` 1-2 DN | `error=1` or `error=2` (absolute bound, `quant_linear`) |
 | Heavily lossy | JPEG XL lossy (16-bit, recent GDAL) | large bounds: relative (`error="5%"`, `quant_log`) or noise-scaled (`quant_sqrt`) |
+
+Near-lossless COG uses plain `LERC`, not `LERC_ZSTD` or `LERC_DEFLATE`: Cesar has seen problems with `LERC_ZSTD` (2026-10-26), and the extra layer gains little. Measured on 20 Sentinel-2 samples (60 files, all groups, 176 px tiles, tile interleave; GDAL 3.12.2): every variant kept its bound (worst error exactly 1 or 2, no file over it), and no `LERC_ZSTD` fault appeared here.
+
+| COG compression | Bound | Ratio |
+|---|---|---|
+| ZSTD + predictor 2 (lossless) | 0 | 1.56 |
+| LERC | 1 / 2 DN | 1.90 / 2.15 |
+| LERC_ZSTD | 1 / 2 DN | 1.94 / 2.22 |
+| LERC_DEFLATE | 1 / 2 DN | 1.96 / 2.23 |
 
 GeoZL's lossy modes are error-bounded quantisation at the head of the graph, then lossless stages; there is no transform codec. So "heavily lossy" in rumi guarantees a per-pixel bound, while JPEG XL in COG does not. The dataset records the level and its bound in collection metadata.
 
@@ -85,8 +118,8 @@ with read(rows.iloc[0], as_="cog") as cog, cog.open() as f:        # any rasteri
 rumi is GPL-3.0 and pre-1.0: the release records the rumi and GeoZL versions in its collection metadata, and `to_cog` gives a stable, permissive copy of any part of it.
 
 - One `.rumi` file per raster group per sample, beside or instead of the COG.
-- Frames: tile size chosen by profiling (frames are not bound to multiples of 16, so 256-friendly sizes are possible, e.g. 264 = 1056 / 4).
-- Pattern: all bands of a tile in one frame (`b (row h) (col w) -> row col (b h w)`), matching COG's pixel interleave.
+- Frames: 176 px, as the COG tiles (section 3.1); 264 px frames were no better in the benchmark.
+- Pattern: all bands of a tile in one frame (`b (row h) (col w) -> row col (b h w)`): what training reads, all bands of a window.
 - Time: one step per sample (the acquisition time); cubes later.
 - Header stored per file in TACO's `children/rumi` level, as in the workshop notebook.
 
@@ -185,14 +218,14 @@ Script: `docs/evidence/release_bench.py`; results in `/data/Major-TOM/release-be
 
 - Lossless rumi is 19% smaller than the best COG, ~5.5x faster to write, slightly faster to read whole, and 1.8x faster for training crops (2,571 against 1,428 crops/s with 8 workers).
 - The 1 DN bound saves another 11% and gives up exactness: not worth it for Sentinel-2.
-- Tile interleave was 2% larger and slower than pixel interleave for reads of all bands. Its advantage, reading a single band, was not tested.
-- Supports rumi lossless as the default (as Core-DEM), with the COG read path and converter (section 5). To decide with Cesar.
+- Tile interleave against pixel interleave (640 crops of the 10 m group, single thread): 1 band 587 against 315 crops/s (1.9x), 3 bands (RGB) equal (319 / 315), all 4 bands 239 against 283; files 2% larger. Tile interleave is the COG profile's choice (section 3.2). rumi reads 397 / 464 / 463 crops/s for the same.
+- Decided (Miko, 2026-10-26): rumi lossless as the default (as Core-DEM), with COG as release option, read path and converter (section 5).
 
-**Not covered.** Cold reads from source.coop over HTTP (range requests, latency); GPU decode; reads of single bands; other modalities (Sentinel-1 float32, DEM int16).
+**Not covered.** Cold reads from source.coop over HTTP (range requests, latency); GPU decode; other modalities (Sentinel-1 float32, DEM int16).
 
 ## 11. Questions for the TACO / rumi / GeoZL maintainer
 
-Answered 2026-10-26: COG interleave (tile); COG tile size (multiples of 16; 176 works); reference layout (Core-DEM); payload (rumi lossless by default, COG as an option: section 5).
+Answered 2026-10-26: COG interleave (tile); COG tile size (multiples of 16; 176 works); reference layout (Core-DEM); payload (rumi lossless by default, COG as an option: section 5); near-lossless COG codec (plain LERC: section 4); rumi frame size (176: section 3.1); partitions (by size: section 7). Still open: 2, 4, 5, 6 below.
 
 
 1. TACO partitions: recommended partition size, and is partitioning by grid row band sensible for a global dataset?
