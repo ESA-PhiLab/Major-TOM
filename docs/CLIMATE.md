@@ -170,13 +170,60 @@ majortom/climate/
     zarr.py          ERA5 (ARCO-ERA5)
     queue.py         ERA5-Land daily statistics, CAMS EAC4 (Climate / Atmosphere Data Store, a month per request)
     files.py         NOAA CPC (yearly netCDF), IMERG (half-hourly HDF5)
-    earthengine.py   Sentinel-5P (UTC-day mosaics, 0.05° tiles)
+    earthengine.py   Sentinel-5P (UTC-day mosaics, 0.05° tiles), IMERG (stored half-hours)
+    edh.py           ERA5-Land hourly from Earth Data Hub (zarr v3, 60-day chunks; section 6.1)
 ```
 
 Each source is written to its own folder (`<out>/<source>/hourly/`, `<out>/<source>/daily/`), keyed by
 `grid_cell`, `acquired` and the step, so sources join on those three columns. Daily sources add
 `<source>_start`, the UTC start of the source day used for each step. Downloads and cached means live under
 `--cache` (Core build: `/data/Major-TOM/Core-Weather/cache/`).
+
+### 6.1 ERA5-Land hourly from Earth Data Hub
+
+Source `era5-land-edh`: all 49 time-varying ERA5-Land variables, hourly, from Destination Earth's Earth Data Hub (`https://data.earthdatahub.destine.eu/era5/era5-land-v0.zarr`, CC-BY 4.0). Column names are the same as the Earth Engine build's (`era5land_t2m`, ...), so the two join or replace each other.
+
+**Access, once per user:**
+
+1. Create a free account at <https://earthdatahub.destine.eu> (a Destination Earth platform login).
+2. Copy the API key from the account settings page.
+3. Run `python -m majortom.build.credentials edh` and paste the key at the hidden prompt. It is saved to `~/.config/majortom/edh-key` (owner-only, 600) and checked with one metadata read. In jobs where that file is not readable, set `EDH_KEY` instead; the environment takes precedence.
+
+The free quota is **500,000 requests a month** (resets on the 1st; shown on the account page). One request is one chunk: 60 days × 5° × 10° of one variable (~1–3 MB compressed). Opening the store costs ~9 requests.
+
+**How the reader works** (`majortom/climate/readers/edh.py`):
+
+```
+stream -> use_cells(cells): the chunks the cells overlap, less those known to be open sea (<cache>/empty.json)
+       -> field(variable, hour): first hour of a 60-day block -> fetch its chunks (16 at a time)
+            -> decode once into <cache>/blocks/<variable>/<block>.f32 (hour-major, sparse; ~16 GB per variable)
+          every hour: one global field from that file; the 2 newest blocks per variable are kept
+```
+
+- Accumulated variables (19: precipitation, snowfall, evaporation and its parts, runoff, snowmelt, radiation and heat fluxes) are stored as totals since 00 UTC, restarting at 01 UTC; `field()` returns each hour's amount (this hour minus the previous), as the Earth Engine source did.
+- Coverage: 90°N to 57.1°S (most of Antarctica is cut; cells further south get no values), land only (NaN over the sea).
+- The store is lossy: bitround with 13 mantissa bits, ~1 part in 16,000 (±0.02 K at 300 K).
+- Checked 2026-10-26 (`docs/evidence/edh_check.py`, and two acquisitions end to end): agrees with the Earth Engine build within 4 × 10⁻⁴ relative for every group-1 variable (t2m ≤ 0.12 K, sp ≤ 31 Pa, hourly tp ≤ 0.001 mm), identical rows and valid shares; no repeated fields (the fault Earth Data Hub fixed in its monthly ERA5-Land store on 2026-10-23).
+
+**Build in groups** (`ERA5_LAND_GROUPS` in `sources.py`, by priority; ~30,000 requests per variable for the Core period):
+
+| Group | Variables | Requests |
+|---|---|---|
+| 1 starter | t2m, d2m, u10, v10, sp, tp, sf, ssrd, snowc, sd, swvl1 | ~330k |
+| 2 energy and water balance | skt, e, ro, ssr, str, strd, slhf, sshf | ~240k |
+| 3 soil profile | swvl2-4, stl1-4 | ~210k |
+| 4 evaporation parts, runoff split | pev, evabs, evatc, evavt, evaow, sro, ssro | ~210k |
+| 5 snowpack, albedo | sde, rsn, tsn, asn, smlt, es, fal, src | ~240k |
+| 6 lakes, leaf area | lblt, licd, lict, lmld, lmlt, ltlt, lai_hv, lai_lv | ~240k |
+
+```
+G=$(python -c "from majortom.climate.sources import ERA5_LAND_GROUPS as G; print(' '.join(G[2]))")
+sbatch --cpus-per-task=8 --mem=64G -J core-weather-era5land-edh-g2 ~/slurm-templates/cpu.sbatch \
+  .venv311/bin/python -u -m majortom.climate stream --samples <Core metadata.parquet ...> --source era5-land-edh \
+  --variables $G --out /data/Major-TOM/Core-Weather/era5land-edh-g2 --cache /data/Major-TOM/Core-Weather/cache
+```
+
+A job that runs out of quota fails on its next request; a rerun continues from the acquisition days already written. Lake shape factor (`lshf`, fixed in time) belongs in the ERA5-Land static table.
 
 ## 7. Build and cost
 
@@ -204,6 +251,7 @@ Each source is written to its own folder (`<out>/<source>/hourly/`, `<out>/<sour
 - NOAA CPC day: CPC's daily totals end at a different UTC hour per country, published as a 0.5° end-of-day map (CPC's README: "based on very limited and UNCHECKED information"; 12Z for 23% of land boxes, 18Z 16%, 24Z 38%, 03Z/06Z the next day 22%). The reader uses that map per cell (`majortom/climate/readers/files.py`), and `cpc_start` records each day's UTC start. Our ERA5 comparison at Sydney, Brisbane, Denver and Glasgow (`docs/evidence/cpc_day.py`) agrees with the map within its broad peaks.
 - IMERG source (2026-10-24, pending review): read from Earth Engine's copy of IMERG V07 (`NASA/GPM_L3/IMERG_V07`, stored half-hours read with `getPixels`), not GES DISC: GES DISC gave 0.09 MB/s from cirrus and reset parallel connections; Earth Engine gave 12.9 MB/s with 8 requests at once, ~0.33 EECU-s per global half-hour by the profiler (~13 EECU-hours for the Core period, ~3.7 TB moved); measured in production ~6.5 EECU-s (section 7), ~130 EECU-hours for the Core period. The GES DISC reader stays as `imerg-gesdisc`.
 - ERA5-Land in Core-Weather (2026-10-24): hourly from Earth Engine's stored images, compressed GeoTIFF. It has 49 distinct time-varying variables (69 bands, 19 of them cumulative twins of the hourly amounts, plus lake shape factor, fixed in time). The first 11 (the starter list) are building now (~120 EECU-hours); the other 38 follow from 1 November on that month's quota (~395 EECU-hours; measured ~1.05 EECU-s per 600 x 600 px tile area for all 49 bands, 0.25 for 11). Decision: Miko, option 2. Superseded 2026-10-25: those costs came from the profiler and were ~30× low (section 7); the build stopped with the quota at 2017-11 (resumable). Proposed: ERA5-Land hourly, all 49 variables, from Earth Data Hub's zarr instead, after a throughput test; Earth Engine keeps IMERG.
+- ERA5-Land hourly from Earth Data Hub (Miko, 2026-10-26): all 49 variables in six groups of decreasing priority (section 6.1), within the 500,000-request monthly quota: group 1 in October 2026, 2-3 in November, 4-5 in December, 6 in January. Replaces the Earth Engine source, which stays as a reference for 2016-2017.
 - Output layout (Miko, 2026-10-23): each source is built into its own folder under `/data/Major-TOM/Core-Weather/` and joined on `grid_cell`, `acquired` and the step; for publishing, the sources are merged into one hourly and one daily table.
 - ERA5-Land through Earth Engine (option b, measured 2026-10-23, `docs/evidence/era5land_ee_cost.py`): ~280 EECU-s per global 7-band daily field, so ~2,100 EECU-hours for ~3,000 days × 9 offset groups (~700 if cut to each group's area): months of the Community tier. Through the Climate Data Store, month requests waited up to ~3 h and ran ~16 min. Decided (Miko, 2026-10-23): option c, ERA5-Land only in ERA5Land-Monthly; Core-Weather takes its daily land variables from ERA5. The ERA5-Land daily reader (`majortom/climate/readers/queue.py`) stays, tested on Loch Lomond.
 

@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 
 from .series import acquisitions, daily_table, hourly_table
-from .sources import SOURCES, field, land_pixels, on_step
+from .sources import SOURCES, field, land_pixels, on_step, reader
 from .weights import ByCell, cell_means, cell_modes, weights
 
 HOUR = pd.Timedelta(hours=1)
@@ -61,6 +61,8 @@ def stream(samples: pd.DataFrame, out: Path | str, source: str = "era5", variabl
         return 0
     cells = acq.drop_duplicates("grid_cell")[["grid_cell", "grid_row_u", "grid_col_r"]].reset_index(drop=True)
     cell_of = pd.Index(cells["grid_cell"]).get_indexer(acq["grid_cell"])
+    if hasattr(rdr := reader(src), "use_cells"):          # readers that fetch by area (Earth Data Hub chunks)
+        rdr.use_cells(src, cells)
     w = weights(cells, src.grid)
     by_cell = ByCell(w)
     land = land_pixels(src)

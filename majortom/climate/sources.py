@@ -122,6 +122,33 @@ S5P_PRODUCTS = {
     "aer_ai": ("COPERNICUS/S5P/OFFL/L3_AER_AI", "absorbing_aerosol_index", "1"),
 }
 
+# ERA5-Land hourly from Earth Data Hub: name -> units, as the store gives them; 19 accumulated (totals since 00 UTC)
+ERA5_LAND_UNITS = {
+    "t2m": "K", "d2m": "K", "u10": "m s**-1", "v10": "m s**-1", "sp": "Pa", "tp": "m", "sf": "m of water equivalent",
+    "ssrd": "J m**-2", "snowc": "%", "sd": "m of water equivalent", "swvl1": "m**3 m**-3",
+    "skt": "K", "e": "m of water equivalent", "ro": "m", "ssr": "J m**-2", "str": "J m**-2", "strd": "J m**-2",
+    "slhf": "J m**-2", "sshf": "J m**-2",
+    "swvl2": "m**3 m**-3", "swvl3": "m**3 m**-3", "swvl4": "m**3 m**-3", "stl1": "K", "stl2": "K", "stl3": "K",
+    "stl4": "K",
+    "pev": "m", "evabs": "m of water equivalent", "evatc": "m of water equivalent", "evavt": "m of water equivalent",
+    "evaow": "m of water equivalent", "sro": "m", "ssro": "m",
+    "sde": "m", "rsn": "kg m**-3", "tsn": "K", "asn": "(0 - 1)", "smlt": "m of water equivalent",
+    "es": "m of water equivalent", "fal": "(0 - 1)", "src": "m of water equivalent",
+    "lblt": "K", "licd": "m", "lict": "K", "lmld": "m", "lmlt": "K", "ltlt": "K", "lai_hv": "m**2 m**-2",
+    "lai_lv": "m**2 m**-2",
+}
+ERA5_LAND_ACCUMULATED = ("tp", "sf", "ssrd", "e", "ro", "ssr", "str", "strd", "slhf", "sshf", "pev", "evabs",
+                         "evatc", "evavt", "evaow", "sro", "ssro", "smlt", "es")
+# build order, by how widely each is used (Miko, 2026-10-26); ~30,000 Earth Data Hub requests per variable
+ERA5_LAND_GROUPS = {
+    1: ["t2m", "d2m", "u10", "v10", "sp", "tp", "sf", "ssrd", "snowc", "sd", "swvl1"],      # starter set
+    2: ["skt", "e", "ro", "ssr", "str", "strd", "slhf", "sshf"],                           # energy and water balance
+    3: ["swvl2", "swvl3", "swvl4", "stl1", "stl2", "stl3", "stl4"],                       # soil profile
+    4: ["pev", "evabs", "evatc", "evavt", "evaow", "sro", "ssro"],                        # evaporation parts, runoff
+    5: ["sde", "rsn", "tsn", "asn", "smlt", "es", "fal", "src"],                          # snowpack, albedo
+    6: ["lblt", "licd", "lict", "lmld", "lmlt", "ltlt", "lai_hv", "lai_lv"],              # lakes, leaf area
+}
+
 
 def _names(table: dict, i: int) -> dict[str, str]:
     return {k: v[i] for k, v in table.items()}
@@ -154,6 +181,11 @@ SOURCES = {
                                 "sf": "m of water equivalent"},
                                step="1h", accumulated=("tp", "ssrd", "sf"), reader="earthengine",
                                options={"all_bands": True}),
+    # ERA5-Land hourly from Earth Data Hub (zarr v3, 1950- ; 90°N-57.1°S, 0-359.9°E); all 49 time-varying variables
+    "era5-land-edh": Source("era5land", "era5/era5-land-v0.zarr",
+                            Grid(west=-0.05, north=90.05, step=0.1, width=3600, height=1472),
+                            {v: v for v in ERA5_LAND_UNITS}, ERA5_LAND_UNITS, step="1h",
+                            accumulated=ERA5_LAND_ACCUMULATED, reader="edh"),
     # CAMS global reanalysis EAC4 (Atmosphere Data Store): 3-hourly, 0.75°, 2003-2025
     "cams": Source("cams", "cams-global-reanalysis-eac4",
                    Grid(west=-0.375, north=90.375, step=0.75, width=480, height=241),
