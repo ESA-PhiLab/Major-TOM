@@ -134,7 +134,7 @@ Dependencies (`[release]`): `taco-eo[writer]`, `rumi-eo` (GPL-3.0), `geozl` (BSD
 
 ## 10. Benchmark: rumi or COG as the default (planned 2026-10-26)
 
-Real Core-S2L2A samples, cropped to 1056 px, grouped by pixel size (10 m: 4 bands, 20 m: 6, 60 m: 2). Per format: bytes on disk, full-sample decode time, and random 256 px crops per second (all bands of the 10 m group), single process.
+Real Core-S2L2A samples cut to the v2 window with `crop_core_to_v2` (not a centre crop: the v2 window sits at a different offset in each Core sample, and fits inside only about half of them, so the set leans towards low latitudes; its latitude spread is reported), grouped by pixel size (10 m: 4 bands, 20 m: 6, 60 m: 2). Per format: bytes on disk, full-sample decode time, and random 256 px crops per second (all bands of the 10 m group), single process.
 
 | Format | Settings |
 |---|---|
