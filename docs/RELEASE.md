@@ -88,6 +88,19 @@ Near-lossless COG uses plain `LERC`, not `LERC_ZSTD` or `LERC_DEFLATE`: Cesar ha
 | LERC_ZSTD | 1 / 2 DN | 1.94 / 2.22 |
 | LERC_DEFLATE | 1 / 2 DN | 1.96 / 2.23 |
 
+**rumi profiles are named GeoZL graphs** (OpenZL graphs), so new ones can be added without changing the writer. Lossy profiles are still being benchmarked by Cesar (2026-10-26); the first set is lossless plus the near-lossless bounds tried here:
+
+```python
+RUMI_PROFILES = {                                   # majortom/release/profiles.py
+    "lossless":        GeoZLProfile(graph=None, error=None),   # graph=None: geozl.profile picks the best lossless
+    "near-lossless-1": GeoZLProfile(graph=None, error=1),      #   graph per raster group, on a sample of frames
+    "near-lossless-2": GeoZLProfile(graph=None, error=2),
+    # Cesar's lossy profiles, when ready, e.g. GeoZLProfile(graph="planar>quant_log>zigzag>entropy", error="1%")
+}
+```
+
+A profile is a GeoZL recipe string (or `None` to profile one per group) and an error bound. The release records, in collection metadata, the profile name, the graph actually used per raster group, the bound, and the rumi and GeoZL versions, so any file can be decoded and re-encoded later.
+
 GeoZL's lossy modes are error-bounded quantisation at the head of the graph, then lossless stages; there is no transform codec. So "heavily lossy" in rumi guarantees a per-pixel bound, while JPEG XL in COG does not. The dataset records the level and its bound in collection metadata.
 
 ## 5. rumi
@@ -115,7 +128,7 @@ with read(rows.iloc[0], as_="cog") as cog, cog.open() as f:        # any rasteri
     print(f.crs, f.transform, f.descriptions)
 ```
 
-rumi is GPL-3.0 and pre-1.0: the release records the rumi and GeoZL versions in its collection metadata, and `to_cog` gives a stable, permissive copy of any part of it.
+rumi is GPL-3.0 and pre-1.0. It is used before 1.0 (Cesar, 2026-10-26: relatively stable). The release records the rumi and GeoZL versions in its collection metadata, and `to_cog` gives a permissively licensed copy of any part of it.
 
 - One `.rumi` file per raster group per sample, beside or instead of the COG.
 - Frames: 176 px, as the COG tiles (section 3.1); 264 px frames were no better in the benchmark.
@@ -175,7 +188,8 @@ majortom/release/
   __init__.py    release(samples, out, payload="rumi" | "cog" | "both", level="lossless", ...) -> TACOCAT path
   groups.py      raster groups by pixel size, per product (from majortom.build.collections)
   cog.py         write one COG per group (section 3, levels from section 4)
-  rumi.py        write one .rumi per group
+  profiles.py    RUMI_PROFILES: named GeoZL graphs and error bounds (section 4)
+  rumi.py        write one .rumi per group with a profile
   read.py        read(sample, as_="array" | "xarray" | "cog"), to_cog(dataset, out, where) (section 5)
   partition.py   size-targeted partitions along a Hilbert curve (section 7)
   taco.py        contract, samples, partitions, TACOCAT (taco package, own repository)
@@ -225,7 +239,7 @@ Script: `docs/evidence/release_bench.py`; results in `/data/Major-TOM/release-be
 
 ## 11. Questions for the TACO / rumi / GeoZL maintainer
 
-Answered 2026-10-26: COG interleave (tile); COG tile size (multiples of 16; 176 works); reference layout (Core-DEM); payload (rumi lossless by default, COG as an option: section 5); near-lossless COG codec (plain LERC: section 4); rumi frame size (176: section 3.1); partitions (by size: section 7). Still open: 2, 4, 5, 6 below.
+Answered 2026-10-26: COG interleave (tile); COG tile size (multiples of 16; 176 works); reference layout (Core-DEM); payload (rumi lossless by default, COG as an option: section 5); near-lossless COG codec (plain LERC: section 4); rumi frame size (176: section 3.1); partitions (by size: section 7). Also 2026-10-26: TACO takes COGs, or any file format, as sample files (2); rumi is used before 1.0, being relatively stable (5); lossy GeoZL profiles are still being benchmarked by Cesar, so profiles are pluggable named graphs (4, section 4). Still open: 6 below.
 
 
 1. TACO partitions: recommended partition size, and is partitioning by grid row band sensible for a global dataset?
