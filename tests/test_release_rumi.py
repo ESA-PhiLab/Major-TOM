@@ -54,3 +54,17 @@ def test_fixed_graph_is_used(tmp_path, data):
 def test_unknown_profile():
     with pytest.raises(ValueError, match="available: " + ", ".join(RUMI_PROFILES)):
         profile("tiny")
+
+
+def test_all_predictors_are_tried():
+    """choose_graph searches every predictor family, not only planar (geozl.profile's default)."""
+    import geozl
+
+    from majortom.release.profiles import choose_graph
+
+    rng = np.random.default_rng(1)
+    frame = (np.cumsum(np.cumsum(rng.integers(-3, 4, (2, 176, 176)), 1), 2) + 3000).clip(0, 65535).astype(np.uint16)
+    planar = {r["graph"] for r in geozl.profile(frame, reps=1)}
+    every = {r["graph"] for r in geozl.profile(frame, prior=None, reps=1)}
+    assert planar < every
+    assert choose_graph([frame], RUMI_PROFILES["lossless"]) in every

@@ -39,6 +39,8 @@ def choose_graph(frames: list[np.ndarray], prof: GeoZLProfile) -> str:
 
     Frames are (bands, h, w) arrays as rumi.frames makes them; a few from the first samples of a raster group are
     enough. Every candidate is ranked by the bytes it gives summed over all frames, at the profile's bound.
+    All predictor families are tried (`prior=None`; geozl's default tries only planar): on Sentinel-2 the median
+    edge predictor (med) wins most frames, ~3% smaller than the best planar graph (docs/RELEASE.md 4).
     """
     if prof.graph is not None:
         return prof.graph
@@ -46,6 +48,6 @@ def choose_graph(frames: list[np.ndarray], prof: GeoZLProfile) -> str:
 
     total: dict[str, int] = {}
     for frame in frames:
-        for row in geozl.profile(frame, error=prof.error, reps=1):
+        for row in geozl.profile(frame, prior=None, error=prof.error, reps=1):
             total[row["graph"]] = total.get(row["graph"], 0) + row["bytes"]
     return min(total, key=total.get)

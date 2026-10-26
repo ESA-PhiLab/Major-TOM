@@ -99,7 +99,7 @@ RUMI_PROFILES = {                                   # majortom/release/profiles.
 }
 ```
 
-A profile is a GeoZL recipe string (or `None` to profile one per group) and an error bound. The release records, in collection metadata, the profile name, the graph actually used per raster group, the bound, and the rumi and GeoZL versions, so any file can be decoded and re-encoded later.
+A profile is a GeoZL recipe string (or `None` to profile one per group) and an error bound. When profiling, all of GeoZL's predictor families are tried (`prior=None`; `geozl.profile` tries only the planar family by default): on 12 Sentinel-2 samples the median edge predictor (`med>zigzag>...`) won most frames and gave files ~3% smaller (10 m 3.3%, 20 m 2.8%, 60 m 3.0%). GeoZL's `nodata` node did not help Sentinel-2's zero fill (a frame 57% zeros came out 3% larger with `nodata=0`); it may help float data with NaN gaps (Sentinel-1). The release records, in collection metadata, the profile name, the graph actually used per raster group, the bound, and the rumi and GeoZL versions, so any file can be decoded and re-encoded later.
 
 Heavily lossy COG stays on LERC, not JPEG XL: the rasterio wheels' GDAL has no JPEG XL codec ("missing codec for JXL", GDAL 3.12.2), so writing and every reader would need a JPEG XL-enabled GDAL, which defeats COG's purpose of opening anywhere; LERC also keeps a per-pixel bound. Measured on 20 Sentinel-2 samples (10 m group, uint16; 50 DN = 0.005 reflectance):
 
