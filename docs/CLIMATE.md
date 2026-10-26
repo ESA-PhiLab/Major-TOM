@@ -195,9 +195,10 @@ The free quota is **500,000 requests a month** (resets on the 1st; shown on the 
 
 ```
 stream -> use_cells(cells): the chunks the cells overlap, less those known to be open sea (<cache>/empty.json)
-       -> field(variable, hour): first hour of a 60-day block -> fetch its chunks (16 at a time)
+       -> field(variable, hour): first hour of a 60-day block -> fetch its chunks (32 requests in flight over all variables, each retried up to 6 times)
             -> decode once into <cache>/blocks/<variable>/<block>.f32 (hour-major, sparse; ~16 GB per variable)
-          every hour: one global field from that file; the 2 newest blocks per variable are kept
+          every hour: one global field from that file; the 2 newest blocks per variable are kept;
+          a finished block is marked (<block>.filled.npy), so a rerun reuses it without requests
 ```
 
 - Accumulated variables (19: precipitation, snowfall, evaporation and its parts, runoff, snowmelt, radiation and heat fluxes) are stored as totals since 00 UTC, restarting at 01 UTC; `field()` returns each hour's amount (this hour minus the previous), as the Earth Engine source did.

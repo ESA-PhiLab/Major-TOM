@@ -3,8 +3,9 @@
     store (https://data.earthdatahub.destine.eu/era5/era5-land-v0.zarr; key: credentials.edh_key)
       chunks of 1440 h x 50 x 100 pixels (60 days x 5° x 10°), 1 request each; the quota counts requests
     use_cells(cells)  -> the chunks those cells overlap (called once by stream)
-    field(var, hour)  -> first hour of a 60-day block: fetch the block's chunks (16 at a time), decode once into
-                         <cache>/blocks/<var>/<block>.f32 (hour-major, sparse file) -> one global field per hour
+    field(var, hour)  -> first hour of a 60-day block: fetch the block's chunks (32 requests in flight over all
+                         variables, each retried), decode once into <cache>/blocks/<var>/<block>.f32 (hour-major,
+                         sparse; <block>.filled.npy marks it complete, so a rerun reuses it) -> one field per hour
     Accumulated variables are stored as totals since 00 UTC (restarting at 01 UTC): field() returns the hour's
     amount, this hour minus the previous. Chunks that come back empty (open sea) are remembered in
     <cache>/empty.json and never requested again: ERA5-Land's land mask does not change.
@@ -15,6 +16,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
@@ -25,6 +27,9 @@ from . import cache_dir
 T, Y, X = 1440, 50, 100                          # chunk shape: hours, rows, columns
 START = np.datetime64("1950-01-01T00", "h")      # the store's first hour; blocks start at 00 UTC
 KEEP = 2                                         # blocks kept per variable: the current one and the one before
+IN_FLIGHT = 32                                   # chunk requests at once, over all variables
+TRIES = 6                                        # per chunk, with 10 s, 20 s, 40 s ... between tries
+_slots = threading.BoundedSemaphore(IN_FLIGHT)
 _lock = threading.Lock()
 _group = None
 _needed: dict[str, set[tuple[int, int]]] = {}    # source name -> chunk (row, column) indices to fetch
@@ -44,7 +49,8 @@ def _open():
 
             from ...build.credentials import edh_key
             fs = fsspec.filesystem("https", asynchronous=True,
-                                   client_kwargs={"auth": aiohttp.BasicAuth("edh", edh_key())})
+                                   client_kwargs={"auth": aiohttp.BasicAuth("edh", edh_key()),
+                                                  "timeout": aiohttp.ClientTimeout(total=300)})
             _group = zarr.open_group(zarr.storage.FsspecStore(fs, path=_store_url(), read_only=True), mode="r")
     return _group
 
@@ -75,10 +81,35 @@ def use_cells(source, cells: pd.DataFrame) -> None:
           f"({len(chunks) - len(_needed[source.name])} known empty)", flush=True)
 
 
+def _read(array, sel: tuple) -> np.ndarray:
+    """One chunk, retried on timeouts and connection or server errors; at most IN_FLIGHT requests at once.
+
+    A refused key (401/403) or an exhausted quota (429) is not retried: the job stops and a rerun continues.
+    """
+    for attempt in range(TRIES):
+        try:
+            with _slots:
+                values = array[sel]
+            with _lock:
+                requests["chunks"] += 1
+            return values
+        except Exception as error:                   # aiohttp/fsspec raise several types; the message decides
+            text = f"{type(error).__name__}: {error}"
+            if any(code in text for code in ("401", "403", "429")) or attempt == TRIES - 1:
+                raise
+            with _lock:
+                requests["chunks"] += 1                  # a failed request may still count against the quota
+            print(f"edh: retry {attempt + 1} after {text[:120]}", flush=True)
+            time.sleep(10 * 2 ** attempt)
+
+
 def _fetch(source, variable: str, block: int) -> tuple[np.memmap, np.ndarray]:
     """Fetch one block of one variable into a sparse hour-major file; returns (data, filled-pixel mask)."""
     grid = source.grid
     path = cache_dir(source.name) / "blocks" / variable / f"{block:04d}.f32"
+    done = path.with_suffix(".filled.npy")                   # written last: the block is complete
+    if path.exists() and done.exists():                      # a rerun reuses it, no requests
+        return np.memmap(path, np.float32, "r", shape=(T, grid.height, grid.width)), np.load(done)
     path.parent.mkdir(parents=True, exist_ok=True)
     data = np.memmap(path, np.float32, "w+", shape=(T, grid.height, grid.width))
     filled = np.zeros((grid.height, grid.width), bool)
@@ -88,9 +119,7 @@ def _fetch(source, variable: str, block: int) -> tuple[np.memmap, np.ndarray]:
 
     def one(chunk: tuple[int, int]) -> None:
         cy, cx = chunk
-        values = array[t0:t0 + T, cy * Y:(cy + 1) * Y, cx * X:(cx + 1) * X]
-        with _lock:
-            requests["chunks"] += 1
+        values = _read(array, (slice(t0, t0 + T), slice(cy * Y, (cy + 1) * Y), slice(cx * X, (cx + 1) * X)))
         if np.isnan(values).all():
             empty.append(chunk)
             return
@@ -106,6 +135,7 @@ def _fetch(source, variable: str, block: int) -> tuple[np.memmap, np.ndarray]:
             _needed[source.name] -= set(empty)
             requests["empty"] += len(empty)
     data.flush()
+    np.save(done, filled)
     return data, filled
 
 
@@ -123,7 +153,9 @@ def _block(source, variable: str, block: int) -> tuple[np.memmap, np.ndarray]:
                 old = sorted(b for v, b in _blocks if v == variable and b <= block - KEEP)
                 for b in old:                                      # stream moves forward: drop older blocks
                     del _blocks[(variable, b)]
-                    (cache_dir(source.name) / "blocks" / variable / f"{b:04d}.f32").unlink(missing_ok=True)
+                    stale = cache_dir(source.name) / "blocks" / variable / f"{b:04d}.f32"
+                    stale.with_suffix(".filled.npy").unlink(missing_ok=True)
+                    stale.unlink(missing_ok=True)
                 n = requests["chunks"]
             print(f"edh: {variable} block {block} ({START + block * T}) fetched; {n:,} chunk requests so far",
                   flush=True)
