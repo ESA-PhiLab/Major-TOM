@@ -31,6 +31,7 @@ Each source's columns carry its prefix. Units are as published by the producer; 
 | Source | Hourly | Daily | Grid |
 |---|---|---|---|
 | ERA5 (`era5_`) | `t2m`, `d2m` (K), `tp` (m, hour ending at the stamp), `u10`, `v10` (m s⁻¹), `sp` (Pa), `ssrd` (J m⁻²), `sf`, `sd` (m of water equivalent), `swvl1` (m³ m⁻³), `sst` (K), `siconc` (0–1), `valid`, `land` | means of states, sums of `tp`, `ssrd`, `sf`, min and max of `t2m` | 0.25° |
+| ERA5-Land (`era5land_`) | 49 land variables (starter set: `t2m`, `d2m` (K), `u10`, `v10` (m s⁻¹), `sp` (Pa), `tp` (m), `sf`, `sd` (m of water equivalent), `ssrd` (J m⁻²), `snowc` (%), `swvl1` (m³ m⁻³)); accumulated variables are amounts over the hour ending at the stamp | means of states, sums of accumulated variables, min and max of `t2m` | 0.1°, land only, 90°N–57.1°S |
 | CAMS EAC4 (`cams_`) | every 3 hours: surface `no2`, `o3`, `co`, `so2`, `hcho` (kg kg⁻¹, lowest model level), `pm1`, `pm2p5`, `pm10` (kg m⁻³); total columns `tc_no2`, `tc_o3`, `tc_co`, `tc_so2`, `tc_hcho`, `tc_ch4` (kg m⁻²); aerosol optical depth at 550 nm, total and by type | means of the 8 three-hourly steps | 0.75° |
 | NOAA CPC (`cpc_`) | — | `precip` (mm), `tmax`, `tmin` (°C), `start` | 0.5° |
 | Sentinel-5P (`s5p_`) | — | `no2`, `co`, `o3`, `so2`, `hcho` (mol m⁻²), `ch4` (ppb), `aer_ai`, a valid share per product, `start` | 0.05° grid of ~5.5 × 3.5 km pixels |
@@ -41,6 +42,7 @@ Each source's columns carry its prefix. Units are as published by the producer; 
 ## Notes on the sources
 
 - **ERA5:** hourly accumulations hold tiny negative values (about −2 × 10⁻⁹ m) from storage precision; they are kept.
+- **ERA5-Land:** read from Destination Earth's Earth Data Hub copy (zarr), which stores values rounded to ~1 part in 16,000 (bitround, 13 mantissa bits; ±0.02 K at 300 K). Checked against Earth Engine's copy: within 4 × 10⁻⁴ relative. Built in six groups of variables (docs/CLIMATE.md 6.1). Empty south of 57.1°S and over the sea.
 - **NOAA CPC:** each country's gauges report at their own hour, so a CPC day ends at a different UTC hour per country (CPC's end-of-day map, which CPC describes as based on limited, unchecked information).
 - **Sentinel-5P:** data start on 2018-06-28; earlier steps are empty. One overpass a day; gaps under clouds and between swaths.
 - **CAMS EAC4:** available 2003–2025.
@@ -50,12 +52,13 @@ Each source's columns carry its prefix. Units are as published by the producer; 
 
 | Source | Licence | Required notice |
 |---|---|---|
-| ERA5, CAMS | Copernicus licence (CC-BY) | "Contains modified Copernicus Climate Change Service information [year]" (ERA5); "Contains modified Copernicus Atmosphere Monitoring Service information [year]" (CAMS) |
+| ERA5, ERA5-Land, CAMS | Copernicus licence (CC-BY) | "Contains modified Copernicus Climate Change Service information [year]" (ERA5); "Contains modified Copernicus Atmosphere Monitoring Service information [year]" (CAMS) |
+| ERA5-Land access | (as ERA5-Land) | credit: "ERA5-Land accessed through the Earth Data Hub of Destination Earth (European Union), https://earthdatahub.destine.eu" |
 | Sentinel-5P | Copernicus Sentinel data terms | "Contains modified Copernicus Sentinel data [year]" |
 | NOAA CPC | no restriction | acknowledgement of NOAA PSL requested |
 | IMERG | NASA open data | cite the IMERG V07 product |
 
-The exact ERA5 and CAMS notice wording is to be checked against each product's licence page before publishing.
+ERA5-Land is Copernicus Climate Change Service data under the Copernicus licence; Earth Data Hub serves it under CC-BY 4.0 and is credited as the access route, not as a licensor. The exact ERA5 and CAMS notice wording is to be checked against each product's licence page before publishing.
 
 ## Size
 
