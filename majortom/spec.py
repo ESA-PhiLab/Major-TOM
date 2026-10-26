@@ -115,16 +115,20 @@ def window(cell: Cell, lattice: float, origin: tuple[float, float] | None = None
 CORE_NATIVE = ("Core-S2L2A", "Core-S2L1C", "Core-S1RTC")   # pixels copied unchanged from the source
 
 
-def correct_core_transform(transform: Affine, dataset: str) -> Affine:
-    """The grid a Core sample's pixels were read on (docs/reports/2026-10-22-core-pixel-match.md).
+def correct_core_transform(transform: Affine, dataset: str, crs: str) -> Affine:
+    """The grid a Core sample's pixels were read on (docs/reports/2026-10-22-core-pixel-match.md, docs/SPEC.md 7.2).
 
-    Core stored the unrounded origin; native datasets were read at that origin rounded to the
-    band's own pixel grid. Core-DEM was resampled, so its stored transform is kept.
+    Core stored the unrounded origin; native datasets were read at that origin rounded to the band's own pixel
+    grid. That grid passes through default_origin(crs, 60): Sentinel-2's grids start at x = 0 and y = 0 (mod 60)
+    in northern UTM zones and y = 40 (mod 60) in southern ones, which matters for the 60 m bands (checked on
+    real products, 2026-10-26). Core-DEM was resampled, so its stored transform is kept.
     """
     if dataset not in CORE_NATIVE:
         return transform
     rx, ry = transform.a, -transform.e
-    return Affine(rx, 0.0, rx * round(transform.c / rx), 0.0, -ry, ry * round(transform.f / ry))
+    x0, y0 = default_origin(str(crs), 60.0)
+    return Affine(rx, 0.0, x0 + rx * round((transform.c - x0) / rx),
+                  0.0, -ry, y0 + ry * round((transform.f - y0) / ry))
 
 
 def core_dataset(url: str) -> str | None:
@@ -143,7 +147,7 @@ def crop_core_to_v2(data: np.ndarray, transform: Affine, crs: str, cell: Cell, d
     CRS on the band's own pixel grid. None when the v2 window is not inside the sample (about half of Core
     cells, more at high latitudes): those need a new read from the source product.
     """
-    t = correct_core_transform(transform, dataset)
+    t = correct_core_transform(transform, dataset, crs)
     res = t.a
     win = window(cell, lattice=60.0, margin=margin, crs=crs)             # Sentinel-2: a 60 m lattice in every zone
     col = (win.left - t.c) / res

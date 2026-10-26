@@ -275,6 +275,8 @@ Correction, per band of pixel size `r`, using that band's native pixel grid (ori
 
 The pixels themselves are unchanged. Checked pixel for pixel on one product against the original Sentinel-2 file; the formula reproduces the stored origins of all 55 samples.
 
+In code: `majortom.spec.correct_core_transform(transform, dataset, crs)`. Until 2026-10-26 (commits from 2026-10-25) the code rounded to multiples of `r` from 0, ignoring `y₀` = 40 m: wrong by 20 or 40 m for 60 m bands (B01, B09, L1C B10) in southern UTM zones; 10 m and 20 m bands were unaffected. Fixed and tested on 3 northern and 3 southern Core samples at 10, 20 and 60 m; in cell 611D_478L, B01 and B09 rebuilt on the y₀ = 40 m grid are identical to Core.
+
 ### 7.3 Cropping a Core sample to a v2 window
 
 When the v2 window (section 3) lies inside a Core sample's window, in the same CRS, the v2 sample can be cut out of the Core sample without reading the original product. With both origins on each band's pixel grid, the crop offsets are whole pixels:

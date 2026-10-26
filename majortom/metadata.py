@@ -157,7 +157,7 @@ def filter_download(df, local_dir, source_name, by_row = False, verbose = False,
                         f.write(table[col][0].as_py())
                     if dataset is not None:                      # header edit only: pixels unchanged
                         with rasterio.open(dest / "{}.tif".format(col), "r+") as tif:
-                            tif.transform = correct_core_transform(tif.transform, dataset)
+                            tif.transform = correct_core_transform(tif.transform, dataset, tif.crs)
 
                 # thumbnail (png)
                 col = 'thumbnail'

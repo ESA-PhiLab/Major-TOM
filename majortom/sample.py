@@ -32,5 +32,5 @@ def read_tif(tif_bytes, dataset: str | None = None, raw: bool = False):
         with mem_f.open(driver="GTiff") as f:
             data, transform, crs = f.read().squeeze(), f.transform, f.crs
     if dataset is not None and not raw:
-        transform = correct_core_transform(transform, dataset)
+        transform = correct_core_transform(transform, dataset, crs)
     return data, transform, crs

@@ -20,13 +20,15 @@ def test_each_band_on_its_own_grid():
     assert win.transform(10) == Affine(10, 0, 400_000, 0, -10, 6_200_040)
     assert win.transform(60) == Affine(60, 0, 400_020, 0, -60, 6_200_040)
     # the same rule as the correction of a stored Core origin
-    assert win.transform(10) == correct_core_transform(Affine(10, 0, 400_003.7, 0, -10, 6_200_044.9), "Core-S2L2A")
+    assert win.transform(10) == correct_core_transform(Affine(10, 0, 400_003.7, 0, -10, 6_200_044.9), "Core-S2L2A",
+                                                       "EPSG:32630")
 
 
 @pytest.mark.network
 def test_matches_core_v1_samples():
     """For real Core-S2L2A samples, the legacy window's corner equals the corrected stored origin."""
     import fsspec
+    import pandas as pd
     import pyarrow.parquet as pq
     import rasterio
     from fsspec.parquet import open_parquet_file
@@ -38,20 +40,22 @@ def test_matches_core_v1_samples():
     with fsspec.open(url).open() as f:
         meta = pq.read_table(f, columns=["grid_cell", "parquet_url", "parquet_row"]).to_pandas()
 
-    def stored_b04(row):
-        """The B04 geotransform and CRS stored with one Core sample (one row group of its parquet)."""
-        with open_parquet_file(row.parquet_url, columns=["B04"], row_groups=[int(row.parquet_row)]) as f:
-            table = pq.ParquetFile(f).read_row_group(int(row.parquet_row), columns=["B04"])
+    def stored(row, band):
+        """One band's geotransform and CRS stored with one Core sample (one row group of its parquet)."""
+        with open_parquet_file(row.parquet_url, columns=[band], row_groups=[int(row.parquet_row)]) as f:
+            table = pq.ParquetFile(f).read_row_group(int(row.parquet_row), columns=[band])
         with MemoryFile(table.column(0)[0].as_py()) as m, m.open() as src:
             return src.transform, str(src.crs)
 
-    rows = meta.sample(5, random_state=1)
-    for row in rows.itertuples():
-        stored, crs = stored_b04(row)
+    north = meta[meta.grid_cell.str.contains("U_")].sample(3, random_state=1)
+    south = meta[meta.grid_cell.str.contains("D_")].sample(3, random_state=1)
+    for row in pd.concat([north, south]).itertuples():
         r, c = row.grid_cell.split("_")
         cell = Cell(int(r[:-1]) * (1 if r[-1] == "U" else -1), int(c[:-1]) * (1 if c[-1] == "R" else -1))
-        win = legacy_window(cell, crs)
-        assert win.transform(10) == correct_core_transform(stored, "Core-S2L2A"), row.grid_cell
+        for band, res in (("B04", 10), ("B05", 20), ("B01", 60)):
+            t, crs = stored(row, band)
+            assert legacy_window(cell, crs).transform(res) == correct_core_transform(t, "Core-S2L2A", crs), \
+                (row.grid_cell, band)
 
 
 def test_crop_core_to_v2():
