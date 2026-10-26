@@ -1,4 +1,5 @@
-"""Set up archive credentials once: `python -m majortom.build.credentials cdse` (or `earthdata`, `earth-engine`, `cds`).
+"""Set up archive credentials once: `python -m majortom.build.credentials cdse` (or `earthdata`, `earth-engine`, `cds`,
+`edh`).
 
     cdse          prompt (hidden)  ->  [cdse] section of the AWS credentials file (owner-only, 600)  ->  one test read
     earthdata     prompt (hidden)  ->  ~/.config/majortom/earthdata-token (owner-only, 600)          ->  one test read
@@ -7,9 +8,11 @@
                   ->  one test read
     cds           prompt (hidden)  ->  ~/.config/majortom/cds-token (owner-only, 600)                ->  token check
                   (Climate Data Store personal access token, for majortom.climate: ERA5-Land, CAMS)
+    edh           prompt (hidden)  ->  ~/.config/majortom/edh-key (owner-only, 600)                  ->  one metadata read
+                  (Destination Earth's Earth Data Hub API key, for majortom.climate: ERA5-Land hourly as zarr)
 
 Nothing secret is printed back. The environment (CDSE_S3_ACCESS_KEY / CDSE_S3_SECRET_KEY, EARTHDATA_TOKEN,
-EE_PROJECT / EE_SERVICE_ACCOUNT_KEY, CDS_TOKEN) still takes precedence, e.g. in Slurm jobs or Colab. On shared machines file
+EE_PROJECT / EE_SERVICE_ACCOUNT_KEY, CDS_TOKEN, EDH_KEY) still takes precedence, e.g. in Slurm jobs or Colab. On shared machines file
 permissions keep out other users, not administrators: use these revocable keys and tokens, never a main
 password. See docs/ARCHIVES.md.
 """
@@ -32,6 +35,9 @@ EARTHDATA_SETUP = ("NASA Earthdata needs a token (not your password). Generate o
 CDS_SETUP = ("The Climate Data Store needs your personal access token (not your password), from your profile at "
              "https://cds.climate.copernicus.eu, then run `python -m majortom.build.credentials cds`, or set CDS_TOKEN")
 CDS_CHECK = "https://cds.climate.copernicus.eu/api/profiles/v1/account/verification/pat"
+EDH_SETUP = ("Earth Data Hub needs your API key (not your password), from your account settings at "
+             "https://earthdatahub.destine.eu, then run `python -m majortom.build.credentials edh`, or set EDH_KEY")
+EDH_STORE = "https://data.earthdatahub.destine.eu/era5/era5-land-v0.zarr"      # ERA5-Land hourly, zarr v3
 EE_SETUP = ("Earth Engine needs a Cloud project registered for Earth Engine, and either your login "
             "(`earthengine authenticate`) or a service-account key file. Run "
             "`python -m majortom.build.credentials earth-engine`, or set EE_PROJECT (and EE_SERVICE_ACCOUNT_KEY)")
@@ -95,6 +101,23 @@ def cds_token() -> str:
     return token
 
 
+def edh_key_file() -> Path:
+    return config_dir() / "edh-key"
+
+
+def edh_key() -> str:
+    """The Earth Data Hub API key: from the environment, else the owner-only key file. Never logged or stored.
+
+    Readers pass it as HTTP basic auth with the user name `edh` (Earth Data Hub's `https://edh:<key>@...` form).
+    """
+    key = os.environ.get("EDH_KEY")
+    if not key and edh_key_file().exists():
+        key = edh_key_file().read_text().strip()
+    if not key:
+        raise PermissionError(EDH_SETUP)
+    return key
+
+
 def earth_engine_settings() -> tuple[str, str | None]:
     """(project, service-account key file or None for your own login): environment, else the saved settings."""
     saved = config_dir() / "earth-engine.json"
@@ -132,6 +155,10 @@ def save_earthdata(token: str) -> None:
 
 def save_cds(token: str) -> None:
     save_token(cds_token_file(), token)
+
+
+def save_edh(key: str) -> None:
+    save_token(edh_key_file(), key)
 
 
 def save_token(path: Path, token: str) -> None:
@@ -182,9 +209,20 @@ def check_cds() -> str:
     return "token accepted by the Climate Data Store"
 
 
+def check_edh() -> str:
+    """Read the ERA5-Land store's root metadata with the saved key (a few kB, no data)."""
+    import requests
+
+    response = requests.get(f"{EDH_STORE}/zarr.json", auth=("edh", edh_key()), timeout=30)
+    if response.status_code in (401, 403):
+        raise PermissionError(f"Earth Data Hub refused the key ({response.status_code}). {EDH_SETUP}")
+    response.raise_for_status()
+    return f"ERA5-Land store readable ({len(response.content):,} bytes of metadata from {EDH_STORE})"
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("archive", choices=["cdse", "earthdata", "earth-engine", "cds"])
+    parser.add_argument("archive", choices=["cdse", "earthdata", "earth-engine", "cds", "edh"])
     parser.add_argument("--no-check", action="store_true", help="skip the test read")
     args = parser.parse_args(argv)
     if args.archive == "cdse":
@@ -219,6 +257,15 @@ def main(argv: list[str] | None = None) -> int:
         print("Accept each dataset's licence once on its page (Download tab), e.g. ERA5-Land post-processed daily "
               "statistics; CAMS EAC4 on https://ads.atmosphere.copernicus.eu.")
         test = check_cds
+    elif args.archive == "edh":
+        print("Earth Data Hub API key (https://earthdatahub.destine.eu > account settings)")
+        key = getpass.getpass("key: ").strip()
+        if not key:
+            print("no key given; nothing saved", file=sys.stderr)
+            return 1
+        save_edh(key)
+        print(f"saved to {edh_key_file()} (owner-only)")
+        test = check_edh
     else:
         print("NASA Earthdata token (https://urs.earthdata.nasa.gov > Generate Token; it lasts 60 days)")
         token = getpass.getpass("token: ").strip()

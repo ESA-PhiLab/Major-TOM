@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-26 Earth Data Hub key setup (`credentials edh`); Earth Engine costs measured in production, ~30x the profiler for ERA5-Land; quota used up 2026-10-25
 - 2026-10-25 Core v1 window as window="v1", crop_core_to_v2, readers correct Core transforms by default (SPEC 7.5)
 - 2026-10-24 Release design draft: COG default, rumi for training, TACO partitions + TACOCAT, source.coop first -> [design](docs/RELEASE.md)
 - 2026-10-24 ERA5 principle A: catalogue of 207 + 16 static (kinds from the Climate Data Store); builds started: Core-Weather in 8 groups, ERA5-Monthly v2 (202), static table
