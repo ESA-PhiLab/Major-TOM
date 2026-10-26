@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-26 Sentinel-5P figures: maps at step 0 (2022), ±30-day series (Delhi, Bodélé, central Australia), valid shares -> docs/figures/s5p_*.png
 - 2026-10-26 Earth Data Hub key setup (`credentials edh`); Earth Engine costs measured in production, ~30x the profiler for ERA5-Land; quota used up 2026-10-25
 - 2026-10-25 Core v1 window as window="v1", crop_core_to_v2, readers correct Core transforms by default (SPEC 7.5)
 - 2026-10-24 Release design draft: COG default, rumi for training, TACO partitions + TACOCAT, source.coop first -> [design](docs/RELEASE.md)
