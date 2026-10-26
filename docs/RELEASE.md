@@ -246,6 +246,22 @@ Script: `docs/evidence/release_bench.py`; results in `/data/Major-TOM/release-be
 
 **Not covered.** Cold reads from source.coop over HTTP (range requests, latency); GPU decode; other modalities (Sentinel-1 float32, DEM int16).
 
+## 10a. Time series: one file per acquisition or one cube per cell (run 2026-10-26)
+
+Script: `docs/evidence/cube_bench.py`; results in `/data/Major-TOM/release-bench/cube/cube.csv`. 8 cells (Paris farmland, Sahara, Amazon, Siberian taiga, Ganges plain, US Midwest, Alps, Australian outback) x the clearest Sentinel-2 L2A scene per month of 2023 (cloud <= 20%; 95 of 96 built), v2 window, 10 m group (4 bands), lossless, 176 px frames, graph chosen over all predictor families (`med>zigzag>transpose>entropy` won in every layout). rumi's rule: a frame holds the tile alone, or the tile with every axis that has more than one position, so a cube cannot keep "all bands of one date" per frame.
+
+| Layout | Size | Ratio | Write | Read one date | Whole series, 256 px crop |
+|---|---|---|---|---|---|
+| A one file per acquisition, `row col (b h w)` | 424.9 MB | 1.99 | 10.8 s (incl. read-back check) | 20 ms | 37 ms |
+| B one cube per cell, `row col t b (h w)` | 424.0 MB | 2.00 | 4.7 s | 22 ms | 41 ms |
+| C one cube, `row col (t b h w)` | 428.4 MB | 1.98 | 80.2 s | 218 ms | 35 ms |
+| D one cube, `row col (b t h w)` | 425.4 MB | 1.99 | 80.6 s | 215 ms | 34 ms |
+
+- Cubes save no space: GeoZL's predictors work within an image plane, with none across dates, and monthly scenes differ a lot.
+- Whole-tile frames (C, D) read a single date ~10x slower and write ~8x slower, for ~10% faster series crops.
+- Decision proposed: one rumi file per acquisition for the Sentinel-2 release (one TACO sample each, dates added and chosen freely). Cube layout B stays possible later for dense time-series products.
+- For the GeoZL maintainer: a predictor across time (or across planes) is what could make cubes worthwhile, above all for dense series (every revisit rather than monthly).
+
 ## 11. Questions for the TACO / rumi / GeoZL maintainer
 
 Answered 2026-10-26: COG interleave (tile); COG tile size (multiples of 16; 176 works); reference layout (Core-DEM); payload (rumi lossless by default, COG as an option: section 5); near-lossless COG codec (plain LERC: section 4); rumi frame size (176: section 3.1); partitions (by size: section 7). Also 2026-10-26: TACO takes COGs, or any file format, as sample files (2); rumi is used before 1.0, being relatively stable (5); lossy GeoZL profiles are still being benchmarked by Cesar, so profiles are pluggable named graphs (4, section 4). Still open: 6 below.
