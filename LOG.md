@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-26 `.venv` recreated by uv (2026-10-25 12:53) killed ERA5 g2-g8, ERA5-Monthly-v2, cams-fetch; resubmitted on `.venv311` (jobs 1793-1802)
 - 2026-10-26 Sentinel-5P figures: maps at step 0 (2022), ±30-day series (Delhi, Bodélé, central Australia), valid shares -> docs/figures/s5p_*.png
 - 2026-10-26 Earth Data Hub key setup (`credentials edh`); Earth Engine costs measured in production, ~30x the profiler for ERA5-Land; quota used up 2026-10-25
 - 2026-10-25 Core v1 window as window="v1", crop_core_to_v2, readers correct Core transforms by default (SPEC 7.5)
