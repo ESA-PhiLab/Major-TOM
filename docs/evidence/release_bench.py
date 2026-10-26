@@ -4,18 +4,24 @@
       -> each band cut to the v2 window with crop_core_to_v2 (samples where it does not fit are skipped)
       -> groups by pixel size: 10 m (B02 B03 B04 B08), 20 m (B05 B06 B07 B8A B11 B12), 60 m (B01 B09)
       -> each group written in every FORMAT -> <out>/<format>/<sample>_<group>.(tif|rumi)
-      -> per format: bytes, write s, full read s, random 256 px crops of the 10 m group per s
-      -> <out>/results.csv and a summary table printed
+      -> write phase: per format, bytes, write s, full read s (single thread) -> <out>/results.csv
+      -> crops phase (--crops THREADS, a separate process per thread count: rumi's pool is set once per process):
+         batches of 32 random 256 px crops of the 10 m group, each from a different sample, as a data loader reads
+           COG: open + read one window per sample (THREADS threads, and THREADS processes as DataLoader workers)
+           rumi: one read_many call per batch (rumi's pool of THREADS), and 32 single rumi.read calls
+         -> <out>/crops_<THREADS>.csv
 
     .venv (Python 3.12, rasterio 1.5 with GDAL 3.12, rumi-eo, geozl) at /data/Major-TOM/release-bench:
-    python docs/evidence/release_bench.py --n 5 --out /data/Major-TOM/release-bench/tiny          (Slurm CPU job)
+    python docs/evidence/release_bench.py --n 200 --out /data/Major-TOM/release-bench/full            (Slurm CPU job)
+    python docs/evidence/release_bench.py --out /data/Major-TOM/release-bench/full --crops 1          (then 8)
 
-Timings are single-threaded and warm (files just written, in the page cache), as in repeated training epochs.
+Timings are warm (files just written, in the page cache), as in repeated training epochs.
 """
 from __future__ import annotations
 
 import argparse
 import sys
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import time
 from pathlib import Path
 
@@ -40,12 +46,10 @@ FORMATS = {                                          # name -> (kind, settings)
     "cog-tile": ("cog", {"INTERLEAVE": "TILE"}),
     "cog-pixel": ("cog", {"INTERLEAVE": "PIXEL"}),
     "rumi-176": ("rumi", {"tile": 176, "error": None}),
-    "rumi-264": ("rumi", {"tile": 264, "error": None}),
     "rumi-176-e1": ("rumi", {"tile": 176, "error": 1}),
 }
 PATTERN = "b (row h) (col w) -> row col (b h w)"     # all bands of a tile in one frame, as COG tile interleave
-CROPS, CROP = 50, 256
-rumi.set_num_threads(1)
+CROP, BATCH, BATCHES = 256, 32, 20
 
 
 def samples(n: int, seed: int):
@@ -116,7 +120,7 @@ def write_rumi(path: Path, data: np.ndarray, transform, crs, settings: dict, gro
 def main(n: int, out: str, seed: int) -> None:
     out = Path(out)
     rows = []
-    rng = np.random.default_rng(seed)
+    rumi.set_num_threads(1)
     for name, cell, when, groups in samples(n, seed):
         for fmt, (kind, settings) in FORMATS.items():
             folder = out / fmt
@@ -129,6 +133,7 @@ def main(n: int, out: str, seed: int) -> None:
                     header = None
                 else:
                     header = write_rumi(path, data, transform, crs, settings, group, when)
+                    path.with_suffix(".header").write_bytes(header)
                 write_s = time.perf_counter() - t
                 t = time.perf_counter()
                 if kind == "cog":
@@ -141,32 +146,74 @@ def main(n: int, out: str, seed: int) -> None:
                 read_s = time.perf_counter() - t
                 exact = bool(np.array_equal(back, data))
                 maxerr = int(np.abs(back.astype(np.int32) - data.astype(np.int32)).max())
-                crop_s = np.nan
-                if group == "10m":
-                    size = data.shape[1]
-                    yx = rng.integers(0, size - CROP, (CROPS, 2))
-                    t = time.perf_counter()
-                    if kind == "cog":
-                        with rasterio.open(path) as f:
-                            for y, x in yx:
-                                f.read(window=Window(int(x), int(y), CROP, CROP))
-                    else:
-                        for y, x in yx:
-                            rumi.read(path, header, window=(int(y), int(x), CROP, CROP))
-                    crop_s = (time.perf_counter() - t) / CROPS
                 rows.append(dict(sample=name, lat=cell.centroid[1], format=fmt, group=group, layout=layout,
                                  raw=data.nbytes, bytes=path.stat().st_size, write_s=write_s, read_s=read_s,
-                                 crop_s=crop_s, exact=exact, maxerr=maxerr))
+                                 exact=exact, maxerr=maxerr))
     df = pd.DataFrame(rows)
     df.to_csv(out / "results.csv", index=False)
     summary = df.groupby("format").agg(layout=("layout", "first"), ratio=("raw", "sum"), mb=("bytes", "sum"),
-                                       write_s=("write_s", "sum"), read_s=("read_s", "sum"), crop_ms=("crop_s", "mean"),
+                                       write_s=("write_s", "sum"), read_s=("read_s", "sum"),
                                        exact=("exact", "all"), maxerr=("maxerr", "max"))
     summary["ratio"] = summary["ratio"] / summary["mb"]
     summary["mb"] = summary["mb"] / 1e6
-    summary["crop_ms"] *= 1000
     print(f"\n{df['sample'].nunique()} samples, latitudes {sorted(df.groupby('sample').lat.first().round(1).tolist())}")
     print(summary.round(3).to_string())
+
+
+def _cog_crop(args: tuple) -> np.ndarray:
+    """One crop for a worker process: open the COG and read one window."""
+    path, y, x = args
+    with rasterio.open(path) as f:
+        return f.read(window=Window(x, y, CROP, CROP))
+
+
+def crops(out: str, threads: int, seed: int) -> None:
+    """Training-style reads: BATCHES batches of BATCH crops, each crop from a different 10 m sample."""
+    out = Path(out)
+    rumi.set_num_threads(threads)
+    rng = np.random.default_rng(seed)
+    names = sorted(p.name.removesuffix("_10m.tif") for p in (out / "cog-tile").glob("*_10m.tif"))
+    size = 1056
+    batches = [(rng.choice(len(names), BATCH, replace=len(names) < BATCH), rng.integers(0, size - CROP, (BATCH, 2)))
+               for _ in range(BATCHES)]
+    rows = []
+
+    def cog_one(path: Path, y: int, x: int) -> np.ndarray:
+        with rasterio.open(path) as f:
+            return f.read(window=Window(x, y, CROP, CROP))
+
+    for fmt, (kind, _) in FORMATS.items():
+        ext = "tif" if kind == "cog" else "rumi"
+        paths = [out / fmt / f"{n}_10m.{ext}" for n in names]
+        headers = [p.with_suffix(".header").read_bytes() if p.with_suffix(".header").exists()
+                   else rumi.info(source=str(p)).header for p in paths] if kind == "rumi" else None
+        modes = (["open+read", "open+read processes"] if threads > 1 else ["open+read"]) if kind == "cog" \
+            else ["read_many", "read"]
+        procs = ProcessPoolExecutor(threads) if kind == "cog" and threads > 1 else None
+        if procs:
+            list(procs.map(_cog_crop, [(str(paths[0]), 0, 0)] * threads))        # start the workers before timing
+        for mode in modes:
+            t = time.perf_counter()
+            for which, yx in batches:
+                if mode == "open+read processes":
+                    got = list(procs.map(_cog_crop, [(str(paths[i]), int(y), int(x)) for i, (y, x) in zip(which, yx)]))
+                elif kind == "cog":
+                    with ThreadPoolExecutor(threads) as pool:
+                        got = list(pool.map(lambda a: cog_one(paths[a[0]], int(a[1][0]), int(a[1][1])), zip(which, yx)))
+                elif mode == "read_many":
+                    got = rumi.read_many([str(paths[i]) for i in which], [headers[i] for i in which],
+                                         windows=[(int(y), int(x), CROP, CROP) for y, x in yx])
+                else:
+                    got = [rumi.read(paths[i], headers[i], window=(int(y), int(x), CROP, CROP))
+                           for i, (y, x) in zip(which, yx)]
+            per_batch = (time.perf_counter() - t) / BATCHES
+            rows.append(dict(format=fmt, mode=mode, threads=threads, batch_ms=per_batch * 1000,
+                             crops_per_s=BATCH / per_batch, shape=str(np.asarray(got[0] if isinstance(got, list) else got).shape)))
+        if procs:
+            procs.shutdown()
+    df = pd.DataFrame(rows)
+    df.to_csv(out / f"crops_{threads}.csv", index=False)
+    print(df.round(2).to_string(index=False), flush=True)
 
 
 if __name__ == "__main__":
@@ -174,5 +221,6 @@ if __name__ == "__main__":
     p.add_argument("--n", type=int, default=5)
     p.add_argument("--out", required=True)
     p.add_argument("--seed", type=int, default=0)
+    p.add_argument("--crops", type=int, help="run the crops phase with this many threads (after the write phase)")
     a = p.parse_args()
-    main(a.n, a.out, a.seed)
+    crops(a.out, a.crops, a.seed) if a.crops else main(a.n, a.out, a.seed)

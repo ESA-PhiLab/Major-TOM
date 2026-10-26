@@ -132,19 +132,47 @@ majortom/release/
 
 Dependencies (`[release]`): `taco-eo[writer]`, `rumi-eo` (GPL-3.0), `geozl` (BSD-3-Clause), `huggingface_hub`, an S3 client for source.coop, and GDAL >= 3.11 for tile-interleaved COGs (rasterio 1.5 wheels, which need Python >= 3.12, or a conda GDAL). rumi and GeoZL need Python 3.11 or newer; the package moved to 3.11 on 2026-10-25.
 
-## 10. Benchmark: rumi or COG as the default (planned 2026-10-26)
+## 10. Benchmark: rumi or COG as the default (run 2026-10-26)
 
-Real Core-S2L2A samples cut to the v2 window with `crop_core_to_v2` (not a centre crop: the v2 window sits at a different offset in each Core sample, and fits inside only about half of them, so the set leans towards low latitudes; its latitude spread is reported), grouped by pixel size (10 m: 4 bands, 20 m: 6, 60 m: 2). Per format: bytes on disk, full-sample decode time, and random 256 px crops per second (all bands of the 10 m group), single process.
+Script: `docs/evidence/release_bench.py`; results in `/data/Major-TOM/release-bench/full/` (`results.csv`, `crops_1.csv`, `crops_8.csv`). Environment: Python 3.12, rasterio 1.5.2 with GDAL 3.12.2, rumi-eo 0.26.1, GeoZL 0.18.0, on `cirrus` (files on the NVMe RAID, warm in the page cache).
 
-| Format | Settings |
-|---|---|
-| COG | ZSTD, horizontal predictor, 176 px tiles, tile interleave (GDAL >= 3.11) |
-| rumi, lossless | GeoZL graph from `geozl.profile`, frames chosen by rumi |
-| rumi, near-lossless | absolute error bound 1 DN |
+**Data.** 200 random Core-S2L2A samples (seeded, no missing pixels) cut to the v2 window with `crop_core_to_v2`: not a centre crop, since the v2 window sits at a different offset in each Core sample; 206 samples were skipped because their v2 window does not fit inside. Latitudes −74° to 65°. Three groups by pixel size: 10 m (B02 B03 B04 B08, 1056 px), 20 m (B05 B06 B07 B8A B11 B12, 528 px), 60 m (B01 B09, 176 px).
+
+**Formats.** COG: ZSTD, horizontal predictor, 176 px tiles, no overviews, pixel or tile interleave. rumi: 176 px frames holding all bands of a tile (`b (row h) (col w) -> row col (b h w)`), GeoZL graph chosen by `geozl.profile` per group (`planar>zigzag>transpose>entropy` for 10 m and 20 m), lossless or with an absolute bound of 1 DN.
+
+**Size and whole-sample speed** (all three groups, single thread):
+
+| Format | Ratio | Size | Write | Full read | Lossless |
+|---|---|---|---|---|---|
+| COG, pixel interleave | 1.63 | 1,523 MB | 37.9 s | 4.4 s | yes |
+| COG, tile interleave | 1.59 | 1,556 MB | 35.7 s | 5.6 s | yes |
+| rumi lossless | 2.01 | 1,232 MB | 6.8 s | 3.8 s | yes |
+| rumi, 1 DN bound | 2.25 | 1,101 MB | 11.5 s | 4.4 s | no (max error 1) |
+
+**Training-style crops.** 20 batches of 32 random 256 px crops of the 10 m group, each crop from a different sample, opening each file as a data loader does:
+
+| Format | Read | 1 thread | 8 threads | 8 processes |
+|---|---|---|---|---|
+| COG, pixel interleave | open + window | 261 crops/s | 154 | 1,428 |
+| COG, tile interleave | open + window | 219 | 156 | 1,189 |
+| rumi lossless | `read_many` per batch | 444 | 2,571 | — |
+| rumi lossless | single `read` | 482 | 501 | — |
+| rumi, 1 DN bound | `read_many` per batch | 362 | 2,243 | — |
+
+"8 processes" is a pool of 8 worker processes started once, as PyTorch DataLoader workers; COG in 8 threads of one process is slower than in one thread. rumi's `read_many` runs its own thread pool inside one process.
+
+**Findings.**
+
+- Lossless rumi is 19% smaller than the best COG, ~5.5x faster to write, slightly faster to read whole, and 1.8x faster for training crops (2,571 against 1,428 crops/s with 8 workers).
+- The 1 DN bound saves another 11% and gives up exactness: not worth it for Sentinel-2.
+- Tile interleave was 2% larger and slower than pixel interleave for reads of all bands. Its advantage, reading a single band, was not tested.
+- Supports rumi lossless as the default (as Core-DEM), with the COG read path and converter (section 5). To decide with Cesar.
+
+**Not covered.** Cold reads from source.coop over HTTP (range requests, latency); GPU decode; reads of single bands; other modalities (Sentinel-1 float32, DEM int16).
 
 ## 11. Questions for the TACO / rumi / GeoZL maintainer
 
-Answered 2026-10-26: COG interleave (tile); COG tile size (multiples of 16; 176 works); reference layout (Core-DEM). Open: rumi or COG as default (benchmark, section 10).
+Answered 2026-10-26: COG interleave (tile); COG tile size (multiples of 16; 176 works); reference layout (Core-DEM). Benchmark results (section 10) favour rumi lossless as default; final choice open.
 
 
 1. TACO partitions: recommended partition size, and is partitioning by grid row band sensible for a global dataset?

@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-26 Payload benchmark, 200 Sentinel-2 v2 samples: rumi lossless 19% smaller than COG, 1.8x faster training crops -> [RELEASE.md 10](docs/RELEASE.md)
 - 2026-10-26 Fix correct_core_transform: 60 m bands in southern UTM zones used the wrong grid origin (SPEC 7.2); readers now pass the CRS
 - 2026-10-26 Release design after review meeting: tile interleave, size-targeted Hilbert partitions, rumi default with COG path (pending benchmark) -> [design](docs/RELEASE.md)
 - 2026-10-26 ERA5-Land hourly from Earth Data Hub: reader, 49 variables in 6 groups; group 1 building (job 1804) -> [CLIMATE.md 6.1](docs/CLIMATE.md)
