@@ -30,6 +30,8 @@ viz = ["matplotlib"]
 build = ["pystac-client", "planetary-computer", "requests"]   # first version; WS5 decision gate still open
 gee = ["earthengine-api>=1.7"]                                 # majortom.build archive "earth-engine"
 climate = ["xarray", "zarr", "gcsfs", "cdsapi"]               # majortom.climate (ARCO-ERA5; Climate Data Store)
+release = ["rumi-eo>=0.26",                                  # majortom.release; rumi pins its geozl (GPL-3.0)
+           "rasterio>=1.5; python_version >= '3.12'"]          # GDAL >= 3.11 for INTERLEAVE=TILE (docs/RELEASE.md 3)
 all = ["majortom[embed,viz,build]"]
 
 [project.urls]
