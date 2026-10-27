@@ -219,6 +219,7 @@ Rejected: our own size cut with a partition-id field (kept every cell whole and 
 - **source.coop (default):** S3-compatible upload of the partitions and the TACOCAT, with credentials from `majortom.build.credentials` (a new `source-coop` entry, owner-only file, as for the other archives).
 - **Hugging Face (option):** `huggingface_hub` upload of the same files.
 - Resumable: a partition already uploaded with the same size and hash is skipped.
+- **Implemented 2026-10-27** (`majortom/release/publish.py`; `python -m majortom.release publish --folder <release> --to source.coop://<account>/<repository>`): partitions first (largest first), TACOCAT last; sha256 stored as object metadata; a rerun skips files with the same size and sha256; verification lists the remote. source.coop credentials: a repository API key, saved with `python -m majortom.build.credentials source-coop` (data proxy, `https://data.source.coop`), or the repository page's temporary credentials as AWS_* variables (bucket `us-west-2.opendata.source.coop`). Tested against a fake S3 server (`tests/test_release_publish.py`); first real use: the test repository `major-tom/release-test` (section 12).
 
 ## 9. Module layout (proposed)
 
@@ -232,8 +233,8 @@ majortom/release/
   read.py        read(sample, as_="array" | "xarray" | "cog"), to_cog(dataset, out, where) (section 5)
   order.py       Hilbert writing order; taco-eo's partition_size makes the partitions (section 7)
   taco.py        release(): contract, samples, partitions, TACOCAT via taco-eo (implemented)
-  publish.py     source.coop and Hugging Face upload, resumable
-  __main__.py    python -m majortom.release build | publish | to-cog
+  publish.py     source.coop and Hugging Face upload, resumable (implemented)
+  __main__.py    python -m majortom.release build | publish | to-cog (implemented)
 ```
 
 Dependencies (`[release]`): `taco-eo[writer]`, `rumi-eo` (GPL-3.0), `geozl` (BSD-3-Clause), `huggingface_hub`, an S3 client for source.coop, and GDAL >= 3.11 for tile-interleaved COGs (rasterio 1.5 wheels, which need Python >= 3.12, or a conda GDAL). rumi and GeoZL need Python 3.11 or newer; the package moved to 3.11 on 2026-10-25.
@@ -303,3 +304,12 @@ Answered 2026-10-26: COG interleave (tile); COG tile size (multiples of 16; 176 
 4. GeoZL near-lossless and lossy defaults for Sentinel-2 uint16: sensible bounds, and is the wire format stable enough for a long-lived release?
 5. rumi before 1.0: should Core v2 ship rumi now (regenerable from COG later), or wait for 1.0?
 6. source.coop upload: preferred client and any TACO-specific publishing steps (e.g. TACOCAT placement)?
+
+## 12. Test release: major-tom/release-test
+
+Before Sentinel-2 L2A v2, the whole path is tried on a throwaway dataset (Miko, 2026-10-27): one small TACO dataset per majortom.build source, made with `python -m majortom.release build` exactly as a real release, published to a scratch repository and read back remotely. Script: `docs/evidence/release_test_dataset.py` (build, release, check; publish next).
+
+- Cells: Loch Lomond (624U_29L), the Dolomites near Corvara (518U_90R), the Amazon near Manaus (35D_667L); a source with no data at any of them falls back to St Louis (OPERA products cover North America).
+- Per cell: 2 dates for scene products (clearest of May-June and of August-September 2023), 2 years for yearly products (2020, 2021), 1 sample for static products (ids are the cell code alone).
+- Defaults as for real releases: lossless rumi, GeoEnrich on, Hilbert order; partition limit about a third of each source's size, so each dataset has at least 2 partitions.
+- Checks: `taco.validate`, every file read back exactly against its built sample, partitions, GeoEnrich columns; after publishing: a rerun uploads nothing, remote sizes and checksums match, `taco.open_dataset` on the remote URL, samples read over HTTP with `rumi.read`, one opened as a COG.

@@ -1,5 +1,5 @@
 """Set up archive credentials once: `python -m majortom.build.credentials cdse` (or `earthdata`, `earth-engine`, `cds`,
-`edh`).
+`edh`, `source-coop`).
 
     cdse          prompt (hidden)  ->  [cdse] section of the AWS credentials file (owner-only, 600)  ->  one test read
     earthdata     prompt (hidden)  ->  ~/.config/majortom/earthdata-token (owner-only, 600)          ->  one test read
@@ -10,9 +10,12 @@
                   (Climate Data Store personal access token, for majortom.climate: ERA5-Land, CAMS)
     edh           prompt (hidden)  ->  ~/.config/majortom/edh-key (owner-only, 600)                  ->  one metadata read
                   (Destination Earth's Earth Data Hub API key, for majortom.climate: ERA5-Land hourly as zarr)
+    source-coop   prompt (hidden)  ->  [source-coop] section of the AWS credentials file (owner-only, 600)
+                  (a source.coop repository API key, for majortom.release publish; temporary credentials from the
+                  repository page can be used instead, as AWS_* variables, without saving)
 
 Nothing secret is printed back. The environment (CDSE_S3_ACCESS_KEY / CDSE_S3_SECRET_KEY, EARTHDATA_TOKEN,
-EE_PROJECT / EE_SERVICE_ACCOUNT_KEY, CDS_TOKEN, EDH_KEY) still takes precedence, e.g. in Slurm jobs or Colab. On shared machines file
+EE_PROJECT / EE_SERVICE_ACCOUNT_KEY, CDS_TOKEN, EDH_KEY, SOURCE_COOP_ACCESS_KEY_ID / SOURCE_COOP_SECRET_ACCESS_KEY) still takes precedence, e.g. in Slurm jobs or Colab. On shared machines file
 permissions keep out other users, not administrators: use these revocable keys and tokens, never a main
 password. See docs/ARCHIVES.md.
 """
@@ -57,6 +60,26 @@ def profile_keys(section: str) -> tuple[str | None, str | None]:
     if not config.has_section(section):
         return None, None
     return config[section].get("aws_access_key_id"), config[section].get("aws_secret_access_key")
+
+
+SOURCE_COOP_ENDPOINT = "https://data.source.coop"
+
+
+def source_coop_keys() -> tuple[str, str, str] | None:
+    """(key, secret, endpoint) of a source.coop repository API key: environment, else the [source-coop] profile.
+
+    None when none is set up: publishing then uses temporary AWS_* credentials from the repository page.
+    """
+    key, secret = os.environ.get("SOURCE_COOP_ACCESS_KEY_ID"), os.environ.get("SOURCE_COOP_SECRET_ACCESS_KEY")
+    endpoint = os.environ.get("SOURCE_COOP_ENDPOINT")
+    if not (key and secret):
+        key, secret = profile_keys("source-coop")
+        config = configparser.ConfigParser()
+        config.read(credentials_file())
+        endpoint = endpoint or (config["source-coop"].get("endpoint_url") if config.has_section("source-coop") else None)
+    if not (key and secret):
+        return None
+    return key, secret, endpoint or SOURCE_COOP_ENDPOINT
 
 
 def cdse_keys() -> tuple[str, str]:
@@ -138,11 +161,20 @@ SNOWBIRD = dict(bbox=(-111.7, 40.55, -111.6, 40.6), max_items=1)
 
 def save_cdse(key: str, secret: str) -> None:
     """Write the [cdse] section, keeping the file's other sections, and make the file owner-only."""
+    save_profile("cdse", {"aws_access_key_id": key, "aws_secret_access_key": secret})
+
+
+def save_source_coop(key: str, secret: str, endpoint: str = SOURCE_COOP_ENDPOINT) -> None:
+    save_profile("source-coop", {"aws_access_key_id": key, "aws_secret_access_key": secret, "endpoint_url": endpoint})
+
+
+def save_profile(section: str, values: dict) -> None:
+    """Write one section of the AWS-style credentials file, keeping the others, and make the file owner-only."""
     path = credentials_file()
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     config = configparser.ConfigParser()
     config.read(path)
-    config["cdse"] = {"aws_access_key_id": key, "aws_secret_access_key": secret}
+    config[section] = values
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
     with os.fdopen(fd, "w") as handle:
         config.write(handle)
@@ -222,7 +254,7 @@ def check_edh() -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("archive", choices=["cdse", "earthdata", "earth-engine", "cds", "edh"])
+    parser.add_argument("archive", choices=["cdse", "earthdata", "earth-engine", "cds", "edh", "source-coop"])
     parser.add_argument("--no-check", action="store_true", help="skip the test read")
     args = parser.parse_args(argv)
     if args.archive == "cdse":
@@ -257,6 +289,17 @@ def main(argv: list[str] | None = None) -> int:
         print("Accept each dataset's licence once on its page (Download tab), e.g. ERA5-Land post-processed daily "
               "statistics; CAMS EAC4 on https://ads.atmosphere.copernicus.eu.")
         test = check_cds
+    elif args.archive == "source-coop":
+        print("source.coop repository API key (your repository on https://source.coop > Manage > API keys)")
+        key = getpass.getpass("access key id: ").strip()
+        secret = getpass.getpass("secret access key: ").strip()
+        if not (key and secret):
+            print("both are needed; nothing saved", file=sys.stderr)
+            return 1
+        save_source_coop(key, secret)
+        print(f"saved to the [source-coop] section of {credentials_file()} (owner-only); "
+              "majortom.release publish checks access when it lists the destination")
+        return 0
     elif args.archive == "edh":
         print("Earth Data Hub API key (https://earthdatahub.destine.eu > account settings)")
         key = getpass.getpass("key: ").strip()

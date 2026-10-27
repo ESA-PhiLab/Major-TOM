@@ -31,7 +31,9 @@ build = ["pystac-client", "planetary-computer", "requests"]   # first version; W
 gee = ["earthengine-api>=1.7"]                                 # majortom.build archive "earth-engine"
 climate = ["xarray", "zarr", "gcsfs", "cdsapi"]               # majortom.climate (ARCO-ERA5; Climate Data Store)
 release = ["rumi-eo>=0.26",                                  # majortom.release; rumi pins its geozl (GPL-3.0)
-           "rasterio>=1.5; python_version >= '3.12'"]          # GDAL >= 3.11 for INTERLEAVE=TILE (docs/RELEASE.md 3)
+           "taco-eo[writer]>=0.14",                            # TACO containers, partitions, TACOCAT
+           "rasterio>=1.5; python_version >= '3.12'",          # GDAL >= 3.11 for INTERLEAVE=TILE (docs/RELEASE.md 3)
+           "boto3", "huggingface_hub", "requests"]             # publish: source.coop (S3), Hugging Face
 all = ["majortom[embed,viz,build]"]
 
 [project.urls]

@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-27 majortom.release: command line (build, publish, to-cog), publish.py (source.coop, Hugging Face, resumable), source-coop credentials; test release plan -> [RELEASE.md 8, 12](docs/RELEASE.md)
 - 2026-10-27 Documented the ERA5-Land gap south of 57.1°S (Earth Data Hub copy) and the planned Climate Data Store fill
 - 2026-10-27 Build stores float64 bands as float32 (source_dtype in the sidecar) -> [ARCHIVES.md](docs/ARCHIVES.md)
 - 2026-10-27 GeoEnrich on by default in releases; skipped with a warning when offline
