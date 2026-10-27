@@ -145,24 +145,33 @@ rumi is GPL-3.0 and pre-1.0. It is used before 1.0 (Cesar, 2026-10-26: relativel
 - Time: one step per sample (the acquisition time); cubes later.
 - Header stored per file in TACO's `children/rumi` level, as in the workshop notebook.
 
-## 6. TACO contract
+## 6. TACO contract (implemented 2026-10-27: `majortom/release/taco.py`)
+
+`release(samples, out, id=..., description=..., licenses=..., providers=...)` writes built samples of one product as a TACO dataset. taco-eo (0.14.2) does the container, staging, ZIP partitions, TACOCAT, rumi headers and statistics, MajorTOM codes, STAC centroids and validation; `majortom.release` adds the raster groups, the rumi payloads and the partition id.
 
 ```
-structure:
-  cog/<group>.tif           e.g. cog/sentinel2-l2a-10m.tif
-  rumi/<group>.rumi         when rumi is chosen
-metadata levels:
-  sample:         STAC (time, footprint), MajorTOM (grid_cell, row, col, d=10 km), GeoEnrich (optional),
-                  majortom:* from the build sidecar: product id, archive, processing baseline, offset, scaling,
-                  cloud share, nodata share, platform; optionally Core-Weather step 0 (weather at acquisition)
-  children/rumi:  Rumi header and statistics
-  children/cog:   none (the path is enough)
-collection: COLLECTION.json — description, licence and attribution, compression level, Major TOM spec version
+structure:  <group>.rumi per raster group, e.g. 10m.rumi, 20m.rumi, 60m.rumi (Core-DEM: dem.rumi)
+sample level:
+  id                 MT10km_0624U_0029L_20210714T112119   (Core-DEM's cell code + acquisition; no time: with_time=False)
+  stac:*             STAC extension: proj_code, proj_shape, proj_transform (finest group), datetime -> centroid
+  majortom:code      MajorTOM extension (dist_km = the grid's d), computed from the centroid
+  partition:id       size-targeted partition (section 7); taco-eo writes one ZIP per value (partition_by)
+  source:*           from the build sidecar: archive, collection, items, platform, processing_baseline, cloud,
+                     cell_coverage, acquired (to the microsecond; rumi keeps whole seconds)
+  geoenrich:*        optional: GeoEnrich extension (release(..., geoenrich=[...]); needs network)
+children level (per file):
+  <file>::location, <file>::header   Rumi extension (as Core-DEM: /vsisubfile/ byte range inside the partition ZIP)
+  <file>::minimum ... ::p98           Rumi extension statistics (stats=True)
+  content:*          bands, nodata, stored_offset (+1000 for Sentinel-2 from baseline 04.00), categorical, graph, error
+  scaling:*          taco's Scaling, only when the archive declares one (physical = stored x scale + offset)
+collection: id, title, description, licences, providers, keywords; release:* = payload, profile, graph per group,
+            rumi and GeoZL versions, partition maximum, number of partitions, spec
 ```
 
-- Follow Core-DEM's layout so all Major TOM releases read the same way: metadata groups `spatial` (`crs`, `tensor_shape`, `geotransform`, `centroid`), `majortom` (`code`, `partition`), `geoenrich`, and `rumi:header` / `rumi:stats` per file.
-- Sample id: Core-DEM's cell code plus the acquisition time, e.g. `MT10km_0624U_0029L_20210714T112119` (Core-DEM: `MT10km_0104D_0845L`; one DEM per cell, many Sentinel-2 dates). Unique across partitions.
-- Added for time series: `stac:datetime` (acquisition), and `majortom:*` from the build sidecar.
+- A raster group's GeoZL graph is chosen on the first sample and reused for the dataset (recorded in `release:graphs`); categorical groups always use the lossless profile.
+- One dataset per output folder: taco-eo writes the TACOCAT as `.tacocat` beside the partition ZIPs. A single partition is written as one ZIP named `<out>.zip`.
+- Checked (2026-10-27, `docs/evidence/taco_release_check.py`): 95 Sentinel-2 samples (8 cells x 12 months) -> 8 partitions + TACOCAT in 21 s, `taco.validate` ok, all 285 files read back from inside the ZIPs identical, `majortom:code` equal to our cell code for every sample, a sample opened as a COG straight from a partition; also a DEM without time, ESA CCI land cover (categorical, two data types) and Sentinel-1 RTC (float32, a UTM zone other than the cell's). Offline test: `tests/test_release_taco.py`.
+- Open (for Miko and the TACO maintainer): the partition field's name. Core-DEM's `majortom:partition` comes from the MajorTOM extension's `extra` grid (a fixed 3000 km cell); the size-targeted id needs its own namespace, here `partition:id` (`PARTITION_FIELD`, one constant to change).
 
 ## 7. Partitions
 
@@ -203,7 +212,7 @@ majortom/release/
   rumi.py        write one .rumi per group with a profile
   read.py        read(sample, as_="array" | "xarray" | "cog"), to_cog(dataset, out, where) (section 5)
   partition.py   size-targeted partitions along a Hilbert curve (section 7)
-  taco.py        contract, samples, partitions, TACOCAT (taco package, own repository)
+  taco.py        release(): contract, samples, partitions, TACOCAT via taco-eo (implemented)
   publish.py     source.coop and Hugging Face upload, resumable
   __main__.py    python -m majortom.release build | publish | to-cog
 ```

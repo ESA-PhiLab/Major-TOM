@@ -8,6 +8,7 @@ from .partition import hilbert, partition
 from .profiles import RUMI_PROFILES, GeoZLProfile
 from .read import read, to_cog
 from .rumi import RumiWritten, write_rumi
+from .taco import release, sample_id
 
 __all__ = ["COG_PROFILE", "GeoZLProfile", "RUMI_PROFILES", "RasterGroup", "RumiWritten", "groups", "hilbert", "partition",
-           "read", "to_cog", "write_cog", "write_rumi"]
+           "read", "release", "sample_id", "to_cog", "write_cog", "write_rumi"]
