@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-27 ERA5-Land group 1 (Earth Data Hub) validated against the Earth Engine build; Earth Engine's hourly ssrd wrong on some days -> [CLIMATE.md 6.1](docs/CLIMATE.md)
 - 2026-10-27 Overnight: release path checked on 28 collections (3 fixes), TACO via taco-eo -> [report](docs/reports/2026-10-27-release-taco.md)
 - 2026-10-27 majortom.release: TACO datasets via taco-eo (taco.py), checked on S2, DEM, ESA CCI, S1 RTC; release matrix: 28 collections pass -> [RELEASE.md 6](docs/RELEASE.md)
 - 2026-10-27 majortom.release: raster groups (groups.py), Hilbert size-targeted partitions with time fallback (partition.py); cells.cell_from_name -> [RELEASE.md 7](docs/RELEASE.md)
