@@ -220,6 +220,16 @@ def present(collection: Collection, source: Source, tiles) -> list[str]:
     return list(collection.assets) + extra
 
 
+def as_float32(planes: dict[str, np.ndarray]) -> tuple[dict[str, np.ndarray], dict[str, str]]:
+    """float64 planes stored as float32, and which bands were float64 (docs/ARCHIVES.md, "Data types").
+
+    Earth Engine delivers some products as float64 (Dynamic World probabilities, Sentinel-1 GRD in dB); float32
+    keeps 7 significant digits, a change of at most 6e-8 relative, far below what these measurements resolve.
+    """
+    source_dtype = {b: "float64" for b, v in planes.items() if v.dtype == np.float64}
+    return {b: v.astype(np.float32) if b in source_dtype else v for b, v in planes.items()}, source_dtype
+
+
 def band_names(arrays: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
     """One 2-D plane per name; an asset with several bands becomes asset_1, asset_2, ..."""
     planes = {}
@@ -275,7 +285,7 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
     seconds["total"] = round(time.perf_counter() - build_start, 3)
     seconds["retries"] = retries()                      # waits after failed requests (rate limits, drops)
 
-    planes = band_names(arrays)
+    planes, source_dtype = as_float32(band_names(arrays))
     offset = None
     if collection.offset:                               # value added to stored values, per band
         bands, rule = collection.offset
@@ -296,6 +306,7 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
         grid_cell=cell.name, grid_km=cell.d, window_m=win.side, cell_coverage=cell_coverage(cell, win),
         profile=PROFILE, resampled=[] if native else list(arrays),
         resampling=collection.resampling,               # "nearest": codes or classes (kept lossless on release)
+        source_dtype=source_dtype or None,               # bands delivered as float64, stored as float32
         query=dict(datetime=query, margin=margin, dates_used=pick.note), choice=asdict(choice),
         timing=seconds,                                 # seconds: search, scene_choice, bands, total; retries
     )

@@ -28,6 +28,8 @@ Each sample is written as `chips/<product>/<index>.npz` (one array per band) wit
 
 Asking for dates outside a source's period, or a product an archive does not have, raises an error that names the archives that do.
 
+**Data types.** Bands are stored in the type the archive delivers, except float64, which is stored as float32 (decided 2026-10-27). Earth Engine delivers Dynamic World probabilities and Sentinel-1 GRD (dB) as float64; float32 keeps 7 significant digits, a change of at most 6 x 10^-8 relative (about 5 x 10^-8 on a probability, 3 x 10^-6 dB on backscatter), measured on real samples and far below what either product resolves (model probabilities to ~0.01; backscatter to ~0.5-1 dB). The sidecar lists the converted bands in `source_dtype`. Quantities that need more than 7 significant digits (coordinates in degrees, timestamps) are not stored as raster bands.
+
 **Which window.** `window="v2"` (default) is this package's window (docs/SPEC.md section 3). `window="v1"` is Core v1's 1068 px window, for samples that match existing Core samples pixel for pixel (docs/SPEC.md 7.5).
 
 **Which scene.** `download` tries up to five scenes per sample, in the order of `prefer` (`"clearest"`, `"cloudiest"`, `"nearest"` to the date, `"newest"`), and takes the first whose window meets both `cloud` (accepted cloud share, default `(0, 0.05)`; `None` accepts any) and `max_nodata` (accepted share of missing pixels, default `0.01`). If none does:

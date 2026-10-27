@@ -5,7 +5,7 @@
     check (release-bench env): per sample
       bands: pixel size and dtype of every band (from the npz, before any grouping)
       -> groups -> write_rumi (lossless) -> read back exact -> read(as_="cog") exact, same CRS and transform
-      -> partition over all samples -> <out>/matrix.csv: one row per collection and group, pass / fail / why
+      -> Hilbert writing order over all samples -> <out>/matrix.csv: one row per collection and group, pass / fail / why
 
     python docs/evidence/release_matrix.py build --out /data/Major-TOM/release-bench/matrix
     python docs/evidence/release_matrix.py check --out /data/Major-TOM/release-bench/matrix
@@ -68,7 +68,7 @@ def check(out: Path) -> None:
     import rasterio
     import rumi
 
-    from majortom.release import groups, partition, read, write_rumi
+    from majortom.release import groups, hilbert_order, read, write_rumi
 
     rows, parts = [], []
     for npz in sorted(out.glob("*/*/*.npz")):
@@ -119,10 +119,10 @@ def check(out: Path) -> None:
                           bytes=total))
     df = pd.DataFrame(rows)
     df.to_csv(out / "matrix.csv", index=False)
-    ids, summary = partition(pd.DataFrame(parts), max_bytes=10**8)
+    order = hilbert_order(pd.DataFrame(parts))
     pd.set_option("display.width", 250)
     print(df[["collection", "group", "dtype", "shape", "status", "categorical", "ratio", "why"]].to_string(index=False))
-    print(f"\npartition: {len(parts)} samples -> {len(summary)} partitions")
+    print(f"\nwriting order: {len(order)} samples")
 
 
 if __name__ == "__main__":
