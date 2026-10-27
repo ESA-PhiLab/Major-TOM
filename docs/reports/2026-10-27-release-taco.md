@@ -23,7 +23,7 @@ Second run: 28 collections, 36 raster groups, all lossless round trips exact, CO
 
 Earth Engine-only collections (landsat-c2-l1, dynamic-world, viirs-dnb-monthly, sentinel-1-grd-tc) and modis-09a1 (which Planetary Computer does not hold for tile h10v05 in 2023; `modis-09Q1-061` does) built on the `wiki-eo` project as small tests (`release_matrix.py build --earth-engine`). Third run: all 33 collections, 44 raster groups, exact; Dynamic World splits into float probabilities and a uint8 label, VIIRS into float32 radiance and a uint16 count.
 
-For the build, not the release: Dynamic World probabilities and Sentinel-1 GRD (terrain-corrected) arrive from Earth Engine as float64. If the sources are float32, the build should cast them; check before changing.
+For the build, not the release: Dynamic World probabilities and Sentinel-1 GRD (terrain-corrected) arrive as float64, as Earth Engine declares them (`bandTypes`: double). Casting to float32 would halve their size but changes values slightly (Sentinel-1 dB to ~7 digits; probabilities likewise). Open for Miko: keep as delivered, or cast in the build.
 
 ## TACO: majortom/release/taco.py
 
@@ -60,6 +60,8 @@ Offline test: `tests/test_release_taco.py` (synthetic samples, partitions, read 
 - Release env: Python 3.12 (rasterio 1.5 for tile interleave) at `/data/Major-TOM/release-bench/.venv`, with taco-eo[writer] 0.14.2, rumi-eo 0.26.1, geozl 0.18.0 and the build packages. Project env stays 3.11 until the climate builds finish.
 
 ## Open for Miko
+
+0. float64 Earth Engine products (Dynamic World, Sentinel-1 GRD-TC): keep as delivered or cast to float32 (above).
 
 1. Partition field name (above).
 2. Whether every sample should carry GeoEnrich attributes (needs network at release time; Core-DEM has them).
