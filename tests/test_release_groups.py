@@ -21,14 +21,14 @@ def _write(tmp_path, side, sizes):
 
 def test_v2_groups(tmp_path):
     side = dict(bands=list(SIZES), window_m=10_560.0, left=300_000.0, top=5_000_040.0, res=10.0, crs="EPSG:32633",
-                grid_cell="500U_10R", grid_km=10.0, nodata=0.0, offset={b: 1000.0 for b in SIZES}, scaling=None,
+                grid_cell="500U_10R", grid_km=10.0, nodata=0.25, offset={b: 1000.0 for b in SIZES}, scaling=None,
                 query={"margin": 0.056}, resampling="bilinear")
     found, _ = groups(_write(tmp_path, side, SIZES))
     assert [g.name for g in found] == ["10m", "20m", "60m"]
     assert [g.bands for g in found] == [["B02", "B03"], ["B05"], ["B01"]]
     assert found[0].data.shape == (2, 1056, 1056) and found[2].data.shape == (1, 176, 176)
     assert found[1].transform == Affine(20, 0, 300_000, 0, -20, 5_000_040)
-    assert found[0].stored_offset == 1000.0 and found[0].nodata == 0.0
+    assert found[0].stored_offset == 1000.0 and found[0].nodata == 0.0 and found[0].nodata_share == 0.25
 
 
 def test_v1_groups_use_each_grid(tmp_path):
@@ -60,3 +60,12 @@ def test_mixed_dtypes_get_their_own_groups(tmp_path):
     found, _ = groups(tmp_path / "s.npz")
     assert {g.name: str(g.data.dtype) for g in found} == {"300m-uint16": "uint16", "300m-uint8": "uint8"}
     assert all(g.categorical for g in found)
+
+
+def test_float_groups_fill_with_nan(tmp_path):
+    side = dict(bands=["vv"], window_m=10_560.0, left=0.0, top=0.0, res=10.0, crs="EPSG:32633", grid_cell="0U_0R",
+                grid_km=10.0, nodata=0.1, query={}, resampling="bilinear")
+    np.savez(tmp_path / "f.npz", vv=np.ones((1056, 1056), np.float32))
+    (tmp_path / "f.json").write_text(json.dumps(side))
+    (g,), _ = groups(tmp_path / "f.npz")
+    assert np.isnan(g.nodata) and g.nodata_share == 0.1

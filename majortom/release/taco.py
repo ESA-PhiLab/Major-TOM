@@ -49,7 +49,9 @@ class Source(BaseModel):
 
 class Content(BaseModel):
     bands: list[str] = Field(description="Bands in array order")
-    nodata: float | None = Field(default=None, description="Value marking missing pixels")
+    nodata: float | None = Field(default=None, description="Fill value where no source file covers the window "
+                                                           "(0; NaN for floats; None when NaN)")
+    nodata_share: float | None = Field(default=None, description="Share of the window without data, 0-1")
     stored_offset: float | None = Field(default=None, description="Shift carried by stored values (Sentinel-2: +1000 "
                                                                   "from processing baseline 04.00)")
     categorical: bool = Field(description="Classes or codes: stored lossless")
@@ -163,7 +165,8 @@ def release(samples: Sequence[str | Path], out: str | Path, *, id: str, descript
                             acquired=side.get("datetime") or "")
             assets = []
             for g, w in r.files:
-                groups_ = dict(content=Content(bands=g.bands, nodata=g.nodata, stored_offset=g.stored_offset,
+                groups_ = dict(content=Content(bands=g.bands, nodata=None if g.nodata != g.nodata else g.nodata,
+                                               nodata_share=g.nodata_share, stored_offset=g.stored_offset,
                                                categorical=g.categorical, graph=w.graph,
                                                error=None if w.error is None else str(w.error)))
                 if (scaling := _scaling(g)) is not None:              # only when the archive declares one

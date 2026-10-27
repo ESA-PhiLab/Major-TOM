@@ -30,7 +30,8 @@ class RasterGroup:
     transform: Affine
     crs: str
     bands: list[str]
-    nodata: float | None
+    nodata: float                   # fill value: written where no source file covers the window (0; NaN for floats)
+    nodata_share: float | None      # share of the window without data (the sidecar's "nodata")
     stored_offset: float | None     # shift carried by stored values (Sentinel-2 from baseline 04.00: +1000)
     scaling: dict | None            # declared by the archive: physical = stored x scale + offset
     categorical: bool               # classes or codes: only lossless profiles apply
@@ -44,6 +45,19 @@ def _shared(values: dict | None, bands: list[str], what: str):
     if len(found) > 1:
         raise ValueError(f"bands {bands} have different {what}: {sorted(found)}")
     return values.get(bands[0])
+
+
+def _fill_value(side: dict, dtype: np.dtype) -> float:
+    """The value the build writes where no source file covers the window: the collection's declared fill if it has
+    one, else 0 for integers and NaN for floats (majortom/build/backends: empty pixels 0, swath fill NaN)."""
+    try:
+        from ..build.collections import COLLECTIONS
+        declared = COLLECTIONS[side["collection"]].fill
+    except (ImportError, KeyError):
+        declared = None
+    if declared is not None:
+        return float(declared)
+    return float("nan") if np.issubdtype(dtype, np.floating) else 0.0
 
 
 def _categorical(side: dict) -> bool:
@@ -80,7 +94,8 @@ def groups(sample: str | Path) -> tuple[list[RasterGroup], dict]:
         if res == side["res"] and (transform.c, transform.f) != (side["left"], side["top"]):
             raise ValueError(f"{sample.name}: rebuilt corner {transform.c, transform.f} differs from the sidecar's")
         name = f"{res:g}m" if types_at[res] == 1 else f"{res:g}m-{dtype}"
-        out.append(RasterGroup(name, np.stack([arrays[b] for b in bands]), transform, side["crs"], bands,
+        data = np.stack([arrays[b] for b in bands])
+        out.append(RasterGroup(name, data, transform, side["crs"], bands, _fill_value(side, data.dtype),
                                side.get("nodata"), _shared(side.get("offset"), bands, "offsets"),
                                _shared(side.get("scaling"), bands, "scaling"), categorical))
     return out, side

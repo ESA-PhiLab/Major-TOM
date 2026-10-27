@@ -84,12 +84,26 @@ def build(root: Path, only: list[str] | None = None) -> None:
         print(f"{name} ({archive}): {done} samples", flush=True)
 
 
-def release(root: Path) -> None:
+def release(root: Path, only: list[str] | None = None) -> None:
     from majortom.build.collections import COLLECTIONS
 
-    for name in sorted(p.name for p in (root / "build").iterdir() if any(p.rglob("*.npz"))):
+    for name in sorted(p.name for p in (root / "build").iterdir() if any(p.rglob("*.npz")) and (not only or p.name in only)):
         samples = list((root / "build" / name).rglob("*.npz"))
         size = sum(p.stat().st_size for p in samples)
+        seen, dupes = set(), []                     # yearly queries can return the same edition: keep one
+        for npz in sorted(samples):
+            side = json.loads(npz.with_suffix(".json").read_text())
+            key = (side["grid_cell"], side.get("datetime"))
+            if key in seen:
+                dupes.append(npz)
+            seen.add(key)
+        if dupes:
+            for npz in dupes:                       # moved aside, not deleted
+                target = root / "duplicates" / name / npz.parent.name
+                target.mkdir(parents=True, exist_ok=True)
+                for f in (npz, npz.with_suffix(".json")):
+                    f.rename(target / f"{npz.parent.parent.name}_{f.name}")
+            print(f"{name}: {len(dupes)} duplicate samples (same cell and time) moved to {root / 'duplicates'}", flush=True)
         out = root / "release-test" / name / f"{name}.zip"
         args = [sys.executable, "-W", "ignore", "-m", "majortom.release", "build", "--samples", str(root / "build" / name),
                 "--out", str(out), "--id", f"release-test-{name}", "--overwrite",
@@ -114,7 +128,7 @@ def check(root: Path) -> None:
 
     rows = []
     for folder in sorted((root / "release-test").iterdir()):
-        if not folder.is_dir():
+        if not folder.is_dir() or not any(folder.glob("*.zip")):          # skip figures/ and the like
             continue
         name = folder.name
         path = folder / ".tacocat" if (folder / ".tacocat").exists() else folder / f"{name}.zip"
@@ -125,7 +139,7 @@ def check(root: Path) -> None:
             row["samples"], row["partitions"] = len(table), table["source_file"].nunique() if "source_file" in table else 1
             row["geoenrich"] = sum(c.startswith("geoenrich:") for c in table.columns)
             exact = files = 0
-            static = not any("_" in i[19:] for i in table["id"])
+            static = all(len(i.split("_")) == 3 for i in table["id"])      # MT10km_0624U_0029L: cell code alone
             for npz in (root / "build" / name).rglob("*.npz"):
                 found, side = groups(npz)
                 sid = sample_id(side["grid_cell"], side["grid_km"], None if static else side.get("datetime"))
@@ -154,5 +168,5 @@ if __name__ == "__main__":
     p.add_argument("--root", required=True)
     p.add_argument("--only", nargs="*", help="build only these collections")
     a = p.parse_args()
-    {"build": lambda: build(Path(a.root), a.only), "release": lambda: release(Path(a.root)),
+    {"build": lambda: build(Path(a.root), a.only), "release": lambda: release(Path(a.root), a.only),
      "check": lambda: check(Path(a.root))}[a.phase]()

@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-27 release-test built: 33 sources, 167 samples, all validated and exact; README with gallery; fixed nodata (fill value vs share) in releases
 - 2026-10-27 majortom.release: command line (build, publish, to-cog), publish.py (source.coop, Hugging Face, resumable), source-coop credentials; test release plan -> [RELEASE.md 8, 12](docs/RELEASE.md)
 - 2026-10-27 Documented the ERA5-Land gap south of 57.1°S (Earth Data Hub copy) and the planned Climate Data Store fill
 - 2026-10-27 Build stores float64 bands as float32 (source_dtype in the sidecar) -> [ARCHIVES.md](docs/ARCHIVES.md)
