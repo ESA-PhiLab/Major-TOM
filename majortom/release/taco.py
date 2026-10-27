@@ -3,16 +3,17 @@
     built samples (.npz + .json, one product)
       -> groups() -> write_rumi per raster group into <stage>/<sample id>/<group>.rumi
          (lossless by default; one GeoZL graph per raster group, chosen on the first sample and reused)
-      -> partition(): size-targeted Hilbert partitions (max_bytes)
-      -> taco-eo writer: Collection + Contract, one Sample per acquisition, partition_by="partition:id"
+      -> hilbert_order(): samples sorted along a Hilbert curve over cell centroids (order.py)
+      -> taco-eo writer: Collection + Contract, one Sample per acquisition, added in that order;
+         partition_size=max_bytes cuts the stream into ZIPs, so each partition is a compact run of neighbours
            sample level:   stac (STAC extension: proj_code / proj_shape / proj_transform / datetime -> centroid),
-                           majortom (MajorTOM extension: majortom:code), partition:id, source:* (from the sidecar),
+                           majortom (MajorTOM extension: majortom:code), source:* (from the sidecar),
                            geoenrich (optional; GeoEnrich extension)
            children level: rumi (Rumi extension: header, statistics), content:* (bands, nodata, offset, graph),
                            scaling (declared physical scaling, when the archive declares one)
       -> ZIP partitions + TACOCAT (taco-eo), validated
-taco-eo does the container, staging, partition files, catalogue, statistics and validation; this module adds
-the raster groups, the rumi payloads and the partition id.
+taco-eo does the container, staging, partitioning by size, catalogue, statistics and validation; this module adds
+the raster groups, the rumi payloads and the writing order.
 """
 from __future__ import annotations
 
@@ -26,14 +27,10 @@ from pydantic import BaseModel, Field
 
 from ..cells import cell_from_name
 from .groups import RasterGroup, groups
-from .partition import MAX_BYTES, partition
+from .order import hilbert_order
 from .rumi import write_rumi
 
-PARTITION_FIELD = "partition:id"         # open: name agreed with the TACO maintainer (Core-DEM: majortom:partition)
-
-
-class Partition(BaseModel):
-    id: str = Field(description="Size-targeted partition (Hilbert order over cell centroids; docs/RELEASE.md 7)")
+MAX_BYTES = 3 * 10**9      # partition size limit (taco-eo's partition_size); partitions end just under it
 
 
 class Source(BaseModel):
@@ -129,12 +126,10 @@ def release(samples: Sequence[str | Path], out: str | Path, *, id: str, descript
     table = pd.DataFrame(records)
     if table["id"].duplicated().any():
         raise ValueError(f"duplicate sample ids, e.g. {table.loc[table['id'].duplicated(), 'id'].iloc[0]}")
-    table["partition"], summary = partition(table[["grid_cell", "acquired", "bytes"]], max_bytes,
-                                            records[0]["side"]["grid_km"])
-    table = table.sort_values(["partition", "id"])
+    table = table.loc[hilbert_order(table[["grid_cell", "acquired"]], records[0]["side"]["grid_km"])]
 
     sample_level = dict(stac=taco.extensions.STAC(), majortom=taco.extensions.MajorTOM(
-                            dist_km=records[0]["side"]["grid_km"]), partition=Partition, source=Source)
+                            dist_km=records[0]["side"]["grid_km"]), source=Source)
     if geoenrich:
         sample_level["geoenrich"] = taco.extensions.GeoEnrich(list(geoenrich))
     contract = taco.Contract(
@@ -147,9 +142,9 @@ def release(samples: Sequence[str | Path], out: str | Path, *, id: str, descript
         providers=list(providers), keywords=list(keywords) if keywords else None,
         release={"payload": "rumi", "profile": profile, "graphs": graphs, "rumi": _version("rumi-eo"),
                  "geozl": getattr(geozl, "__version__", None) or _version("geozl"),
-                 "partition_max_bytes": max_bytes, "partitions": len(summary),
+                 "partition_max_bytes": max_bytes, "sample_order": "hilbert (docs/RELEASE.md 7)",
                  "spec": "docs/SPEC.md (Major TOM v2 windows)"})
-    with taco.open_writer(collection, out, partition_by=PARTITION_FIELD, overwrite=overwrite,
+    with taco.open_writer(collection, out, partition_size=max_bytes, overwrite=overwrite,
                           progress=progress) as writer:
         for r in table.itertuples():
             side = r.side
@@ -170,7 +165,7 @@ def release(samples: Sequence[str | Path], out: str | Path, *, id: str, descript
                     groups_["scaling"] = scaling
                 assets.append(taco.Asset(w.path, path=f"{g.name}.rumi", metadata=taco.Metadata(**groups_)))
             writer.add(taco.Sample(id=r.id, assets=assets, metadata=taco.Metadata(
-                stac=stac, partition=Partition(id=r.partition), source=source)))
+                stac=stac, source=source)))
         result = writer.run()
     report = taco.validate(result.path)
     if not report.ok:

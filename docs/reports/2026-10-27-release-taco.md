@@ -27,18 +27,20 @@ For the build, not the release: Dynamic World probabilities and Sentinel-1 GRD (
 
 ## TACO: majortom/release/taco.py
 
-Reuses taco-eo 0.14.2 for the container, staging, partition ZIPs, TACOCAT, validation, the STAC extension (centroid), the MajorTOM extension (`majortom:code`) and the Rumi extension (headers, statistics). Our code adds raster groups, rumi payloads and the partition id.
+Reuses taco-eo 0.14.2 for the container, staging, partitioning by size (`partition_size`), TACOCAT, validation, the STAC extension (centroid), the MajorTOM extension (`majortom:code`) and the Rumi extension (headers, statistics). Our code adds raster groups, rumi payloads and the Hilbert writing order (`majortom/release/order.py`; RELEASE.md 7).
 
     path = release(samples, "out/s2.zip", id=..., description=..., licenses=[...], providers=[...],
                    profile="lossless", max_bytes=3 * 10**9, with_time=True)
 
-Sample id is Core-DEM's cell code plus time (`sample_id`, `majortom/release/taco.py:60`): `MT10km_0624U_0029L_20210714T112119`; `with_time=False` gives the cell code alone, as in Core-DEM. taco-eo partitions on `partition:id`, set from `partition()`.
+Sample id is Core-DEM's cell code plus time (`sample_id` in `majortom/release/taco.py`): `MT10km_0624U_0029L_20210714T112119`; `with_time=False` gives the cell code alone, as in Core-DEM.
+
+Update (Miko, morning): our own size cut and `partition:id` field replaced by taco-eo's `partition_size` over samples added in Hilbert order. Same sizes and areas on Core-S2L2A (4,642 partitions of 3.00 GB, ~260 km); 13 of 2.24M cells split across two partitions; no partition field to name.
 
 Checks (`docs/evidence/taco_release_check.py`):
 
 | Data | Result |
 |---|---|
-| 95 Sentinel-2 samples (8 cells x 12 months) | 8 partitions + TACOCAT in 21 s, validated, 285 files read back from the ZIPs identical, `majortom:code` = our cell for all |
+| 95 Sentinel-2 samples (8 cells x 12 months), 100 MB limit | 7 partitions + TACOCAT in 20 s, validated, 285 files read back from the ZIPs identical, `majortom:code` = our cell for all |
 | Copernicus DEM, `with_time=False` | validated, exact, id = code |
 | ESA CCI land cover (categorical, two dtypes) | validated, both files exact |
 | Sentinel-1 RTC (float32, product zone 16, cell zone 15) | validated, exact, code matches |
@@ -47,13 +49,13 @@ Offline test: `tests/test_release_taco.py` (synthetic samples, partitions, read 
 
 ## Earlier today
 
-- `groups.py`, `partition.py` with the time fallback, `cells.cell_from_name` (`d86cc27`). Core-S2L2A simulated: 4,650 partitions of 2.99 GB, ~260 km across.
+- `groups.py`, `cells.cell_from_name` (`d86cc27`); `partition.py` since replaced by `order.py`.
 - rumi profiles search all GeoZL predictors (`fbff805`): med wins, ~3% smaller.
 - Time-series benchmark (RELEASE.md 10a): per-acquisition files as small and fast as per-cell cubes.
 
 ## Decisions
 
-- Partition field `partition:id`, chosen: size-targeted id needs its own namespace; rejected `majortom:partition` (owned by the MajorTOM extension's fixed `extra` grid). Open for Miko and Cesar; one constant, `PARTITION_FIELD`.
+- Partitioning: taco-eo's `partition_size` over a Hilbert writing order (Miko); rejected our own cut with a `partition:id` field.
 - One GeoZL graph per raster group for a dataset, chosen on the first sample: rejected per-file graphs (up to 3% smaller, more metadata).
 - Categorical = resampled with `nearest`: chosen as today's signal; an explicit `categorical` flag per collection would be clearer (Dynamic World probabilities are continuous but `nearest`, so stored lossless).
 - Physical scaling only when the archive declares it: rejected inventing Sentinel-2's 1e-4 scale; `content:stored_offset` records the +1000.
@@ -63,12 +65,13 @@ Offline test: `tests/test_release_taco.py` (synthetic samples, partitions, read 
 
 0. float64 Earth Engine products (Dynamic World, Sentinel-1 GRD-TC): keep as delivered or cast to float32 (above).
 
-1. Partition field name (above).
+1. ~~Partition field name~~: resolved, no field (taco-eo's `partition_size`).
 2. Whether every sample should carry GeoEnrich attributes (needs network at release time; Core-DEM has them).
 3. ERA5-Land group 1 (job 1808, at block 431 of ~453, ~199k of ~330k requests) validated on its 2016-2017 overlap with the Earth Engine build (`docs/evidence/era5land_edh_validate.py`; docs/CLIMATE.md 6.1): agrees within ~4 x 10^-4 except (a) 728 cells south of 57.1°S, outside Earth Data Hub (empty in the new build: fill them from the Climate Data Store later, or leave empty and document?), (b) sea cells where Earth Engine fills `ssrd`, (c) days where Earth Engine's derived hourly `ssrd` is wrong (ERA5 agrees with Earth Data Hub). A final pass is queued after the build (job 1829).
 
 ## Look at first
 
-- majortom/release/taco.py:86 (release)
+- majortom/release/taco.py (release)
+- majortom/release/order.py and docs/RELEASE.md section 7 (writing order)
 - docs/RELEASE.md section 6 (contract as built)
 - docs/evidence/release_matrix.py

@@ -45,7 +45,7 @@ def main(build: str, out: str, max_bytes: str, *flags: str) -> None:
             assert np.array_equal(back.reshape(g.data.shape), g.data, equal_nan=True), (sid, g.name)
             checked += 1
     print(f"{checked} files read back from the partitions: identical; majortom:code matches every cell")
-    print(table.groupby("partition:id").size().to_string())
+    print(table.groupby("source_file").size().to_string())
     g = found[0]
     with read(row[f"{g.name}.rumi::location"], row[f"{g.name}.rumi::header"], as_="cog") as mem, mem.open() as f:
         print("COG from the partition:", f.crs, f.transform.c, f.transform.f, f.descriptions)

@@ -13,7 +13,7 @@ majortom.build output: one sample per cell (bands as arrays + JSON sidecar: CRS,
   -> raster groups by pixel size (Sentinel-2: 10 m, 20 m, 60 m)
   -> payload writers: rumi per group (default) and/or COG per group (the profile of section 3)
   -> TACO FOLDER: contract (structure + metadata levels) + samples
-  -> partitions: ZIPs of just under 3 GB, cut by size along a Hilbert curve (section 7), one contract for all
+  -> partitions: samples written in Hilbert order, cut by taco-eo into ZIPs of just under 3 GB (section 7)
   -> TACOCAT: consolidated metadata over the partitions, opened as one collection
   -> upload: source.coop (default), Hugging Face (option)
 ```
@@ -25,7 +25,7 @@ majortom.build output: one sample per cell (bands as arrays + JSON sidecar: CRS,
 | Payload | **rumi, lossless** (Miko, 2026-10-26, after the benchmark in section 10; as Core-DEM) | COG: release with `payload="cog"` or `"both"`, read any rumi sample as a COG, convert a selection to COG files (section 5) |
 | Compression | lossless | near-lossless, heavily lossy (section 4) |
 | Container | TACO ZIP partitions + TACOCAT; built as FOLDER | — |
-| Partitions | by size: just under 3 GB per ZIP, any modality, neighbouring cells together (section 7) | maximum is a parameter |
+| Partitions | taco-eo's size cut (just under 3 GB per ZIP) over samples written in Hilbert order (section 7) | the limit is a parameter |
 | Raster groups | one file per pixel size | — |
 | Destination | source.coop | Hugging Face |
 | zarr | not used for sample releases | data cubes (many dates per cell), later |
@@ -147,7 +147,7 @@ rumi is GPL-3.0 and pre-1.0. It is used before 1.0 (Cesar, 2026-10-26: relativel
 
 ## 6. TACO contract (implemented 2026-10-27: `majortom/release/taco.py`)
 
-`release(samples, out, id=..., description=..., licenses=..., providers=...)` writes built samples of one product as a TACO dataset. taco-eo (0.14.2) does the container, staging, ZIP partitions, TACOCAT, rumi headers and statistics, MajorTOM codes, STAC centroids and validation; `majortom.release` adds the raster groups, the rumi payloads and the partition id.
+`release(samples, out, id=..., description=..., licenses=..., providers=...)` writes built samples of one product as a TACO dataset. taco-eo (0.14.2) does the container, staging, ZIP partitions (by size), TACOCAT, rumi headers and statistics, MajorTOM codes, STAC centroids and validation; `majortom.release` adds the raster groups, the rumi payloads and the writing order.
 
 ```
 structure:  <group>.rumi per raster group, e.g. 10m.rumi, 20m.rumi, 60m.rumi (Core-DEM: dem.rumi)
@@ -155,7 +155,6 @@ sample level:
   id                 MT10km_0624U_0029L_20210714T112119   (Core-DEM's cell code + acquisition; no time: with_time=False)
   stac:*             STAC extension: proj_code, proj_shape, proj_transform (finest group), datetime -> centroid
   majortom:code      MajorTOM extension (dist_km = the grid's d), computed from the centroid
-  partition:id       size-targeted partition (section 7); taco-eo writes one ZIP per value (partition_by)
   source:*           from the build sidecar: archive, collection, items, platform, processing_baseline, cloud,
                      cell_coverage, acquired (to the microsecond; rumi keeps whole seconds)
   geoenrich:*        optional: GeoEnrich extension (release(..., geoenrich=[...]); needs network)
@@ -165,35 +164,53 @@ children level (per file):
   content:*          bands, nodata, stored_offset (+1000 for Sentinel-2 from baseline 04.00), categorical, graph, error
   scaling:*          taco's Scaling, only when the archive declares one (physical = stored x scale + offset)
 collection: id, title, description, licences, providers, keywords; release:* = payload, profile, graph per group,
-            rumi and GeoZL versions, partition maximum, number of partitions, spec
+            rumi and GeoZL versions, partition size limit, sample order, spec
 ```
 
 - A raster group's GeoZL graph is chosen on the first sample and reused for the dataset (recorded in `release:graphs`); categorical groups always use the lossless profile.
 - One dataset per output folder: taco-eo writes the TACOCAT as `.tacocat` beside the partition ZIPs. A single partition is written as one ZIP named `<out>.zip`.
-- Checked (2026-10-27, `docs/evidence/taco_release_check.py`): 95 Sentinel-2 samples (8 cells x 12 months) -> 8 partitions + TACOCAT in 21 s, `taco.validate` ok, all 285 files read back from inside the ZIPs identical, `majortom:code` equal to our cell code for every sample, a sample opened as a COG straight from a partition; also a DEM without time, ESA CCI land cover (categorical, two data types) and Sentinel-1 RTC (float32, a UTM zone other than the cell's). Offline test: `tests/test_release_taco.py`.
-- Open (for Miko and the TACO maintainer): the partition field's name. Core-DEM's `majortom:partition` comes from the MajorTOM extension's `extra` grid (a fixed 3000 km cell); the size-targeted id needs its own namespace, here `partition:id` (`PARTITION_FIELD`, one constant to change).
+- Checked (2026-10-27, `docs/evidence/taco_release_check.py`): 95 Sentinel-2 samples (8 cells x 12 months), 100 MB limit -> 7 partitions + TACOCAT in 20 s, `taco.validate` ok, all 285 files read back from inside the ZIPs identical, `majortom:code` equal to our cell code for every sample, a sample opened as a COG straight from a partition; also a DEM without time, ESA CCI land cover (categorical, two data types) and Sentinel-1 RTC (float32, a UTM zone other than the cell's). Offline test: `tests/test_release_taco.py`.
 
-## 7. Partitions
+## 7. Partitions: Hilbert order, cut by taco-eo
 
-Code: `majortom/release/partition.py`. Core-DEM uses a fixed 3000 km shard: 63 partitions of ~0.4 GB on average (24 GB in all). A fixed shard only fits one sample size: Sentinel-2 L2A at ~6.2 MB per sample (lossless rumi, measured in section 10) would give shards of tens to a few hundred GB. Partitions are therefore cut by size, the same way for every modality:
+Code: `majortom/release/order.py` (the order) and taco-eo's `partition_size` (the cut). Decided 2026-10-27 (Miko): reuse taco-eo's size-based partitioning and only choose the order samples are written in.
+
+### 7.1 What taco-eo does, and what it needs from us
+
+taco-eo can partition two ways. `partition_by=<field>` writes one ZIP per value of a metadata field: Core-DEM uses a coarse 3000 km MajorTOM cell, which groups neighbours but lets the size follow the data (~0.4 GB of DEM, but tens to hundreds of GB of Sentinel-2, and almost nothing over the ocean). `partition_size=<bytes>` closes a ZIP just before the next sample would pass the limit, **in the order samples are added**: sizes are even for any modality, but which samples share a ZIP depends entirely on that order. Major TOM releases use `partition_size` and add samples in Hilbert order, so each ZIP is also a compact area.
 
 ```
-samples (grid cell, acquisition time, bytes as written)
-  -> cell centroid -> position on a Hilbert curve over longitude x latitude (2^16 x 2^16)
-  -> sort by (curve position, cell, acquisition time)
-  -> walk the cells, closing a partition before it would pass the maximum (default 3 GB); a cell's samples
-     stay together, unless the cell alone is larger than the maximum: then its samples are cut in time order
-  -> partition id (p0000, p0001, ...) in majortom:partition; a summary per partition (samples, cells, bytes,
-     bounding box, first and last cell, first and last acquisition) for the TACOCAT
+samples (grid_cell, acquired)
+  -> each cell's centroid (lon, lat) -> position on a Hilbert curve over the globe (order.hilbert)
+  -> sort by (curve position, cell name, acquisition time)        (order.hilbert_order)
+  -> taco-eo writer: samples added in this order, partition_size = 3 GB
+  -> part0001.zip, part0002.zip, ...: each a run of consecutive samples in the order, just under 3 GB
 ```
 
-- **Neighbours together.** A Hilbert curve is one continuous line through the whole square that turns so any stretch of it covers a compact patch. A partition is a run of consecutive cells on it, so it covers a compact area, and a regional query touches a few partitions. Where the curve's large blocks meet, an area may be split between 2-4 partitions.
-- **Similar sizes for any modality.** The cut uses bytes written, not area or sample count, and one cell is small next to 3 GB (Sentinel-2: 6.2 MB; DEM: ~14 kB), so every partition but the last ends just under the maximum. What changes with modality is the area: ~210,000 DEM samples (about a continent) or ~480 Sentinel-2 samples (~260 km across) per partition.
-- **Time fallback.** Only a cell with more than a partition's worth of samples (e.g. every Sentinel-2 revisit for 10 years, ~4.5 GB) is cut, into consecutive periods. Products with up to a few hundred dates per cell never reach it.
-- Deterministic for a given sample set. A later release with more samples moves the boundaries: releases are versioned and not edited in place.
-- Rejected: fixed shards (size depends on modality); grid-row bands (very uneven sizes, long thin areas); recursive splitting of coarse Major TOM cells (meaningful names, but many tiny partitions over sparse areas such as oceans and islands).
+### 7.2 The Hilbert curve
 
-**Simulated on Core-S2L2A (2026-10-27):** its 2,245,886 acquisitions at 6.2 MB each, 3 GB maximum -> 4,650 partitions in 24 s. Every partition is 2.99 GB except the last (2.67 GB); no cell is split. Median 482 cells per partition, bounding box ~260 km across (median; 90% under 330 km); the widest, over sparse areas such as oceans and islands, span up to ~3,500 km.
+A Hilbert curve is one continuous line that passes through every square of a 2^k x 2^k grid exactly once, moving only between neighbouring squares, and folds so that **any stretch of it covers a compact patch**. Built recursively: the square is split into four quarters, the curve visits them in a U, and inside each quarter the same pattern repeats, rotated so that the end of one quarter meets the start of the next.
+
+- **Grid:** longitude [-180, 180) x latitude [-90, 90] split into 2^16 x 2^16 steps (~0.0055° x 0.0027°, ~600 m x 300 m at the equator), finer than any cell, so cells keep distinct positions. Each cell is placed by its centroid.
+- **Ties and time:** cells sharing a step (none at d >= 1 km) are ordered by name; a cell's samples by acquisition time. Each cell's samples are therefore consecutive and in time order.
+- **Why Hilbert:** sorting by grid row makes thin strips (one ZIP spans a continent's width); a Z-order (Morton) curve is simpler but jumps between patches more often, so its runs are less compact. Hilbert gives the most compact runs of the common curves.
+- **Where it is weak:** the quarters of the recursion meet along fixed lines: first 0° latitude and 0° longitude, then ±45° latitude and ±90° longitude, then halfway again, and so on. Cells on either side of such a line can be far apart in the order, so an area straddling it touches two or more partitions. The map below shows these lines as sharp changes of shade.
+
+![Core-S2L2A cells coloured by their position in the writing order](figures/hilbert_order.png)
+
+`docs/figures/hilbert_order.png` (`docs/evidence/hilbert_order.py`): every Core-S2L2A cell coloured by its position in the order, light first, dark last. Each region is one smooth shade (neighbours are close in the order); sharp steps mark where the curve's large folds meet.
+
+### 7.3 Properties
+
+- **Even sizes for any modality.** taco-eo cuts on bytes written; one sample is small next to 3 GB (Sentinel-2 ~6.2 MB, DEM ~14 kB), so every partition but the last ends just under the limit. Only the area changes with modality: a continent of DEM samples, or ~480 Sentinel-2 cells (~260 km across) per partition.
+- **Neighbours together.** A partition is a run of the order, so it covers a compact patch, and a regional query reads a few neighbouring partitions.
+- **A cell's dates almost always together.** A cell is cut only when it straddles a size boundary; then into two consecutive periods (time order). With one or a few dates per cell this is rare: 13 of 2,238,689 Core-S2L2A cells. Dense time series (e.g. 12 dates per cell) are cut more often, always into neighbouring partitions.
+- **Deterministic** for a given sample set. A later release with more samples moves the cuts: releases are versioned and not edited in place.
+- **No partition field.** taco-eo names the files (`<name>_part0001.zip`, ...) and records each sample's file in the TACOCAT (`source_file`).
+
+**Simulated on Core-S2L2A (2026-10-27, `docs/evidence/hilbert_order.py`):** 2,245,886 acquisitions at 6.2 MB each, 3 GB limit -> 4,642 partitions of 3.00 GB (last 1.49 GB); median 483 cells per partition, ~260 km across (90% under 330 km; up to ~3,550 km over sparse areas such as oceans and islands); 13 cells split across two partitions.
+
+Rejected: our own size cut with a partition-id field (kept every cell whole and needed a field name of its own, `partition:id`, beside Core-DEM's `majortom:partition`; the cut duplicated taco-eo's); fixed shards (size depends on modality); grid-row bands (uneven sizes, thin strips).
 
 ## 8. Publishing
 
@@ -211,7 +228,7 @@ majortom/release/
   profiles.py    RUMI_PROFILES: named GeoZL graphs and error bounds (section 4)
   rumi.py        write one .rumi per group with a profile
   read.py        read(sample, as_="array" | "xarray" | "cog"), to_cog(dataset, out, where) (section 5)
-  partition.py   size-targeted partitions along a Hilbert curve (section 7)
+  order.py       Hilbert writing order; taco-eo's partition_size makes the partitions (section 7)
   taco.py        release(): contract, samples, partitions, TACOCAT via taco-eo (implemented)
   publish.py     source.coop and Hugging Face upload, resumable
   __main__.py    python -m majortom.release build | publish | to-cog

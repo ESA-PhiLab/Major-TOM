@@ -5,6 +5,7 @@ Needs taco-eo[writer], rumi and GDAL >= 3.11; skipped otherwise, as in the proje
 import json
 
 import numpy as np
+import pandas as pd
 import pytest
 
 taco = pytest.importorskip("taco")
@@ -43,8 +44,15 @@ def test_release_round_trip(tmp_path):
                   providers=["Major TOM"], max_bytes=int(2.2 * one))
     ds = taco.open_dataset(str(out))
     table = ds.sql("SELECT * FROM dataset").to_pandas()
-    assert len(table) == 6 and table["partition:id"].nunique() >= 2
-    assert table.groupby("majortom:code")["partition:id"].nunique().max() == 1      # a cell's dates stay together
+    assert len(table) == 6 and table["source_file"].nunique() >= 2                 # taco-eo cut by size
+    # partitions are consecutive runs of the Hilbert order: each file appears once along the order
+    from majortom.release.order import hilbert_order
+    sides = {sample_id(s["grid_cell"], 10.0, s["datetime"]): s for s in
+             (json.loads(p.with_suffix(".json").read_text()) for p in paths)}
+    keyed = table.assign(grid_cell=table["id"].map(lambda i: sides[i]["grid_cell"]),
+                         acquired=table["id"].map(lambda i: pd.Timestamp(sides[i]["datetime"])))
+    files = keyed.loc[hilbert_order(keyed), "source_file"]
+    assert (files != files.shift()).sum() == files.nunique()
     for path in paths:
         side = json.loads(path.with_suffix(".json").read_text())
         row = table[table["id"] == sample_id(side["grid_cell"], 10.0, side["datetime"])].iloc[0]
