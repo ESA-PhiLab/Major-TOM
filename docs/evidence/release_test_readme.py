@@ -68,6 +68,10 @@ def _samples(root: Path) -> pd.DataFrame:
                          archive=side["archive"], datetime=side.get("datetime"), seconds=side["timing"]["total"],
                          cloud=side.get("cloud") if side.get("cloud") is not None else 0.0,
                          missing=side.get("nodata") or 0.0,                     # share of the window without data
+                         search=side["timing"].get("search", float("nan")),
+                         choice=side["timing"].get("scene_choice", float("nan")),
+                         reads=sum(side["timing"]["bands"].values()) if isinstance(side["timing"].get("bands"), dict)
+                         else float("nan"),
                          bytes=js.with_suffix(".npz").stat().st_size, side=side))
     return pd.DataFrame(rows)
 
@@ -214,6 +218,16 @@ def readme(root: Path, samples: pd.DataFrame) -> str:
     access = [f"| {ARCHIVES[a][0]} (`{a}`) | {ARCHIVES[a][1]} | {ARCHIVES[a][2]} | {ARCHIVES[a][3]} | "
               f"{int(r.sources)} | {r.median_s:.0f} s (p90 {r.p90_s:.0f} s) | {r.mb:.1f} MB |"
               for a, r in speed.iterrows()]
+    per = (samples.groupby(["source", "archive"])
+           .agg(n=("seconds", "size"), total=("seconds", "median"), search=("search", "median"),
+                choice=("choice", "median"), reads=("reads", "median"), mb=("bytes", "median"))
+           .sort_values("total"))
+    per_rows = []
+    for (source, archive), r in per.iterrows():
+        parts = {"search": r.search, "scene choice": r.choice, "reads": r.reads}
+        main = max(parts, key=lambda k: parts[k] if parts[k] == parts[k] else -1)
+        per_rows.append(f"| `{source}` | {archive} | {int(r.n)} | {r.total:.1f} s | {r.search:.1f} s | {r.choice:.1f} s | "
+                        f"{r.reads:.1f} s | {main} | {_size(r.mb)} |")
     total = sum(_folder_size(f) for f in (root / "release-test").iterdir() if f.is_dir())
     moved = sorted(samples[samples.cell == "429U_786L"].source.unique())
     fallback = (f"Sources with no data at any of the three cells use **St Louis** (`429U_786L`): {', '.join(f'`{m}`' for m in moved)}."
@@ -255,8 +269,16 @@ and every file reads back identical to the built sample.
 |---|---|---|---|---|---|---|
 {chr(10).join(access)}
 
-Build times are measured per sample (search, scene choice, reads of every band; `timing.total` in each sample's
-sidecar), from `cirrus` on a ~63 MB/s link shared with other jobs: they show relative speed, not a guarantee.
+Per source (medians over its samples; fastest first):
+
+| Source | Archive | Samples | Build time | Search | Scene choice | Reads | Mostly | Built sample, uncompressed |
+|---|---|---|---|---|---|---|---|---|
+{chr(10).join(per_rows)}
+
+Build times are measured per sample (search, scene choice, reads of every band; `timing` in each sample's sidecar),
+built with 3 workers from `cirrus` on a ~63 MB/s link shared with other large downloads at the time: they show which
+sources are slow and why, not their best speed (Sentinel-2 L2A took 97 s per sample here, 18 s in a quieter
+benchmark with 16 workers, docs/reports/2026-10-22-build-speed.md in the Major TOM repository).
 Notes from building Major TOM: Earth Engine bills reading stored images far above what its profiler reports
 (ERA5-Land hourly: ~30x); Destination Earth's Earth Data Hub serves ERA5-Land as zarr with a free quota of
 500,000 requests a month (one request per 60-day chunk).
