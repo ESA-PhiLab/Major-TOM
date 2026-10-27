@@ -37,14 +37,20 @@ def _archive(collection) -> str | None:
     return next((a for a in ORDER if a in collection.sources), None)
 
 
-def build(out: Path) -> None:
+EARTH_ENGINE = ["landsat-c2-l1", "dynamic-world", "viirs-dnb-monthly", "sentinel-1-grd-tc", "modis-09a1"]
+
+
+def build(out: Path, earth_engine: bool = False) -> None:
+    """earth_engine: build only EARTH_ENGINE from Earth Engine (small tests; EE_PROJECT and key from the environment)."""
     from majortom.build import download
     from majortom.build.collections import COLLECTIONS
     from majortom.cells import _table, cell_at
 
     cells = _table([cell_at(*CELL)])
     for name, collection in COLLECTIONS.items():
-        archive = _archive(collection)
+        if earth_engine and name not in EARTH_ENGINE:
+            continue
+        archive = "earth-engine" if earth_engine else _archive(collection)
         if archive is None:
             print(f"{name}: Earth Engine only, pending", flush=True)
             continue
@@ -123,5 +129,6 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("phase", choices=["build", "check"])
     p.add_argument("--out", required=True)
+    p.add_argument("--earth-engine", action="store_true", help="build the Earth Engine-only collections")
     a = p.parse_args()
-    (build if a.phase == "build" else check)(Path(a.out))
+    build(Path(a.out), a.earth_engine) if a.phase == "build" else check(Path(a.out))

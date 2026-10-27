@@ -21,7 +21,9 @@ Also added: categorical data (collections resampled with `nearest`, 11 of 28) re
 
 Second run: 28 collections, 36 raster groups, all lossless round trips exact, COG pixels and georeferencing identical, categorical groups refuse lossy profiles. Covered: uint8/int16/uint16/float32, 10 m to 1 km, static and yearly products, native and resampled sensors.
 
-Not covered: 4 Earth Engine-only collections (landsat-c2-l1, dynamic-world, viirs-dnb-monthly, sentinel-1-grd-tc) until the quota resets on 1 November; modis-09a1, which Planetary Computer does not hold for tile h10v05 in 2023 (`modis-09Q1-061` does; an archive gap, not a code fault).
+Earth Engine-only collections (landsat-c2-l1, dynamic-world, viirs-dnb-monthly, sentinel-1-grd-tc) and modis-09a1 (which Planetary Computer does not hold for tile h10v05 in 2023; `modis-09Q1-061` does) built on the `wiki-eo` project as small tests (`release_matrix.py build --earth-engine`). Third run: all 33 collections, 44 raster groups, exact; Dynamic World splits into float probabilities and a uint8 label, VIIRS into float32 radiance and a uint16 count.
+
+For the build, not the release: Dynamic World probabilities and Sentinel-1 GRD (terrain-corrected) arrive from Earth Engine as float64. If the sources are float32, the build should cast them; check before changing.
 
 ## TACO: majortom/release/taco.py
 
