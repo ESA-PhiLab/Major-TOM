@@ -67,7 +67,7 @@ Offline test: `tests/test_release_taco.py` (synthetic samples, partitions, read 
 
 1. ~~Partition field name~~: resolved, no field (taco-eo's `partition_size`).
 2. ~~GeoEnrich~~: resolved (Miko): on by default, every variable; without network the release completes without them and warns (`_geoenrich` in `majortom/release/taco.py`; tests offline, no-network and network).
-3. Cells south of 57.1°S: Earth Data Hub's copy was cut there when they downloaded it from ECMWF (their source GRIB has 1,472 rows ending at -57.1°; ERA5-Land itself is global); the reason is not stated. Recommended: leave empty and document; ask Earth Data Hub about a full-globe copy; fill from the Climate Data Store if needed.
+3. Cells south of 57.1°S: Earth Data Hub's copy was cut there when they downloaded it from ECMWF (their source GRIB has 1,472 rows ending at -57.1°; ERA5-Land itself is global); the reason is not stated. Decided (Miko): leave empty, documented (docs/CLIMATE.md 6.1, Core-Weather card, CHECKLIST); a Climate Data Store fill is planned if needed.
 4. ERA5-Land group 1 (job 1808, at block 431 of ~453, ~199k of ~330k requests) validated on its 2016-2017 overlap with the Earth Engine build (`docs/evidence/era5land_edh_validate.py`; docs/CLIMATE.md 6.1): agrees within ~4 x 10^-4 except (a) 728 cells south of 57.1°S, outside Earth Data Hub (empty in the new build: fill them from the Climate Data Store later, or leave empty and document?), (b) sea cells where Earth Engine fills `ssrd`, (c) days where Earth Engine's derived hourly `ssrd` is wrong (ERA5 agrees with Earth Data Hub). A final pass is queued after the build (job 1829).
 
 ## Look at first

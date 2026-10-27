@@ -42,7 +42,7 @@ Each source's columns carry its prefix. Units are as published by the producer; 
 ## Notes on the sources
 
 - **ERA5:** hourly accumulations hold tiny negative values (about −2 × 10⁻⁹ m) from storage precision; they are kept.
-- **ERA5-Land:** read from Destination Earth's Earth Data Hub copy (zarr), which stores values rounded to ~1 part in 16,000 (bitround, 13 mantissa bits; ±0.02 K at 300 K). Checked against Earth Engine's copy: within 4 × 10⁻⁴ relative. Built in six groups of variables (docs/CLIMATE.md 6.1). Empty south of 57.1°S and over the sea.
+- **ERA5-Land:** read from Destination Earth's Earth Data Hub copy (zarr), which stores values rounded to ~1 part in 16,000 (bitround, 13 mantissa bits; ±0.02 K at 300 K). Checked against Earth Engine's copy: within 4 × 10⁻⁴ relative. Built in six groups of variables (docs/CLIMATE.md 6.1). Empty over the sea, and **south of 57.1°S** (Antarctica and nearby islands): Earth Data Hub's copy stops there, though ERA5-Land itself is global. ERA5 covers those cells at 0.25°; a fill from the Climate Data Store is planned (docs/CLIMATE.md 6.1).
 - **NOAA CPC:** each country's gauges report at their own hour, so a CPC day ends at a different UTC hour per country (CPC's end-of-day map, which CPC describes as based on limited, unchecked information).
 - **Sentinel-5P:** data start on 2018-06-28; earlier steps are empty. One overpass a day; gaps under clouds and between swaths.
 - **CAMS EAC4:** available 2003–2025.

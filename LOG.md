@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-27 Documented the ERA5-Land gap south of 57.1°S (Earth Data Hub copy) and the planned Climate Data Store fill
 - 2026-10-27 Build stores float64 bands as float32 (source_dtype in the sidecar) -> [ARCHIVES.md](docs/ARCHIVES.md)
 - 2026-10-27 GeoEnrich on by default in releases; skipped with a warning when offline
 - 2026-10-27 Partitions: taco-eo's partition_size over a Hilbert writing order (order.py), replacing our own cut and partition:id -> [RELEASE.md 7](docs/RELEASE.md)

@@ -82,6 +82,7 @@ Workstreams are defined in `docs/STRATEGY.md`.
 - [x] IMERG-, CAMS-, ERA5- (12 variables), CPC-Monthly built; IMERG climatology
 - [x] ERA5 variable set decided: principle A, 207 + 16 static (docs/ERA5_VARIABLES.md, majortom/climate/era5_catalogue.py)
 - [ ] ERA5 207 in Core-Weather (8 groups, running), ERA5-Monthly v2 (202, running), static table (running)
+- [ ] Later, if needed: fill ERA5-Land south of 57.1°S from the Climate Data Store (area request; docs/CLIMATE.md 6.1); ask Earth Data Hub about a full-globe copy
 - [ ] ERA5-Land hourly, all 49 variables, from Earth Data Hub zarr (replaces the Earth Engine plan: measured ~30× the estimate, docs/CLIMATE.md 7): throughput test, then the build; key via `python -m majortom.build.credentials edh`
 - [ ] 1 November: resume IMERG on Earth Engine (~120 EECU-hours), after a one-hour calibration against the quota counter
 - [ ] Core-Weather: Sentinel-5P (stage 1 done, 55%), CAMS (downloading), IMERG, ERA5-Land hourly
