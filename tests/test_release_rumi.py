@@ -68,3 +68,18 @@ def test_all_predictors_are_tried():
     every = {r["graph"] for r in geozl.profile(frame, prior=None, reps=1)}
     assert planar < every
     assert choose_graph([frame], RUMI_PROFILES["lossless"]) in every
+
+
+def test_fractional_seconds_and_intervals(tmp_path, data):
+    """rumi records whole seconds: the time is rounded down; a (start, end) pair is an interval."""
+    w = write_rumi(tmp_path / "t.rumi", data, TRANSFORM, "EPSG:32654", BANDS, "2023-09-15T16:49:19.024000+00:00")
+    assert str(rumi.info(source=str(w.path), header=w.header).time[0]).startswith("2023-09-15 16:49:19")
+    y = write_rumi(tmp_path / "y.rumi", data, TRANSFORM, "EPSG:32654", BANDS, ("2020-01-01", "2020-12-31"))
+    assert rumi.info(source=str(y.path), header=y.header).time_kind != "instant"
+
+
+def test_categorical_refuses_lossy(tmp_path, data):
+    with pytest.raises(ValueError, match="categorical"):
+        write_rumi(tmp_path / "c.rumi", data, TRANSFORM, "EPSG:32654", BANDS, "2023-01-01", "near-lossless-1",
+                   categorical=True)
+    write_rumi(tmp_path / "c.rumi", data, TRANSFORM, "EPSG:32654", BANDS, "2023-01-01", categorical=True)

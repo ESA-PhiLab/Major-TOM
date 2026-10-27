@@ -295,6 +295,7 @@ def build_one(row, archive: Archive, name: str, collection: Collection, datetime
         bands=list(planes),
         grid_cell=cell.name, grid_km=cell.d, window_m=win.side, cell_coverage=cell_coverage(cell, win),
         profile=PROFILE, resampled=[] if native else list(arrays),
+        resampling=collection.resampling,               # "nearest": codes or classes (kept lossless on release)
         query=dict(datetime=query, margin=margin, dates_used=pick.note), choice=asdict(choice),
         timing=seconds,                                 # seconds: search, scene_choice, bands, total; retries
     )

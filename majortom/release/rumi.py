@@ -6,6 +6,8 @@
       -> geozl.compress each frame -> rumi.write -> .rumi + header
       -> verify: read back, identical (lossless) or within the profile's bound, else raise
       -> RumiWritten(path, header, graph, error) for the collection metadata
+Times: rumi records whole seconds, so an acquisition time is rounded down to the second (the exact time belongs
+in the sample's STAC metadata); a (start, end) pair is written as an interval (yearly and static products).
 """
 from __future__ import annotations
 
@@ -39,17 +41,34 @@ def _bound(error, data: np.ndarray) -> float:
     return float(error)
 
 
+def _rumi_time(time):
+    """rumi's time value: a whole-second datetime, or a (start, end) pair of them."""
+    import pandas as pd
+
+    def second(t):
+        t = pd.Timestamp(t)
+        return (t.tz_convert("UTC").tz_localize(None) if t.tzinfo else t).floor("s").to_pydatetime()
+
+    if isinstance(time, (tuple, list)):
+        return tuple(second(t) for t in time)
+    return second(time)
+
+
 def write_rumi(path: str | Path, data: np.ndarray, transform: Affine, crs: str, bands: list[str], time,
-               profile_name: str = "lossless", graph: str | None = None, verify: bool = True) -> RumiWritten:
+               profile_name: str = "lossless", graph: str | None = None, verify: bool = True,
+               categorical: bool = False) -> RumiWritten:
     """Write one raster group (bands, y, x) as a .rumi file; returns its header and the graph used.
 
     `graph` overrides the profile's choice (a release passes the graph it resolved once per raster group).
-    `time` is the acquisition time (one step). With `verify`, the file is read back and checked.
+    `time` is the acquisition time (one step), or a (start, end) pair. `categorical` data (classes, codes)
+    refuse lossy profiles. With `verify`, the file is read back and checked.
     """
     import geozl
     import rumi
 
     prof = profile(profile_name)
+    if categorical and prof.error not in (None, 0):
+        raise ValueError(f"profile {profile_name!r} is lossy; categorical data (classes, codes) must stay lossless")
     frames = rumi.frames(np.ascontiguousarray(data), PATTERN, tile_size=FRAME)
     if graph is None:
         listed = list(frames)
@@ -63,8 +82,8 @@ def write_rumi(path: str | Path, data: np.ndarray, transform: Affine, crs: str, 
         frame.compressed = geozl.compress(frame.data, graph=built[shape])
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    _, header = rumi.write(str(path), frames, bands=list(bands), time=[time], transform=tuple(transform)[:6],
-                           crs=crs)
+    _, header = rumi.write(str(path), frames, bands=list(bands), time=[_rumi_time(time)],
+                           transform=tuple(transform)[:6], crs=crs)
     if verify:
         back = np.asarray(rumi.read(str(path), header))
         back = back[0] if back.ndim == 4 and back.shape[0] == 1 else back

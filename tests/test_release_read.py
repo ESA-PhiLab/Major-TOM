@@ -51,3 +51,17 @@ def test_to_cog_files(sample, tmp_path):
     (written,) = to_cog([("MT10km_0624U_0029L_20220920_10m", path, header)], tmp_path / "cogs")
     with rasterio.open(written) as f:
         assert np.array_equal(f.read(), data) and f.transform == TRANSFORM
+
+
+def test_small_images_get_small_tiles(tmp_path):
+    """MODIS 1 km: a 12 px image gets one 16 px tile, not a 176 px one."""
+    from majortom.release.cog import block_size, write_cog
+
+    assert block_size(1056, 1056) == 176 and block_size(36, 36) == 48 and block_size(12, 12) == 16
+    data = np.arange(2 * 12 * 12, dtype=np.uint16).reshape(2, 12, 12)
+    write_cog(tmp_path / "m.tif", data, Affine(1000, 0, 0, 0, -1000, 0), "EPSG:32615", ["LST_Day", "LST_Night"])
+    with rasterio.open(tmp_path / "m.tif") as f:
+        assert f.block_shapes[0] == (16, 16) and np.array_equal(f.read(), data)
+    with pytest.raises(ValueError, match="categorical"):
+        write_cog(tmp_path / "c.tif", data, Affine(1000, 0, 0, 0, -1000, 0), "EPSG:32615", ["a", "b"], max_error=2,
+                  categorical=True)
