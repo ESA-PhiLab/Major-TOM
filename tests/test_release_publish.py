@@ -41,6 +41,14 @@ def test_upload_resume_and_change(release_folder, s3):
     assert changed.uploaded == ["s2_part0002.zip"] and changed.verified
 
 
+def test_include_root_files(release_folder, s3):
+    (release_folder / "README.md").write_text("# test")
+    (release_folder / "figures").mkdir()
+    (release_folder / "figures" / "gallery.png").write_bytes(b"png")
+    r = publish(release_folder, "s3://bucket/repo", client=s3, include=["README.md", "figures/*.png"])
+    assert r.uploaded == ["README.md", "figures/gallery.png"] and r.verified
+
+
 def test_dry_run_uploads_nothing(release_folder, s3):
     plan = publish(release_folder, "s3://bucket/x", client=s3, dry_run=True)
     assert len(plan.uploaded) == 3 and "Contents" not in s3.list_objects_v2(Bucket="bucket")

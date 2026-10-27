@@ -46,8 +46,16 @@ class PublishReport:
                 f"verified {self.verified}")
 
 
-def _files(folder: Path) -> list[Path]:
-    """Release files: partitions (largest first), then the TACOCAT; nothing else (no stage, no sums cache)."""
+def _files(folder: Path, include: list[str] | None = None) -> list[Path]:
+    """Release files: partitions (largest first), then the TACOCAT; nothing else (no stage, no sums cache).
+
+    `include`: glob patterns instead (e.g. README.md and figures/*.png at a repository's root), in that order.
+    """
+    if include is not None:
+        found = [p for pattern in include for p in sorted(folder.glob(pattern)) if p.is_file()]
+        if not found:
+            raise FileNotFoundError(f"nothing matches {include} in {folder}")
+        return found
     parts = sorted((p for p in folder.glob("*.zip") if p.is_file()), key=lambda p: -p.stat().st_size)
     catalogue = sorted(p for p in (folder / ".tacocat").rglob("*") if p.is_file()) if (folder / ".tacocat").exists() else []
     if not parts:
@@ -112,14 +120,15 @@ def _remote(client, bucket: str, prefix: str) -> dict[str, tuple[int, str | None
 
 
 def publish(folder: str | Path, destination: str, *, dry_run: bool = False, workers: int = 4,
-            client=None) -> PublishReport:
+            include: list[str] | None = None, client=None) -> PublishReport:
     """Upload a release folder to `destination` (module docstring); returns what was uploaded and skipped.
 
     Resumable: files already there with the same size and sha256 are skipped. `dry_run` only plans.
+    `include`: glob patterns of other files to upload instead of a release (README.md, figures/*.png).
     `client` (S3) is for tests; normally it is made from the saved credentials.
     """
     folder = Path(folder)
-    files = _files(folder)
+    files = _files(folder, include)
     sums = _sums(folder, files)
     report = PublishReport(destination)
     if destination.startswith("hf://"):
@@ -130,7 +139,8 @@ def publish(folder: str | Path, destination: str, *, dry_run: bool = False, work
         bucket, _, prefix = destination.removeprefix("s3://").partition("/")
     from boto3.s3.transfer import TransferConfig
 
-    remote = _remote(client, bucket, prefix)
+    remote = {rel: v for rel, v in _remote(client, bucket, prefix).items()
+              if any(f.relative_to(folder).as_posix() == rel for f in files)}
     config = TransferConfig(multipart_threshold=CHUNK, multipart_chunksize=CHUNK, max_concurrency=workers)
     for f in files:
         rel = f.relative_to(folder).as_posix()

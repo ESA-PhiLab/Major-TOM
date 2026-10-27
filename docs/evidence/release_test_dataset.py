@@ -11,11 +11,13 @@
               -> <root>/release-test/<collection>/<collection>.zip (+ partitions, .tacocat)
     check   (release env): per dataset: taco.validate, every file read back exactly against its build sample,
               partitions, GeoEnrich columns -> <root>/release-test/check.csv
-    publish (later): majortom.release publish to source.coop major-tom/release-test
+    publish (release env): each source folder -> source.coop://major-tom/release-test/<source>, then README.md,
+              figures/ and check.csv at the root; a second pass must upload nothing (resume)
 
     python docs/evidence/release_test_dataset.py build   --root /data/Major-TOM/release-test
     python docs/evidence/release_test_dataset.py release --root /data/Major-TOM/release-test
     python docs/evidence/release_test_dataset.py check   --root /data/Major-TOM/release-test
+    python docs/evidence/release_test_dataset.py publish --root /data/Major-TOM/release-test
 """
 from __future__ import annotations
 
@@ -162,11 +164,29 @@ def check(root: Path) -> None:
     print(df.to_string(index=False))
 
 
+def publish_all(root: Path, destination: str = "source.coop://major-tom/release-test") -> None:
+    from majortom.release.publish import publish
+
+    out = root / "release-test"
+    for rerun in (False, True):                      # the second pass checks resuming: nothing should be uploaded
+        sent = 0
+        for folder in sorted(f for f in out.iterdir() if f.is_dir() and any(f.glob("*.zip"))):
+            r = publish(folder, f"{destination}/{folder.name}")
+            sent += len(r.uploaded)
+            if not rerun:
+                print(r, flush=True)
+            assert r.verified, f"{folder.name}: remote does not match"
+        r = publish(out, destination, include=["README.md", "figures/*.png", "check.csv"])
+        sent += len(r.uploaded)
+        print(f"{'second' if rerun else 'first'} pass: {sent} files uploaded; root {r}", flush=True)
+    assert sent == 0, "the second pass uploaded files: resuming does not work"
+
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    p.add_argument("phase", choices=["build", "release", "check"])
+    p.add_argument("phase", choices=["build", "release", "check", "publish"])
     p.add_argument("--root", required=True)
     p.add_argument("--only", nargs="*", help="build only these collections")
     a = p.parse_args()
     {"build": lambda: build(Path(a.root), a.only), "release": lambda: release(Path(a.root), a.only),
-     "check": lambda: check(Path(a.root))}[a.phase]()
+     "check": lambda: check(Path(a.root)), "publish": lambda: publish_all(Path(a.root))}[a.phase]()
