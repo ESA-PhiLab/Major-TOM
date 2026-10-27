@@ -175,11 +175,14 @@ def release(samples: Sequence[str | Path], out: str | Path, *, id: str, descript
             writer.add(taco.Sample(id=r.id, assets=assets, metadata=taco.Metadata(
                 stac=stac, source=source)))
         result = writer.run()
-    report = taco.validate(result.path)
+    path = Path(result.path)
+    if path.suffix == ".zip":                 # one partition: taco-eo writes the ZIP alone; add a TACOCAT so every
+        path = taco.consolidate([path], path.parent, overwrite=True)   # release opens from its folder URL
+    report = taco.validate(str(path))
     if not report.ok:
-        raise RuntimeError(f"taco.validate failed for {result.path}: {report}")
+        raise RuntimeError(f"taco.validate failed for {path}: {report}")
     shutil.rmtree(stage, ignore_errors=True)
-    return Path(result.path)
+    return path
 
 
 def _reachable(url: str, timeout: float = 15) -> bool:

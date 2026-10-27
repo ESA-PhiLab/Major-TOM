@@ -228,6 +228,17 @@ def readme(root: Path, samples: pd.DataFrame) -> str:
         main = max(parts, key=lambda k: parts[k] if parts[k] == parts[k] else -1)
         per_rows.append(f"| `{source}` | {archive} | {int(r.n)} | {r.total:.1f} s | {r.search:.1f} s | {r.choice:.1f} s | "
                         f"{r.reads:.1f} s | {main} | {_size(r.mb)} |")
+    remote_rows, remote_note = [], ""
+    if (root / "release-test" / "remote.csv").exists():
+        rc = pd.read_csv(root / "release-test" / "remote.csv")
+        mine = rc[~rc.source.str.startswith("core-dem")]
+        dem = rc[rc.source.str.startswith("core-dem")]
+        exact = f"{int(mine.exact.sum())}/{int(mine.files.sum())}"
+        remote_rows = [f"| `{r.source}` | {r.open_s:.2f} s | {r.read_median_s:.2f} s | {r.read_max_s:.2f} s | {int(r.exact)}/{int(r.files)} |"
+                       for r in mine.itertuples()]
+        remote_note = (f"All {exact} files read from source.coop were identical to the built samples. For comparison, "
+                       f"Core-DEM (us-west-2, 1.7 million samples): open {float(dem.open_s.iloc[0]):.1f} s (a much larger "
+                       f"catalogue), one sample {float(dem.read_median_s.iloc[0]):.2f} s (median of 10).") if len(dem) else ""
     total = sum(_folder_size(f) for f in (root / "release-test").iterdir() if f.is_dir())
     moved = sorted(samples[samples.cell == "429U_786L"].source.unique())
     fallback = (f"Sources with no data at any of the three cells use **St Louis** (`429U_786L`): {', '.join(f'`{m}`' for m in moved)}."
@@ -243,7 +254,7 @@ in its own folder, made exactly as a real release would be (`python -m majortom.
 
 ## Where
 
-![The test cells](figures/cells.png)
+![The test cells](https://data.source.coop/major-tom/release-test/figures/cells.png)
 
 Three cells of the Major TOM 10 km grid: **Loch Lomond** (`624U_29L`), the **Dolomites near Corvara** (`518U_90R`)
 and the **Amazon near Manaus** (`35D_667L`). {fallback} Per cell: two dates for scene products (the clearest of
@@ -252,7 +263,7 @@ Fewer samples mean the archive had nothing for that cell and period.
 
 ## What
 
-![One quicklook per source](figures/gallery.png)
+![One quicklook per source](https://data.source.coop/major-tom/release-test/figures/gallery.png)
 
 | Source | Kind | Pixel sizes | Bands | Data types | Time | Archive | Samples | Released (all files) | Compression (rumi) | Partitions | Check |
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -282,6 +293,18 @@ benchmark with 16 workers, docs/reports/2026-10-22-build-speed.md in the Major T
 Notes from building Major TOM: Earth Engine bills reading stored images far above what its profiler reports
 (ERA5-Land hourly: ~30x); Destination Earth's Earth Data Hub serves ERA5-Land as zarr with a free quota of
 500,000 requests a month (one request per 60-day chunk).
+
+## Reading it from source.coop: measured
+
+Opened and read from `https://data.source.coop/major-tom/release-test/<source>/` without credentials, from `cirrus`
+(UK); the data are stored in AWS eu-central-1 (Frankfurt). "Open": `taco.open_dataset` and the catalogue query;
+"read": one file of one sample with `rumi.read` over HTTP (byte ranges inside the partition ZIP).
+
+| Source | Open | Read (median) | Read (max) | Identical to build |
+|---|---|---|---|---|
+{chr(10).join(remote_rows)}
+
+{remote_note}
 
 ## Reading it
 

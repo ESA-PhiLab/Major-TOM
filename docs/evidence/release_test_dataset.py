@@ -176,8 +176,8 @@ def publish_all(root: Path, destination: str = "source.coop://major-tom/release-
             if not rerun:
                 print(r, flush=True)
             assert r.verified, f"{folder.name}: remote does not match"
-        r = publish(out, destination, include=["README.md", "figures/*.png", "check.csv"])
-        sent += len(r.uploaded)
+        r = publish(out, destination, include=["README.md", "figures/*.png", "check.csv", "remote.csv"], force=not rerun)
+        sent += len(r.uploaded) if rerun else 0
         print(f"{'second' if rerun else 'first'} pass: {sent} files uploaded; root {r}", flush=True)
     assert sent == 0, "the second pass uploaded files: resuming does not work"
 

@@ -88,6 +88,14 @@ def test_no_network_still_releases_without_geoenrich(tmp_path, monkeypatch):
     assert not any(c.startswith("geoenrich:") for c in columns)
 
 
+def test_one_partition_still_gets_a_tacocat(tmp_path):
+    """Every release opens from its folder: a single partition is consolidated into a .tacocat too."""
+    out = release(_two_samples(tmp_path), tmp_path / "out" / "one.zip", id="one", description="test",
+                  licenses=["CC-BY-4.0"], providers=["Major TOM"], geoenrich=False)
+    assert out.name == ".tacocat" and (tmp_path / "out" / "one.zip").exists()
+    assert taco.open_dataset(str(tmp_path / "out")).sql("SELECT * FROM dataset").num_rows == 2
+
+
 @pytest.mark.network
 def test_geoenrich_by_default(tmp_path):
     out = release(_two_samples(tmp_path), tmp_path / "out" / "g.zip", id="g", description="test",

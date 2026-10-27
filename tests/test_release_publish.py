@@ -47,6 +47,9 @@ def test_include_root_files(release_folder, s3):
     (release_folder / "figures" / "gallery.png").write_bytes(b"png")
     r = publish(release_folder, "s3://bucket/repo", client=s3, include=["README.md", "figures/*.png"])
     assert r.uploaded == ["README.md", "figures/gallery.png"] and r.verified
+    assert s3.head_object(Bucket="bucket", Key="repo/figures/gallery.png")["ContentType"] == "image/png"
+    again = publish(release_folder, "s3://bucket/repo", client=s3, include=["README.md"], force=True)
+    assert again.uploaded == ["README.md"]                                       # force re-sends unchanged files
 
 
 def test_dry_run_uploads_nothing(release_folder, s3):
@@ -64,6 +67,10 @@ def test_source_coop_routes(monkeypatch, tmp_path):
     monkeypatch.setenv("SOURCE_COOP_SECRET_ACCESS_KEY", "s")
     client, bucket, prefix = _source_coop("source.coop://major-tom/release-test/s2")
     assert (bucket, prefix) == ("major-tom", "release-test/s2") and client.meta.endpoint_url == "https://data.source.coop"
+    monkeypatch.setenv("SOURCE_COOP_SESSION_TOKEN", "t")                         # temporary proxy credentials
+    client, bucket, _ = _source_coop("source.coop://major-tom/release-test/s2")
+    assert bucket == "major-tom" and client._request_signer._credentials.token == "t"
+    monkeypatch.delenv("SOURCE_COOP_SESSION_TOKEN")
     monkeypatch.delenv("SOURCE_COOP_ACCESS_KEY_ID")
     monkeypatch.setenv("AWS_SESSION_TOKEN", "t")                                  # route B: temporary credentials
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "k")
@@ -72,3 +79,15 @@ def test_source_coop_routes(monkeypatch, tmp_path):
     assert (bucket, prefix) == ("eu-central-1.opendata.source.coop", "major-tom/release-test/s2")
     monkeypatch.setenv("SOURCE_COOP_REGION", "us-west-2")                         # e.g. Core-DEM's connection
     assert _source_coop("source.coop://major-tom/core-dem")[1] == "us-west-2.opendata.source.coop"
+
+
+def test_multipart_etag_matches_s3(tmp_path, s3):
+    """A file above the multipart size gets the ETag S3 computes for it, so a rerun skips it."""
+    import majortom.release.publish as pub
+
+    folder = tmp_path / "big"
+    folder.mkdir()
+    (folder / "x_part0001.zip").write_bytes(b"z" * (pub.CHUNK * 2 + 123))
+    first = publish(folder, "s3://bucket/big", client=s3)
+    assert first.verified and "-" in pub._sums(folder, [folder / "x_part0001.zip"])["x_part0001.zip"][1]
+    assert not publish(folder, "s3://bucket/big", client=s3).uploaded

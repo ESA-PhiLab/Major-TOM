@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-27 Published major-tom/release-test (33 sources, eu-central-1): resume works, 224/224 files read back from source.coop identical, open ~0.5-1 s, read ~0.1-0.5 s per file
 - 2026-10-27 release-test built: 33 sources, 167 samples, all validated and exact; README with gallery; fixed nodata (fill value vs share) in releases
 - 2026-10-27 majortom.release: command line (build, publish, to-cog), publish.py (source.coop, Hugging Face, resumable), source-coop credentials; test release plan -> [RELEASE.md 8, 12](docs/RELEASE.md)
 - 2026-10-27 Documented the ERA5-Land gap south of 57.1°S (Earth Data Hub copy) and the planned Climate Data Store fill
