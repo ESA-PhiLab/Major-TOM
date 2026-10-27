@@ -11,8 +11,9 @@ Destinations:
         A. repository API key, endpoint https://data.source.coop: bucket <account>, keys <repository>/<prefix>/...
            (saved once with `python -m majortom.build.credentials source-coop`, or SOURCE_COOP_* variables)
         B. temporary credentials from the repository page ("View Credentials": AWS_ACCESS_KEY_ID,
-           AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN in the environment): bucket us-west-2.opendata.source.coop,
-           keys <account>/<repository>/<prefix>/...
+           AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN in the environment): bucket <region>.opendata.source.coop
+           (the product's data connection; SOURCE_COOP_REGION, default eu-central-1), keys
+           <account>/<repository>/<prefix>/...
     hf://<owner>/<dataset>[/<path>]                     Hugging Face dataset repository (huggingface_hub login)
 """
 from __future__ import annotations
@@ -24,7 +25,12 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 SOURCE_COOP_ENDPOINT = "https://data.source.coop"
-SOURCE_COOP_BUCKET = "us-west-2.opendata.source.coop"      # route B
+REGION = "eu-central-1"          # source.coop data connection of Major TOM releases (Frankfurt; Miko, 2026-10-27)
+
+
+def _bucket(region: str) -> str:
+    """Route B's bucket for an AWS Open Data connection, e.g. eu-central-1.opendata.source.coop."""
+    return f"{region}.opendata.source.coop"
 CHUNK = 64 * 1024**2
 
 
@@ -84,10 +90,11 @@ def _source_coop(destination: str):
     if keys is not None:                                   # route A: repository API key, data proxy
         key, secret, endpoint = keys
         client = boto3.client("s3", aws_access_key_id=key, aws_secret_access_key=secret, endpoint_url=endpoint,
-                              region_name="us-west-2")
+                              region_name=os.environ.get("SOURCE_COOP_REGION", REGION))
         return client, account, rest.strip("/")
     if os.environ.get("AWS_SESSION_TOKEN"):                # route B: temporary credentials from the repository page
-        return boto3.client("s3", region_name="us-west-2"), SOURCE_COOP_BUCKET, f"{account}/{rest.strip('/')}"
+        region = os.environ.get("SOURCE_COOP_REGION", REGION)
+        return boto3.client("s3", region_name=region), _bucket(region), f"{account}/{rest.strip('/')}"
     raise PermissionError("no source.coop credentials: save a repository API key with "
                           "`python -m majortom.build.credentials source-coop`, or paste the temporary credentials "
                           "from the repository page (View Credentials) as AWS_* environment variables")

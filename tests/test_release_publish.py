@@ -61,4 +61,6 @@ def test_source_coop_routes(monkeypatch, tmp_path):
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "k")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "s")
     _, bucket, prefix = _source_coop("source.coop://major-tom/release-test/s2")
-    assert (bucket, prefix) == ("us-west-2.opendata.source.coop", "major-tom/release-test/s2")
+    assert (bucket, prefix) == ("eu-central-1.opendata.source.coop", "major-tom/release-test/s2")
+    monkeypatch.setenv("SOURCE_COOP_REGION", "us-west-2")                         # e.g. Core-DEM's connection
+    assert _source_coop("source.coop://major-tom/core-dem")[1] == "us-west-2.opendata.source.coop"
