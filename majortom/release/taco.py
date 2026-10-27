@@ -8,7 +8,8 @@
          partition_size=max_bytes cuts the stream into ZIPs, so each partition is a compact run of neighbours
            sample level:   stac (STAC extension: proj_code / proj_shape / proj_transform / datetime -> centroid),
                            majortom (MajorTOM extension: majortom:code), source:* (from the sidecar),
-                           geoenrich (optional; GeoEnrich extension)
+                           geoenrich (GeoEnrich extension, by default every variable; skipped with a warning
+                           when its index on source.coop cannot be reached)
            children level: rumi (Rumi extension: header, statistics), content:* (bands, nodata, offset, graph),
                            scaling (declared physical scaling, when the archive declares one)
       -> ZIP partitions + TACOCAT (taco-eo), validated
@@ -18,6 +19,7 @@ the raster groups, the rumi payloads and the writing order.
 from __future__ import annotations
 
 import shutil
+import warnings
 from collections.abc import Sequence
 from datetime import datetime, timezone
 from pathlib import Path
@@ -30,6 +32,7 @@ from .groups import RasterGroup, groups
 from .order import hilbert_order
 from .rumi import write_rumi
 
+GEOENRICH_INDEX = "https://data.source.coop/major-tom/index/global.parquet"   # taco-eo GeoEnrich's default source
 MAX_BYTES = 3 * 10**9      # partition size limit (taco-eo's partition_size); partitions end just under it
 
 
@@ -83,13 +86,14 @@ def _scaling(group: RasterGroup):
 def release(samples: Sequence[str | Path], out: str | Path, *, id: str, description: str, licenses: Sequence[str],
             providers: Sequence, title: str | None = None, keywords: Sequence[str] | None = None,
             profile: str = "lossless", max_bytes: int = MAX_BYTES, with_time: bool = True, stats: bool = True,
-            geoenrich: Sequence[str] | None = None, stage: str | Path | None = None, overwrite: bool = False,
+            geoenrich: bool | Sequence[str] = True, stage: str | Path | None = None, overwrite: bool = False,
             progress: bool = False) -> Path:
     """Write built samples of one product as a partitioned TACO dataset; returns the path taco-eo reports.
 
     `out`: a .zip path (partitions + TACOCAT beside it) or a folder. `with_time=False` for products with one
-    sample per cell (e.g. a DEM): ids are then the cell code alone, as in Core-DEM. `geoenrich`: variables for
-    taco's GeoEnrich extension (needs network), e.g. ["elevation", "admin_countries"].
+    sample per cell (e.g. a DEM): ids are then the cell code alone, as in Core-DEM. `geoenrich`: True (default)
+    attaches every variable of taco-eo's GeoEnrich, as Core-DEM; a list selects some, e.g. ["elevation",
+    "admin_countries"]; False skips them. Without network the release still completes, without them, and warns.
     """
     import geozl
     import rumi
@@ -130,8 +134,9 @@ def release(samples: Sequence[str | Path], out: str | Path, *, id: str, descript
 
     sample_level = dict(stac=taco.extensions.STAC(), majortom=taco.extensions.MajorTOM(
                             dist_km=records[0]["side"]["grid_km"]), source=Source)
-    if geoenrich:
-        sample_level["geoenrich"] = taco.extensions.GeoEnrich(list(geoenrich))
+    enrich, variables = _geoenrich(geoenrich)
+    if enrich:
+        sample_level["geoenrich"] = taco.extensions.GeoEnrich(variables)
     contract = taco.Contract(
         structure=[f"{name}.rumi" for name in structure],
         metadata=[taco.Level("sample", **sample_level),
@@ -172,6 +177,30 @@ def release(samples: Sequence[str | Path], out: str | Path, *, id: str, descript
         raise RuntimeError(f"taco.validate failed for {result.path}: {report}")
     shutil.rmtree(stage, ignore_errors=True)
     return Path(result.path)
+
+
+def _reachable(url: str, timeout: float = 15) -> bool:
+    """Whether `url` answers (a HEAD request); False on any network error."""
+    import requests
+
+    try:
+        return requests.head(url, timeout=timeout, allow_redirects=True).ok
+    except requests.RequestException:
+        return False
+
+
+def _geoenrich(choice: bool | Sequence[str]) -> tuple[bool, list[str] | None]:
+    """(attach GeoEnrich?, variables): True means every variable taco-eo offers (variables None), as Core-DEM.
+
+    Without network (taco-eo's index on source.coop unreachable) the release goes ahead without them, with a warning.
+    """
+    if choice is False or (not isinstance(choice, bool) and not choice):
+        return False, None
+    if not _reachable(GEOENRICH_INDEX):
+        warnings.warn(f"GeoEnrich index {GEOENRICH_INDEX} unreachable (no network?): samples are written without "
+                      "geoenrich:* attributes", stacklevel=3)
+        return False, None
+    return True, None if choice is True else list(choice)
 
 
 def _version(package: str) -> str | None:

@@ -157,7 +157,9 @@ sample level:
   majortom:code      MajorTOM extension (dist_km = the grid's d), computed from the centroid
   source:*           from the build sidecar: archive, collection, items, platform, processing_baseline, cloud,
                      cell_coverage, acquired (to the microsecond; rumi keeps whole seconds)
-  geoenrich:*        optional: GeoEnrich extension (release(..., geoenrich=[...]); needs network)
+  geoenrich:*        GeoEnrich extension, every variable by default (Miko, 2026-10-27); release(geoenrich=[...])
+                     selects some, False skips; if taco-eo's index on source.coop is unreachable the release
+                     still completes, without these columns, and warns
 children level (per file):
   <file>::location, <file>::header   Rumi extension (as Core-DEM: /vsisubfile/ byte range inside the partition ZIP)
   <file>::minimum ... ::p98           Rumi extension statistics (stats=True)

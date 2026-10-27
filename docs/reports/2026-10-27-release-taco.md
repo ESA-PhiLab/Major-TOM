@@ -63,10 +63,10 @@ Offline test: `tests/test_release_taco.py` (synthetic samples, partitions, read 
 
 ## Open for Miko
 
-0. float64 Earth Engine products (Dynamic World, Sentinel-1 GRD-TC): keep as delivered or cast to float32 (above).
+0. float64 Earth Engine products (Dynamic World, Sentinel-1 GRD-TC): measured, float32 changes values by at most 6e-8 relative (probabilities ~5e-8; backscatter ~3e-6 dB), far below what either resolves. Recommended: the build stores float64 sources as float32 and records `source_dtype`; awaiting go-ahead.
 
 1. ~~Partition field name~~: resolved, no field (taco-eo's `partition_size`).
-2. Whether every sample should carry GeoEnrich attributes (needs network at release time; Core-DEM has them).
+2. ~~GeoEnrich~~: resolved (Miko): on by default, every variable; without network the release completes without them and warns (`_geoenrich` in `majortom/release/taco.py`; tests offline, no-network and network).
 3. ERA5-Land group 1 (job 1808, at block 431 of ~453, ~199k of ~330k requests) validated on its 2016-2017 overlap with the Earth Engine build (`docs/evidence/era5land_edh_validate.py`; docs/CLIMATE.md 6.1): agrees within ~4 x 10^-4 except (a) 728 cells south of 57.1°S, outside Earth Data Hub (empty in the new build: fill them from the Climate Data Store later, or leave empty and document?), (b) sea cells where Earth Engine fills `ssrd`, (c) days where Earth Engine's derived hourly `ssrd` is wrong (ERA5 agrees with Earth Data Hub). A final pass is queued after the build (job 1829).
 
 ## Look at first

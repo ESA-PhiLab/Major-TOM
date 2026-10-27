@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-27 GeoEnrich on by default in releases; skipped with a warning when offline
 - 2026-10-27 Partitions: taco-eo's partition_size over a Hilbert writing order (order.py), replacing our own cut and partition:id -> [RELEASE.md 7](docs/RELEASE.md)
 - 2026-10-27 ERA5-Land group 1 (Earth Data Hub) validated against the Earth Engine build; Earth Engine's hourly ssrd wrong on some days -> [CLIMATE.md 6.1](docs/CLIMATE.md)
 - 2026-10-27 Overnight: release path checked on 28 collections (3 fixes), TACO via taco-eo -> [report](docs/reports/2026-10-27-release-taco.md)

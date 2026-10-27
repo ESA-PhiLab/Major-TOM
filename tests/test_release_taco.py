@@ -41,7 +41,7 @@ def test_release_round_trip(tmp_path):
              for i, (c, m) in enumerate((c, m) for c in cells for m in (5, 6))]
     one = paths[0].stat().st_size                                           # ~2.7 MB of random data per sample
     out = release(paths, tmp_path / "out" / "check.zip", id="check", description="test", licenses=["CC-BY-4.0"],
-                  providers=["Major TOM"], max_bytes=int(2.2 * one))
+                  providers=["Major TOM"], max_bytes=int(2.2 * one), geoenrich=False)
     ds = taco.open_dataset(str(out))
     table = ds.sql("SELECT * FROM dataset").to_pandas()
     assert len(table) == 6 and table["source_file"].nunique() >= 2                 # taco-eo cut by size
@@ -67,3 +67,31 @@ def test_release_round_trip(tmp_path):
 def test_sample_id():
     assert sample_id("624U_29L", 10.0, "2021-07-14T11:21:19.024+00:00") == "MT10km_0624U_0029L_20210714T112119"
     assert sample_id("104D_845L", 10.0, None) == "MT10km_0104D_0845L"
+
+
+def _two_samples(tmp_path):
+    rng = np.random.default_rng(1)
+    build = tmp_path / "build"
+    build.mkdir()
+    return [_sample(build, i, Cell(500, 10 + i), "2023-05-15T10:30:00+00:00", rng) for i in range(2)]
+
+
+def test_no_network_still_releases_without_geoenrich(tmp_path, monkeypatch):
+    """GeoEnrich is on by default; without its index the release completes, warns, and has no geoenrich:* columns."""
+    import majortom.release.taco as module
+
+    monkeypatch.setattr(module, "_reachable", lambda url, timeout=15: False)
+    with pytest.warns(UserWarning, match="without geoenrich"):
+        out = release(_two_samples(tmp_path), tmp_path / "out" / "x.zip", id="x", description="test",
+                      licenses=["CC-BY-4.0"], providers=["Major TOM"])
+    columns = taco.open_dataset(str(out)).sql("SELECT * FROM dataset").column_names
+    assert not any(c.startswith("geoenrich:") for c in columns)
+
+
+@pytest.mark.network
+def test_geoenrich_by_default(tmp_path):
+    out = release(_two_samples(tmp_path), tmp_path / "out" / "g.zip", id="g", description="test",
+                  licenses=["CC-BY-4.0"], providers=["Major TOM"])
+    table = taco.open_dataset(str(out)).sql("SELECT * FROM dataset").to_pandas()
+    enriched = [c for c in table.columns if c.startswith("geoenrich:")]
+    assert len(enriched) >= 10 and table["geoenrich:admin_countries"].notna().all()
