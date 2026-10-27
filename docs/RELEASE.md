@@ -13,7 +13,7 @@ majortom.build output: one sample per cell (bands as arrays + JSON sidecar: CRS,
   -> raster groups by pixel size (Sentinel-2: 10 m, 20 m, 60 m)
   -> payload writers: rumi per group (default) and/or COG per group (the profile of section 3)
   -> TACO FOLDER: contract (structure + metadata levels) + samples
-  -> partitions: ZIPs of at most a few GB, cut by size along a space-filling curve (section 7), one contract for all
+  -> partitions: ZIPs of just under 3 GB, cut by size along a Hilbert curve (section 7), one contract for all
   -> TACOCAT: consolidated metadata over the partitions, opened as one collection
   -> upload: source.coop (default), Hugging Face (option)
 ```
@@ -25,7 +25,7 @@ majortom.build output: one sample per cell (bands as arrays + JSON sidecar: CRS,
 | Payload | **rumi, lossless** (Miko, 2026-10-26, after the benchmark in section 10; as Core-DEM) | COG: release with `payload="cog"` or `"both"`, read any rumi sample as a COG, convert a selection to COG files (section 5) |
 | Compression | lossless | near-lossless, heavily lossy (section 4) |
 | Container | TACO ZIP partitions + TACOCAT; built as FOLDER | — |
-| Partitions | by size: at most ~2 GB per ZIP, any modality (section 7) | — |
+| Partitions | by size: just under 3 GB per ZIP, any modality, neighbouring cells together (section 7) | maximum is a parameter |
 | Raster groups | one file per pixel size | — |
 | Destination | source.coop | Hugging Face |
 | zarr | not used for sample releases | data cubes (many dates per cell), later |
@@ -166,23 +166,25 @@ collection: COLLECTION.json — description, licence and attribution, compressio
 
 ## 7. Partitions
 
-Core-DEM uses a fixed 3000 km shard: 63 partitions of ~0.4 GB on average (24 GB in all). A fixed shard only fits one sample size: Sentinel-2 L2A at ~50-100 MB per sample and ~2.2 million samples would give ZIPs of over a terabyte. Partitions are therefore cut by size, the same way for every modality:
+Code: `majortom/release/partition.py`. Core-DEM uses a fixed 3000 km shard: 63 partitions of ~0.4 GB on average (24 GB in all). A fixed shard only fits one sample size: Sentinel-2 L2A at ~6.2 MB per sample (lossless rumi, measured in section 10) would give shards of tens to a few hundred GB. Partitions are therefore cut by size, the same way for every modality:
 
 ```
-samples (grid cell, time, bytes as written in the FOLDER)
-  -> group by grid cell: all dates of a cell stay in one partition
-  -> order the cells along a Hilbert curve over their centroids (neighbouring cells stay close in the order,
-     also across grid rows and zones)
-  -> walk the order, adding cells until the next one would pass the target (default 2 GB);
-     a cell larger than the target on its own is its own partition
-  -> partition id (p0000, p0001, ...) in majortom:partition; the TACOCAT records each partition's bounding box
-     and first/last cell code
+samples (grid cell, acquisition time, bytes as written)
+  -> cell centroid -> position on a Hilbert curve over longitude x latitude (2^16 x 2^16)
+  -> sort by (curve position, cell, acquisition time)
+  -> walk the cells, closing a partition before it would pass the maximum (default 3 GB); a cell's samples
+     stay together, unless the cell alone is larger than the maximum: then its samples are cut in time order
+  -> partition id (p0000, p0001, ...) in majortom:partition; a summary per partition (samples, cells, bytes,
+     bounding box, first and last cell, first and last acquisition) for the TACOCAT
 ```
 
-- Sizes stay within the target whatever the bytes per sample (DEM, Sentinel-2, a time series, a coarser grid).
-- A regional query touches a few neighbouring partitions, as with fixed shards.
+- **Neighbours together.** A Hilbert curve is one continuous line through the whole square that turns so any stretch of it covers a compact patch. A partition is a run of consecutive cells on it, so it covers a compact area, and a regional query touches a few partitions. Where the curve's large blocks meet, an area may be split between 2-4 partitions.
+- **Similar sizes for any modality.** The cut uses bytes written, not area or sample count, and one cell is small next to 3 GB (Sentinel-2: 6.2 MB; DEM: ~14 kB), so every partition but the last ends just under the maximum. What changes with modality is the area: ~210,000 DEM samples (about a continent) or ~480 Sentinel-2 samples (~260 km across) per partition.
+- **Time fallback.** Only a cell with more than a partition's worth of samples (e.g. every Sentinel-2 revisit for 10 years, ~4.5 GB) is cut, into consecutive periods. Products with up to a few hundred dates per cell never reach it.
 - Deterministic for a given sample set. A later release with more samples moves the boundaries: releases are versioned and not edited in place.
-- Rejected: fixed shards (size depends on modality); grid-row bands (very uneven sizes, long thin areas); recursive splitting of coarse Major TOM cells (meaningful names, but leaves many tiny partitions over sparse areas such as oceans and islands).
+- Rejected: fixed shards (size depends on modality); grid-row bands (very uneven sizes, long thin areas); recursive splitting of coarse Major TOM cells (meaningful names, but many tiny partitions over sparse areas such as oceans and islands).
+
+**Simulated on Core-S2L2A (2026-10-27):** its 2,245,886 acquisitions at 6.2 MB each, 3 GB maximum -> 4,650 partitions in 24 s. Every partition is 2.99 GB except the last (2.67 GB); no cell is split. Median 482 cells per partition, bounding box ~260 km across (median; 90% under 330 km); the widest, over sparse areas such as oceans and islands, span up to ~3,500 km.
 
 ## 8. Publishing
 

@@ -65,6 +65,14 @@ class Cell:
         return f"{row}_{col}"
 
 
+def cell_from_name(name: str, d: float = 10.0) -> Cell:
+    """The cell called `name`, e.g. "495D_1175R" (row 495 south, column 1175 east); the inverse of Cell.name."""
+    row, col = name.split("_")
+    if row[-1] not in "UD" or col[-1] not in "RL":
+        raise ValueError(f"not a Major TOM cell name: {name!r}")
+    return Cell(int(row[:-1]) * (1 if row[-1] == "U" else -1), int(col[:-1]) * (1 if col[-1] == "R" else -1), d)
+
+
 def cell_at(lon: float, lat: float, d: float = 10.0) -> Cell:
     """The cell containing a point. Near 180° a column may wrap: in a row with an odd number of
     columns, the easternmost cell continues across the antimeridian."""

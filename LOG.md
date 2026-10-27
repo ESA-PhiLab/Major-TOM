@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-27 majortom.release: raster groups (groups.py), Hilbert size-targeted partitions with time fallback (partition.py); cells.cell_from_name -> [RELEASE.md 7](docs/RELEASE.md)
 - 2026-10-26 Time-series benchmark: per-acquisition rumi files as small and fast as per-cell cubes; keep one file per acquisition -> [RELEASE.md 10a](docs/RELEASE.md)
 - 2026-10-26 majortom.release: rumi profiles as named GeoZL graphs (profiles.py), rumi writer with read-back check (rumi.py)
 - 2026-10-26 majortom.release: COG profile (cog.py), read(as_=array|cog) and to_cog (read.py), [release] extra
