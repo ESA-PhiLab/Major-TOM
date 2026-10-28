@@ -41,7 +41,7 @@ The fixed surface fields of ERA5 for every cell of the Major TOM grid: terrain a
 | `era5_slt` | soil type (ECMWF classes) | class |
 | `era5_wmb` | model bathymetry (empty over land) | m |
 
-**Class fields** (`era5_tvh`, `era5_tvl`, `era5_slt`) hold the class covering most of the cell, not a mean.
+**Class fields** (`era5_tvh`, `era5_tvl`, `era5_slt`) hold the class covering most of the cell, not a mean, as whole numbers. ERA5's 16-bit packed storage decodes codes with errors of about 10⁻⁴ (soil type 3 as 2.99991); these are rounded back to the code.
 
 ## Files
 

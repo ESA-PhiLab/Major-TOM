@@ -117,3 +117,13 @@ def test_category_codes_take_the_dominant_pixel():
     field[:, 0 if east > 0.5 else 1] = 1.0                          # the smaller part: rain
     value, valid = cell_modes(weights(table([cell]), ONE), field)
     assert value[0] == 5.0 and np.isclose(valid[0], 1)
+
+
+def test_category_codes_lose_packing_noise():
+    """ERA5's 16-bit packing decodes code 3 as 2.9999084: the cell gets exactly 3."""
+    from majortom.climate.weights import cell_modes
+
+    cell = across_lon(1.0)
+    field = np.full((180, 360), 2.9999084)
+    value, _ = cell_modes(weights(table([cell]), ONE), field)
+    assert value[0] == 3.0

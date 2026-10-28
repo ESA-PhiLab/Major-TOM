@@ -9,7 +9,10 @@
       -> upload (multipart for large files) -> verify every file against the remote listing
 
 Destinations:
-    source.coop://<account>/<repository>[/<prefix>]   S3, two credential routes (docs.source.coop):
+    source.coop://<account>/<repository>[/<prefix>]   S3, credential routes in this order (docs.source.coop):
+        0. an AWS profile whose credential_process is the source-coop CLI (`source-coop auth login` once; the
+           profile named by SOURCE_COOP_PROFILE, else one called "source-coop"): data proxy as in A, and
+           credentials renew themselves, so long uploads do not outlive them
         A. data proxy, endpoint https://data.source.coop: bucket <account>, keys <repository>/<prefix>/...
            with a repository API key (saved once with `python -m majortom.build.credentials source-coop`), or the
            temporary credentials the repository page gives for the proxy (SOURCE_COOP_ACCESS_KEY_ID,
@@ -111,6 +114,13 @@ def _source_coop(destination: str):
     account, _, rest = destination.removeprefix("source.coop://").partition("/")
     if not account or not rest:
         raise ValueError(f"expected source.coop://<account>/<repository>[/<prefix>], got {destination!r}")
+    profile = os.environ.get("SOURCE_COOP_PROFILE")
+    if profile is None and "source-coop" in boto3.Session().available_profiles:
+        profile = "source-coop"
+    if profile:                                            # route 0: the source-coop CLI renews credentials
+        client = boto3.Session(profile_name=profile).client(
+            "s3", endpoint_url=SOURCE_COOP_ENDPOINT, region_name=os.environ.get("SOURCE_COOP_REGION", REGION))
+        return client, account, rest.strip("/")
     keys = source_coop_keys()
     if keys is not None:                                   # route A: repository API key, data proxy
         key, secret, endpoint = keys

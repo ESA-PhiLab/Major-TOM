@@ -120,7 +120,9 @@ def cell_modes(w: Weights, field: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """(value, valid) per cell for category codes: the code of the pixel covering most of the cell.
 
     Averaging codes is meaningless (rain = 1 and snow = 5 do not average to anything), so a cell takes its
-    dominant pixel's code; `valid` is the share of the cell with data, as for cell_means.
+    dominant pixel's code; `valid` is the share of the cell with data, as for cell_means. Codes are rounded to
+    whole numbers: ERA5 stores fields as 16-bit packed GRIB, so a decoded code is off by up to half a packing
+    step (e.g. soil type 3 decodes as 3.99995 or 2.99991; ~1e-4, far below the 0.5 that would change a code).
     """
     values = field.ravel()[w.pixel]
     ok = np.isfinite(values)
@@ -129,5 +131,5 @@ def cell_modes(w: Weights, field: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     cells, first = np.unique(w.cell[order], return_index=True)
     out = np.full(w.n_cells, np.nan)
     pick = order[first]
-    out[cells] = np.where(ok[pick], values[pick], np.nan)
+    out[cells] = np.where(ok[pick], np.round(values[pick]), np.nan)
     return out, valid

@@ -57,8 +57,26 @@ def test_dry_run_uploads_nothing(release_folder, s3):
     assert len(plan.uploaded) == 3 and "Contents" not in s3.list_objects_v2(Bucket="bucket")
 
 
+def test_source_coop_profile_route(monkeypatch, tmp_path):
+    """Route 0: an AWS profile whose credential_process supplies (and renews) the credentials."""
+    script = tmp_path / "creds.sh"
+    script.write_text('#!/bin/sh\necho \'{"Version": 1, "AccessKeyId": "pk", "SecretAccessKey": "ps", '
+                      '"SessionToken": "pt", "Expiration": "2099-01-01T00:00:00Z"}\'\n')
+    script.chmod(0o700)
+    (tmp_path / "config").write_text(f"[profile source-coop]\ncredential_process = {script}\n")
+    monkeypatch.setenv("AWS_CONFIG_FILE", str(tmp_path / "config"))
+    monkeypatch.setenv("AWS_SHARED_CREDENTIALS_FILE", str(tmp_path / "none"))
+    monkeypatch.delenv("SOURCE_COOP_PROFILE", raising=False)
+    client, bucket, prefix = _source_coop("source.coop://major-tom/climate/CPC-Monthly")
+    assert (bucket, prefix) == ("major-tom", "climate/CPC-Monthly")
+    assert client.meta.endpoint_url == "https://data.source.coop"
+    assert client._request_signer._credentials.get_frozen_credentials().token == "pt"
+
+
 def test_source_coop_routes(monkeypatch, tmp_path):
     monkeypatch.setenv("AWS_SHARED_CREDENTIALS_FILE", str(tmp_path / "none"))
+    monkeypatch.setenv("AWS_CONFIG_FILE", str(tmp_path / "none"))                # no source-coop profile here
+    monkeypatch.delenv("SOURCE_COOP_PROFILE", raising=False)
     for v in ("SOURCE_COOP_ACCESS_KEY_ID", "SOURCE_COOP_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"):
         monkeypatch.delenv(v, raising=False)
     with pytest.raises(PermissionError):
