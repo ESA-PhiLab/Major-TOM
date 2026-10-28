@@ -9,7 +9,8 @@
     cds           prompt (hidden)  ->  ~/.config/majortom/cds-token (owner-only, 600)                ->  token check
                   (Climate Data Store personal access token, for majortom.climate: ERA5-Land, CAMS)
     edh           prompt (hidden)  ->  ~/.config/majortom/edh-key (owner-only, 600)                  ->  one metadata read
-                  (Destination Earth's Earth Data Hub API key, for majortom.climate: ERA5-Land hourly as zarr)
+                  (Destination Earth's Earth Data Hub API key, for majortom.climate: ERA5-Land hourly as zarr;
+                  `edh --name <person>` saves a colleague's key as edh-key-<person>, picked with EDH_KEY_NAME)
     source-coop   prompt (hidden)  ->  [source-coop] section of the AWS credentials file (owner-only, 600)
                   (a source.coop repository API key, for majortom.release publish; temporary credentials from the
                   repository page can be used instead, as AWS_* variables, without saving)
@@ -124,18 +125,22 @@ def cds_token() -> str:
     return token
 
 
-def edh_key_file() -> Path:
-    return config_dir() / "edh-key"
+def edh_key_file(name: str | None = None) -> Path:
+    """Owner-only key file: edh-key, or edh-key-<name> for another person's key (name, else EDH_KEY_NAME)."""
+    name = name or os.environ.get("EDH_KEY_NAME")
+    return config_dir() / (f"edh-key-{name}" if name else "edh-key")
 
 
-def edh_key() -> str:
+def edh_key(name: str | None = None) -> str:
     """The Earth Data Hub API key: from the environment, else the owner-only key file. Never logged or stored.
 
+    Each person's key has its own monthly quota; a job picks one with EDH_KEY_NAME (edh-key-<name>). An explicit
+    `name` reads that file even when EDH_KEY is set.
     Readers pass it as HTTP basic auth with the user name `edh` (Earth Data Hub's `https://edh:<key>@...` form).
     """
-    key = os.environ.get("EDH_KEY")
-    if not key and edh_key_file().exists():
-        key = edh_key_file().read_text().strip()
+    key = None if name else os.environ.get("EDH_KEY")
+    if not key and edh_key_file(name).exists():
+        key = edh_key_file(name).read_text().strip()
     if not key:
         raise PermissionError(EDH_SETUP)
     return key
@@ -189,8 +194,8 @@ def save_cds(token: str) -> None:
     save_token(cds_token_file(), token)
 
 
-def save_edh(key: str) -> None:
-    save_token(edh_key_file(), key)
+def save_edh(key: str, name: str | None = None) -> None:
+    save_token(edh_key_file(name), key)
 
 
 def save_token(path: Path, token: str) -> None:
@@ -241,11 +246,11 @@ def check_cds() -> str:
     return "token accepted by the Climate Data Store"
 
 
-def check_edh() -> str:
+def check_edh(name: str | None = None) -> str:
     """Read the ERA5-Land store's root metadata with the saved key (a few kB, no data)."""
     import requests
 
-    response = requests.get(f"{EDH_STORE}/zarr.json", auth=("edh", edh_key()), timeout=30)
+    response = requests.get(f"{EDH_STORE}/zarr.json", auth=("edh", edh_key(name)), timeout=30)
     if response.status_code in (401, 403):
         raise PermissionError(f"Earth Data Hub refused the key ({response.status_code}). {EDH_SETUP}")
     response.raise_for_status()
@@ -256,6 +261,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("archive", choices=["cdse", "earthdata", "earth-engine", "cds", "edh", "source-coop"])
     parser.add_argument("--no-check", action="store_true", help="skip the test read")
+    parser.add_argument("--name", help="edh only: save another person's key as edh-key-<name> (pick it with EDH_KEY_NAME)")
     args = parser.parse_args(argv)
     if args.archive == "cdse":
         print("CDSE S3 keys (create them at https://eodata-s3keysmanager.dataspace.copernicus.eu)")
@@ -301,14 +307,14 @@ def main(argv: list[str] | None = None) -> int:
               "majortom.release publish checks access when it lists the destination")
         return 0
     elif args.archive == "edh":
-        print("Earth Data Hub API key (https://earthdatahub.destine.eu > account settings)")
+        print("Earth Data Hub API key (https://earthdatahub.destine.eu > Quota & API Keys)")
         key = getpass.getpass("key: ").strip()
         if not key:
             print("no key given; nothing saved", file=sys.stderr)
             return 1
-        save_edh(key)
-        print(f"saved to {edh_key_file()} (owner-only)")
-        test = check_edh
+        save_edh(key, args.name)
+        print(f"saved to {edh_key_file(args.name)} (owner-only)")
+        test = lambda: check_edh(args.name)    # noqa: E731
     else:
         print("NASA Earthdata token (https://urs.earthdata.nasa.gov > Generate Token; it lasts 60 days)")
         token = getpass.getpass("token: ").strip()
