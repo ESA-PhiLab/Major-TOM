@@ -273,6 +273,27 @@ def _era5_all() -> tuple[Source, Source]:
 
 SOURCES["era5-all"], SOURCES["era5-monthly-all"] = _era5_all()
 
+# Climate Data Store names of ERA5-Land variables where ERA5's differ or are missing. sd and sde swap: ERA5's
+# "snow_depth" is water equivalent (sd), ERA5-Land's "snow_depth" is the depth in metres (sde).
+ERA5_LAND_CDS = {"e": "total_evaporation", "sd": "snow_depth_water_equivalent", "sde": "snow_depth",
+                 "snowc": "snow_cover", "evabs": "evaporation_from_bare_soil",
+                 "evatc": "evaporation_from_the_top_of_canopy", "evavt": "evaporation_from_vegetation_transpiration",
+                 "evaow": "evaporation_from_open_water_surfaces_excluding_oceans"}
+
+
+def _era5_land_monthly_all() -> Source:
+    """ERA5-Land monthly means of all 49 time-varying variables (as era5-land-edh), from the Climate Data Store."""
+    from . import era5_catalogue as c
+
+    names = {v: ERA5_LAND_CDS.get(v) or c.ERA5_ALL[v][0] for v in ERA5_LAND_UNITS}
+    units = {v: u + (" day**-1" if v in ERA5_LAND_ACCUMULATED else "") for v, u in ERA5_LAND_UNITS.items()}
+    land = SOURCES["era5-land-monthly"]
+    return Source("era5land", land.store, land.grid, names, units, step="1MS", reader="queue", period="month",
+                  options={**land.options, "files": {v: v for v in names}})
+
+
+SOURCES["era5-land-monthly-all"] = _era5_land_monthly_all()
+
 
 def reader(source: Source):
     return importlib.import_module(f".readers.{source.reader}", __package__)

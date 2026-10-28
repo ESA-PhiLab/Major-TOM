@@ -88,7 +88,7 @@ Workstreams are defined in `docs/STRATEGY.md`.
 - [ ] Core-Weather CAMS: 1,956 / 2,976 days (running)
 - [ ] Core-Weather NOAA CPC daily (job 1901, started 2026-10-28; was never built before)
 - [ ] ERA5-Land hourly, all 49 variables, from Earth Data Hub zarr (replaces the Earth Engine plan: measured ~30× the estimate, docs/CLIMATE.md 7): group 1 done, group 2 at 69% (resumes 1 November), groups 3-6 ~900k requests; key via `python -m majortom.build.credentials edh`
-- [ ] Earth Data Hub keys from colleagues (one per person, `EDH_KEY_NAME`; code change not written yet): finishes groups 3-6 in November instead of December
+- [x] Earth Data Hub keys per person (`credentials edh --name`, `EDH_KEY_NAME`): two extra keys in use from 2026-10-28; groups 2-4 and 5-6 run as two chains, all 49 variables expected by ~30 October
 - [ ] 1 November: resume IMERG in Core-Weather on Earth Engine (256 / 2,976 days; ~130 EECU-hours), after a one-hour calibration against the quota counter
 - [ ] ERA5-Monthly v2 climatology (1991-2020)
 - [ ] Optional: ERA5Land-Monthly with all 49 variables from Earth Data Hub's monthly store (check its chunking on 1 November)

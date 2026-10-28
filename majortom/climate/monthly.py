@@ -99,8 +99,12 @@ def monthly(source: str, out: Path | str, years: tuple[int, int], variables: lis
 def climatology(out: Path | str, period: tuple[int, int] = (1991, 2020), bands: int = 20) -> int:
     """Per cell and calendar month over `period`: mean, standard deviation across years, and years with data.
 
-    Written band by band from per-variable arrays; returns the number of rows written.
+    Each variable's statistics go to <out>/climatology/.parts/ as soon as they are computed (memory holds one
+    variable, so 202 ERA5 variables over 5.1 M cells need ~1.5 GB, not ~100 GB; a rerun resumes at the first
+    variable without parts); then the bands are written from the parts and the parts removed. Returns the rows.
     """
+    import shutil
+
     import pyarrow.parquet as pq
 
     out = Path(out)
@@ -112,8 +116,12 @@ def climatology(out: Path | str, period: tuple[int, int] = (1991, 2020), bands: 
         raise FileNotFoundError(f"{len(missing)} months of {period} not built, e.g. {missing[0]}")
     columns = [c for c in pq.read_schema(files[(period[0], 1)]).names
                if c not in ("grid_cell", "year", "month") and not c.endswith("_valid")]
-    stats: dict[str, np.ndarray] = {}
+    target = out / "climatology"
+    parts = target / ".parts"
+    parts.mkdir(parents=True, exist_ok=True)
     for column in columns:                                        # one variable at a time: bounded memory
+        if (parts / f"{column}_std.npy").exists():                # computed by an earlier run
+            continue
         total = np.zeros((len(cells), 12))
         squares = np.zeros((len(cells), 12))
         count = np.zeros((len(cells), 12), np.int16)
@@ -126,19 +134,23 @@ def climatology(out: Path | str, period: tuple[int, int] = (1991, 2020), bands: 
         with np.errstate(invalid="ignore", divide="ignore"):
             mean = total / count
             std = np.sqrt(np.maximum(squares / count - mean ** 2, 0) * count / np.maximum(count - 1, 1))
-        stats[f"{column}_mean"], stats[f"{column}_std"] = mean.astype(np.float32), std.astype(np.float32)
-        stats.setdefault("n_years", count)
+        if column == columns[0]:                                  # years with data, from the first variable
+            np.save(parts / "n_years.npy", count)
+        np.save(parts / f"{column}_mean.npy", mean.astype(np.float32))
+        np.save(parts / f"{column}_std.npy", std.astype(np.float32))
+    # column order as before: first variable's mean and std, n_years, then the other variables
+    names = [f"{columns[0]}_mean", f"{columns[0]}_std", "n_years"] + [f"{c}_{s}" for c in columns[1:]
+                                                                      for s in ("mean", "std")]
     band = (cells["grid_row_u"].to_numpy() + n_rows(10.0) // 2) * bands // n_rows(10.0)
-    target = out / "climatology"
-    target.mkdir(parents=True, exist_ok=True)
     rows = 0
     for b in np.unique(band):
         at = np.flatnonzero(band == b)
         part = pd.DataFrame({"grid_cell": np.repeat(cells["grid_cell"].to_numpy()[at], 12),
                              "month": np.tile(np.arange(1, 13, dtype=np.int8), len(at)),
-                             **{k: v[at].ravel() for k, v in stats.items()}})
+                             **{k: np.load(parts / f"{k}.npy", mmap_mode="r")[at].ravel() for k in names}})
         part.to_parquet(target / f"band={b:02d}.parquet", index=False)
         rows += len(part)
+    shutil.rmtree(parts)
     return rows
 
 

@@ -27,3 +27,14 @@ def test_era5_refuses_empty_times():
     assert start == pd.Timestamp("1940-01-01")
     with pytest.raises(ValueError):
         field(ERA5, "t2m", stop + pd.Timedelta(days=400))
+
+
+def test_era5_land_monthly_all_names():
+    """All 49 ERA5-Land variables, as Earth Data Hub's build, with ERA5-Land's own Climate Data Store names."""
+    src = SOURCES["era5-land-monthly-all"]
+    assert list(src.variables) == list(SOURCES["era5-land-edh"].variables)
+    assert len(set(src.variables.values())) == 49
+    assert src.variables["sd"] == "snow_depth_water_equivalent"          # ERA5's "snow_depth" is sd; not here
+    assert src.variables["sde"] == "snow_depth"
+    assert src.variables["e"] == "total_evaporation"
+    assert src.units["tp"] == "m day**-1" and src.units["t2m"] == "K"   # monthly means of accumulations: per day
