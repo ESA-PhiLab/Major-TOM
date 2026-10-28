@@ -5,7 +5,9 @@
     use_cells(cells)  -> the chunks those cells overlap (called once by stream)
     field(var, hour)  -> first hour of a 60-day block: fetch the block's chunks (32 requests in flight over all
                          variables, each retried), decode once into <cache>/blocks/<var>/<block>.f32 (hour-major,
-                         sparse; <block>.filled.npy marks it complete, so a rerun reuses it) -> one field per hour
+                         sparse; <block>.filled.npy marks it complete, so a rerun reuses it) -> one field per hour,
+                         read from the file (one 26 MB plane) and dropped from the page cache: nothing stays mapped,
+                         so a job holds its decoded fields, not its 37 GB block files
     Accumulated variables are stored as totals since 00 UTC (restarting at 01 UTC): field() returns the hour's
     amount, this hour minus the previous. Chunks that come back empty (open sea) are remembered in
     <cache>/empty.json and never requested again: ERA5-Land's land mask does not change.
@@ -15,9 +17,11 @@ Values are rounded by the store (bitround, 13 mantissa bits: ~1 part in 16,000).
 from __future__ import annotations
 
 import json
+import os
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -33,7 +37,7 @@ _slots = threading.BoundedSemaphore(IN_FLIGHT)
 _lock = threading.Lock()
 _group = None
 _needed: dict[str, set[tuple[int, int]]] = {}    # source name -> chunk (row, column) indices to fetch
-_blocks: dict[tuple[str, int], tuple[np.memmap, np.ndarray]] = {}   # (variable, block) -> (data, filled pixels)
+_blocks: dict[tuple[str, int], tuple[Path, np.ndarray]] = {}   # (variable, block) -> (block file, filled pixels)
 _block_locks: dict[tuple[str, int], threading.Lock] = {}
 requests = {"chunks": 0, "empty": 0}
 
@@ -103,13 +107,31 @@ def _read(array, sel: tuple) -> np.ndarray:
             time.sleep(10 * 2 ** attempt)
 
 
-def _fetch(source, variable: str, block: int) -> tuple[np.memmap, np.ndarray]:
-    """Fetch one block of one variable into a sparse hour-major file; returns (data, filled-pixel mask)."""
+def _drop(path: Path, offset: int = 0, length: int = 0) -> None:
+    """Drop a file's pages (all, or one range) from the page cache, so they do not count against the job."""
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        os.posix_fadvise(fd, offset, length, os.POSIX_FADV_DONTNEED)
+    finally:
+        os.close(fd)
+
+
+def _hour(path: Path, i: int, height: int, width: int) -> np.ndarray:
+    """Hour `i` of a block file: one contiguous plane, read directly (no mapping), then dropped from the cache."""
+    n = height * width
+    with open(path, "rb") as f:
+        plane = np.fromfile(f, np.float32, n, offset=i * n * 4).reshape(height, width)
+    _drop(path, i * n * 4, n * 4)
+    return plane
+
+
+def _fetch(source, variable: str, block: int) -> tuple[Path, np.ndarray]:
+    """Fetch one block of one variable into a sparse hour-major file; returns (file, filled-pixel mask)."""
     grid = source.grid
     path = cache_dir(source.name) / "blocks" / variable / f"{block:04d}.f32"
     done = path.with_suffix(".filled.npy")                   # written last: the block is complete
     if path.exists() and done.exists():                      # a rerun reuses it, no requests
-        return np.memmap(path, np.float32, "r", shape=(T, grid.height, grid.width)), np.load(done)
+        return path, np.load(done)
     path.parent.mkdir(parents=True, exist_ok=True)
     data = np.memmap(path, np.float32, "w+", shape=(T, grid.height, grid.width))
     filled = np.zeros((grid.height, grid.width), bool)
@@ -135,11 +157,13 @@ def _fetch(source, variable: str, block: int) -> tuple[np.memmap, np.ndarray]:
             _needed[source.name] -= set(empty)
             requests["empty"] += len(empty)
     data.flush()
+    del data                                                 # close the mapping: the block is on disk
+    _drop(path)
     np.save(done, filled)
-    return data, filled
+    return path, filled
 
 
-def _block(source, variable: str, block: int) -> tuple[np.memmap, np.ndarray]:
+def _block(source, variable: str, block: int) -> tuple[Path, np.ndarray]:
     key = (variable, block)
     with _lock:
         if key in _blocks:
@@ -163,8 +187,8 @@ def _block(source, variable: str, block: int) -> tuple[np.memmap, np.ndarray]:
 
 
 def _at(source, variable: str, index: int) -> np.ndarray:
-    data, filled = _block(source, variable, index // T)
-    f = np.array(data[index % T])
+    path, filled = _block(source, variable, index // T)
+    f = _hour(path, index % T, source.grid.height, source.grid.width)
     f[~filled] = np.nan
     return f
 

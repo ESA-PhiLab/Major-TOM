@@ -81,11 +81,18 @@ Workstreams are defined in `docs/STRATEGY.md`.
 - [x] Core-Weather ERA5 (12 variables): 3,704,013 acquisitions, complete
 - [x] IMERG-, CAMS-, ERA5- (12 variables), CPC-Monthly built; IMERG climatology
 - [x] ERA5 variable set decided: principle A, 207 + 16 static (docs/ERA5_VARIABLES.md, majortom/climate/era5_catalogue.py)
-- [ ] ERA5 207 in Core-Weather (8 groups, running), ERA5-Monthly v2 (202, running), static table (running)
+- [x] ERA5-Monthly v2 (202 variables, 1940-2025, 2.5 TB); ERA5-Static (16 fields)
+- [x] ERA5Land-Monthly (11 variables, 1950-2025); climatologies for ERA5-Land, CPC, IMERG (1991-2020), CAMS (2003-2025)
+- [x] Core-Weather Sentinel-5P: all 2,976 acquisition days
+- [ ] ERA5 207 in Core-Weather: groups 1-2 done, 3 at 60% (restarted 2026-10-28 after a hang), 4 running, 5-8 queued
+- [ ] Core-Weather CAMS: 1,956 / 2,976 days (running)
+- [ ] Core-Weather NOAA CPC daily (job 1901, started 2026-10-28; was never built before)
+- [ ] ERA5-Land hourly, all 49 variables, from Earth Data Hub zarr (replaces the Earth Engine plan: measured ~30× the estimate, docs/CLIMATE.md 7): group 1 done, group 2 at 69% (resumes 1 November), groups 3-6 ~900k requests; key via `python -m majortom.build.credentials edh`
+- [ ] Earth Data Hub keys from colleagues (one per person, `EDH_KEY_NAME`; code change not written yet): finishes groups 3-6 in November instead of December
+- [ ] 1 November: resume IMERG in Core-Weather on Earth Engine (256 / 2,976 days; ~130 EECU-hours), after a one-hour calibration against the quota counter
+- [ ] ERA5-Monthly v2 climatology (1991-2020)
+- [ ] Optional: ERA5Land-Monthly with all 49 variables from Earth Data Hub's monthly store (check its chunking on 1 November)
 - [ ] Later, if needed: fill ERA5-Land south of 57.1°S from the Climate Data Store (area request; docs/CLIMATE.md 6.1); ask Earth Data Hub about a full-globe copy
-- [ ] ERA5-Land hourly, all 49 variables, from Earth Data Hub zarr (replaces the Earth Engine plan: measured ~30× the estimate, docs/CLIMATE.md 7): throughput test, then the build; key via `python -m majortom.build.credentials edh`
-- [ ] 1 November: resume IMERG on Earth Engine (~120 EECU-hours), after a one-hour calibration against the quota counter
-- [ ] Core-Weather: Sentinel-5P (stage 1 done, 55%), CAMS (downloading), IMERG, ERA5-Land hourly
-- [ ] ERA5Land-Monthly (running); climatologies for ERA5, ERA5-Land, CPC (1991-2020), CAMS (2003-2025)
+- [ ] Validate ERA5 groups 3-8 and ERA5-Land groups 2-6; clear the 815 GB download cache after publishing
 - [ ] Merge sources and publish Core-Weather and the monthly datasets: source.coop first, Hugging Face second (Miko, 2026-10-24)
 - [ ] Climate datasets in the Major TOM viewing app (HF Space; final task)

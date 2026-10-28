@@ -188,6 +188,7 @@ Source `era5-land-edh`: all 49 time-varying ERA5-Land variables, hourly, from De
 1. Create a free account at <https://earthdatahub.destine.eu> (a Destination Earth platform login).
 2. Copy the API key from the account settings page.
 3. Run `python -m majortom.build.credentials edh` and paste the key at the hidden prompt. It is saved to `~/.config/majortom/edh-key` (owner-only, 600) and checked with one metadata read. In jobs where that file is not readable, set `EDH_KEY` instead; the environment takes precedence.
+4. Other people's keys (each has its own quota): `python -m majortom.build.credentials edh --name <person>` saves `edh-key-<person>`; a job uses it with `sbatch --export=ALL,EDH_KEY_NAME=<person> ...`. Earth Data Hub confirmed (2026-10-27) that several users in one organisation may each register a key; no quota increase until Destination Earth's "Tenancy" feature.
 
 The free quota is **500,000 requests a month** (resets on the 1st; shown on the account page). One request is one chunk: 60 days × 5° × 10° of one variable (~1–3 MB compressed). Opening the store costs ~9 requests.
 
@@ -200,6 +201,8 @@ stream -> use_cells(cells): the chunks the cells overlap, less those known to be
           every hour: one global field from that file; the 2 newest blocks per variable are kept;
           a finished block is marked (<block>.filled.npy), so a rerun reuses it without requests
 ```
+
+- Memory (2026-10-28): each hour is read straight from its block file (one 26 MB plane) and its pages are dropped from the page cache; a finished block's mapping is closed and dropped too. Before, the blocks stayed mapped and filled the job's memory limit (64 GB), and at 48 GB pushed 6 GB into the server's shared swap. Checked: new and old reads identical on 384 hours of 16 real blocks (`docs/evidence/edh_hour_check.py`, no requests); memory in a full run to be measured on group 3.
 
 - Accumulated variables (19: precipitation, snowfall, evaporation and its parts, runoff, snowmelt, radiation and heat fluxes) are stored as totals since 00 UTC, restarting at 01 UTC; `field()` returns each hour's amount (this hour minus the previous), as the Earth Engine source did.
 - Coverage: 90°N to 57.1°S, land only (NaN over the sea). **The gap south of 57.1°S, and how to fill it:**

@@ -1,5 +1,9 @@
 # Log
 
+- 2026-10-28 Earth Data Hub reader reads each hour from the block file and drops it from the page cache, no open mappings (tests/test_edh_hour.py; identical on 384 real hours, docs/evidence/edh_hour_check.py)
+- 2026-10-28 Earth Data Hub keys per person (`credentials edh --name`, `EDH_KEY_NAME`; tests/test_edh_keys.py); ERA5-Land groups 2-4 started on a colleague's key
+- 2026-10-28 Core-Weather NOAA CPC daily build started (never built before); CHECKLIST climate section brought up to date
+- 2026-10-28 Climate jobs: memory requests cut (200 -> 80 GB reserved), ERA5 group 3 restarted after a 15 h hang, CAMS restarted at 32 GB; 207 stale joblib processes ended (swap freed)
 - 2026-10-27 Published major-tom/release-test (33 sources, eu-central-1): resume works, 224/224 files read back from source.coop identical, open ~0.5-1 s, read ~0.1-0.5 s per file
 - 2026-10-27 release-test built: 33 sources, 167 samples, all validated and exact; README with gallery; fixed nodata (fill value vs share) in releases
 - 2026-10-27 majortom.release: command line (build, publish, to-cog), publish.py (source.coop, Hugging Face, resumable), source-coop credentials; test release plan -> [RELEASE.md 8, 12](docs/RELEASE.md)
