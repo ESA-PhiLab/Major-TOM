@@ -1,7 +1,10 @@
-"""Earth Data Hub reader: one hour read straight from a block file equals the mapped block's hour (no network)."""
+"""Earth Data Hub reader: hours read from block files equal the data written (no network, no mappings kept)."""
+from types import SimpleNamespace
+
 import numpy as np
 
-from majortom.climate.readers.edh import _drop, _hour
+from majortom.climate.readers import edh
+from majortom.climate.readers.edh import T, Y, X, _chunks, _drop, _hour, _tiled_hour, _write_tile
 
 
 def test_hour_matches_memmap(tmp_path):
@@ -26,3 +29,47 @@ def test_sparse_hours_read_as_zero(tmp_path):
     del data
     assert (_hour(path, 1, 3, 3) == 7.0).all()
     assert (_hour(path, 3, 3, 3) == 0.0).all()
+
+
+HEIGHT, WIDTH = 120, 250                 # 3 x 3 chunks; the last row and column of chunks are partial (20, 50)
+
+
+def _dense(seed: int = 1) -> np.ndarray:
+    return np.random.default_rng(seed).normal(size=(T, HEIGHT, WIDTH)).astype(np.float32)
+
+
+def test_tiled_hour_matches_dense(tmp_path):
+    dense = _dense()
+    path = tmp_path / "0000.t32"
+    written = [(0, 0), (1, 2), (2, 1), (2, 2)]                  # includes both partial edges
+    filled = np.zeros((HEIGHT, WIDTH), bool)
+    with open(path, "wb") as f:
+        for cy, cx in written:
+            sl = (slice(cy * Y, (cy + 1) * Y), slice(cx * X, (cx + 1) * X))
+            _write_tile(f.fileno(), cy, cx, WIDTH, dense[(slice(None), *sl)])
+            filled[sl] = True
+    assert _chunks(filled) == sorted(written)
+    for i in (0, 700, T - 1):
+        got = _tiled_hour(path, i, _chunks(filled), HEIGHT, WIDTH)
+        np.testing.assert_array_equal(got[filled], dense[i][filled])
+        assert (got[~filled] == 0).all()
+
+
+def test_fetch_then_field_from_fake_store(tmp_path, monkeypatch):
+    dense = _dense(2)
+    dense[:, 0:Y, X:2 * X] = np.nan                             # chunk (0, 1) is open sea
+    source = SimpleNamespace(name="fake", grid=SimpleNamespace(height=HEIGHT, width=WIDTH), accumulated=())
+    monkeypatch.setattr(edh, "cache_dir", lambda name: tmp_path / name)
+    monkeypatch.setattr(edh, "_open", lambda: {"t2m": dense})  # _read slices it like the zarr array
+    monkeypatch.setitem(edh._needed, "fake", {(0, 0), (0, 1), (2, 2)})
+    edh._blocks.clear()
+    for hour in ("1950-01-01T00", "1950-01-20T13", "1950-03-01T23"):
+        i = int((np.datetime64(hour, "h") - edh.START) / np.timedelta64(1, "h"))
+        got = edh.field(source, "t2m", hour)
+        for cy, cx in ((0, 0), (2, 2)):
+            sl = (slice(cy * Y, (cy + 1) * Y), slice(cx * X, (cx + 1) * X))
+            np.testing.assert_array_equal(got[sl], dense[i][sl])
+        assert np.isnan(got[0:Y, X:2 * X]).all() and np.isnan(got[Y:2 * Y]).all()
+    assert (tmp_path / "fake" / "blocks" / "t2m" / "0000.t32.filled.npy").exists()
+    assert (0, 1) not in edh._needed["fake"]                    # the sea chunk is never requested again
+    edh._blocks.clear()

@@ -4,10 +4,12 @@
       chunks of 1440 h x 50 x 100 pixels (60 days x 5° x 10°), 1 request each; the quota counts requests
     use_cells(cells)  -> the chunks those cells overlap (called once by stream)
     field(var, hour)  -> first hour of a 60-day block: fetch the block's chunks (32 requests in flight over all
-                         variables, each retried), decode once into <cache>/blocks/<var>/<block>.f32 (hour-major,
-                         sparse; <block>.filled.npy marks it complete, so a rerun reuses it) -> one field per hour,
-                         read from the file (one 26 MB plane) and dropped from the page cache: nothing stays mapped,
-                         so a job holds its decoded fields, not its 37 GB block files
+                         variables, each retried), each chunk written once into <cache>/blocks/<var>/<block>.t32
+                         (chunk-tiled: whole chunks one after another, sparse; <block>.t32.filled.npy marks it
+                         complete, so a rerun reuses it) -> one field per hour, read as one 20 kB piece per land
+                         chunk. Nothing is mapped and written or read pages are dropped from the page cache, so a
+                         job holds its decoded fields, not its 30 GB block files. Blocks written before 2026-10-28
+                         (<block>.f32, hour-major) are still read, one 26 MB plane per hour.
     Accumulated variables are stored as totals since 00 UTC (restarting at 01 UTC): field() returns the hour's
     amount, this hour minus the previous. Chunks that come back empty (open sea) are remembered in
     <cache>/empty.json and never requested again: ERA5-Land's land mask does not change.
@@ -37,7 +39,7 @@ _slots = threading.BoundedSemaphore(IN_FLIGHT)
 _lock = threading.Lock()
 _group = None
 _needed: dict[str, set[tuple[int, int]]] = {}    # source name -> chunk (row, column) indices to fetch
-_blocks: dict[tuple[str, int], tuple[Path, np.ndarray]] = {}   # (variable, block) -> (block file, filled pixels)
+_blocks: dict[tuple[str, int], tuple] = {}       # (variable, block) -> (block file, filled pixels, chunks or None)
 _block_locks: dict[tuple[str, int], threading.Lock] = {}
 requests = {"chunks": 0, "empty": 0}
 
@@ -125,45 +127,93 @@ def _hour(path: Path, i: int, height: int, width: int) -> np.ndarray:
     return plane
 
 
-def _fetch(source, variable: str, block: int) -> tuple[Path, np.ndarray]:
-    """Fetch one block of one variable into a sparse hour-major file; returns (file, filled-pixel mask)."""
+def _tile_offset(cy: int, cx: int, width: int) -> int:
+    """Byte offset of chunk (cy, cx) in a chunk-tiled block file: whole chunks (T x Y x X), row-major by chunk."""
+    return (cy * -(-width // X) + cx) * T * Y * X * 4
+
+
+def _write_tile(fd: int, cy: int, cx: int, width: int, values: np.ndarray) -> None:
+    """One chunk as one contiguous write (padded to T x Y x X), then let its pages go once written back."""
+    tile = np.zeros((T, Y, X), np.float32)
+    tile[:values.shape[0], :values.shape[1], :values.shape[2]] = values
+    offset = _tile_offset(cy, cx, width)
+    os.pwrite(fd, memoryview(tile).cast("B"), offset)
+    os.posix_fadvise(fd, offset, tile.nbytes, os.POSIX_FADV_DONTNEED)   # starts writeback; drops clean pages
+
+
+def _tiled_hour(path: Path, i: int, chunks: list[tuple[int, int]], height: int, width: int) -> np.ndarray:
+    """Hour `i` of a chunk-tiled block file: one Y x X read per filled chunk, no read-ahead, nothing kept cached."""
+    plane = np.zeros((height, width), np.float32)
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_RANDOM)
+        for cy, cx in chunks:
+            raw = os.pread(fd, Y * X * 4, _tile_offset(cy, cx, width) + i * Y * X * 4)
+            tile = np.frombuffer(raw, np.float32).reshape(Y, X)
+            h, w = min(Y, height - cy * Y), min(X, width - cx * X)
+            plane[cy * Y:cy * Y + h, cx * X:cx * X + w] = tile[:h, :w]
+        os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
+    finally:
+        os.close(fd)
+    return plane
+
+
+def _chunks(filled: np.ndarray) -> list[tuple[int, int]]:
+    """The chunks a block holds: a written chunk marks its whole extent filled."""
+    return [(cy, cx) for cy in range(-(-filled.shape[0] // Y)) for cx in range(-(-filled.shape[1] // X))
+            if filled[cy * Y, cx * X]]
+
+
+def _fetch(source, variable: str, block: int) -> tuple[Path, np.ndarray, list[tuple[int, int]] | None]:
+    """Fetch one block of one variable into a sparse chunk-tiled file; returns (file, filled-pixel mask, chunks).
+
+    chunks is None for a block kept from before 2026-10-28 in the hour-major layout (<block>.f32), read by _hour.
+    """
     grid = source.grid
-    path = cache_dir(source.name) / "blocks" / variable / f"{block:04d}.f32"
-    done = path.with_suffix(".filled.npy")                   # written last: the block is complete
+    folder = cache_dir(source.name) / "blocks" / variable
+    legacy = folder / f"{block:04d}.f32"
+    if legacy.exists() and legacy.with_suffix(".filled.npy").exists():
+        return legacy, np.load(legacy.with_suffix(".filled.npy")), None
+    path = folder / f"{block:04d}.t32"
+    done = folder / f"{block:04d}.t32.filled.npy"            # written last: the block is complete
     if path.exists() and done.exists():                      # a rerun reuses it, no requests
-        return path, np.load(done)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    data = np.memmap(path, np.float32, "w+", shape=(T, grid.height, grid.width))
+        filled = np.load(done)
+        return path, filled, _chunks(filled)
+    folder.mkdir(parents=True, exist_ok=True)
     filled = np.zeros((grid.height, grid.width), bool)
     array = _open()[variable]
     t0 = block * T
     empty = []
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT, 0o664)
+    try:
+        os.ftruncate(fd, _tile_offset(-(-grid.height // Y), 0, grid.width))   # sparse: unwritten chunks take no space
 
-    def one(chunk: tuple[int, int]) -> None:
-        cy, cx = chunk
-        values = _read(array, (slice(t0, t0 + T), slice(cy * Y, (cy + 1) * Y), slice(cx * X, (cx + 1) * X)))
-        if np.isnan(values).all():
-            empty.append(chunk)
-            return
-        data[:values.shape[0], cy * Y:cy * Y + values.shape[1], cx * X:cx * X + values.shape[2]] = values
-        filled[cy * Y:cy * Y + values.shape[1], cx * X:cx * X + values.shape[2]] = True
+        def one(chunk: tuple[int, int]) -> None:
+            cy, cx = chunk
+            values = _read(array, (slice(t0, t0 + T), slice(cy * Y, (cy + 1) * Y), slice(cx * X, (cx + 1) * X)))
+            if np.isnan(values).all():
+                empty.append(chunk)
+                return
+            _write_tile(fd, cy, cx, grid.width, values)
+            filled[cy * Y:cy * Y + values.shape[1], cx * X:cx * X + values.shape[2]] = True
 
-    with ThreadPoolExecutor(16) as pool:
-        list(pool.map(one, sorted(_needed[source.name])))
+        with ThreadPoolExecutor(16) as pool:
+            list(pool.map(one, sorted(_needed[source.name])))
+        os.fdatasync(fd)                                     # on disk before the block is marked complete
+        os.posix_fadvise(fd, 0, 0, os.POSIX_FADV_DONTNEED)
+    finally:
+        os.close(fd)
     if empty:
         with _lock:
             known = _empty(source) | set(empty)
             _empty_file(source).write_text(json.dumps(sorted(known)))
             _needed[source.name] -= set(empty)
             requests["empty"] += len(empty)
-    data.flush()
-    del data                                                 # close the mapping: the block is on disk
-    _drop(path)
     np.save(done, filled)
-    return path, filled
+    return path, filled, _chunks(filled)
 
 
-def _block(source, variable: str, block: int) -> tuple[Path, np.ndarray]:
+def _block(source, variable: str, block: int) -> tuple[Path, np.ndarray, list[tuple[int, int]] | None]:
     key = (variable, block)
     with _lock:
         if key in _blocks:
@@ -177,9 +227,9 @@ def _block(source, variable: str, block: int) -> tuple[Path, np.ndarray]:
                 old = sorted(b for v, b in _blocks if v == variable and b <= block - KEEP)
                 for b in old:                                      # stream moves forward: drop older blocks
                     del _blocks[(variable, b)]
-                    stale = cache_dir(source.name) / "blocks" / variable / f"{b:04d}.f32"
-                    stale.with_suffix(".filled.npy").unlink(missing_ok=True)
-                    stale.unlink(missing_ok=True)
+                    folder = cache_dir(source.name) / "blocks" / variable
+                    for name in (f"{b:04d}.filled.npy", f"{b:04d}.f32", f"{b:04d}.t32.filled.npy", f"{b:04d}.t32"):
+                        (folder / name).unlink(missing_ok=True)
                 n = requests["chunks"]
             print(f"edh: {variable} block {block} ({START + block * T}) fetched; {n:,} chunk requests so far",
                   flush=True)
@@ -187,8 +237,10 @@ def _block(source, variable: str, block: int) -> tuple[Path, np.ndarray]:
 
 
 def _at(source, variable: str, index: int) -> np.ndarray:
-    path, filled = _block(source, variable, index // T)
-    f = _hour(path, index % T, source.grid.height, source.grid.width)
+    path, filled, chunks = _block(source, variable, index // T)
+    grid = source.grid
+    f = (_hour(path, index % T, grid.height, grid.width) if chunks is None
+         else _tiled_hour(path, index % T, chunks, grid.height, grid.width))
     f[~filled] = np.nan
     return f
 
