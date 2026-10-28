@@ -79,6 +79,10 @@ def main(argv: list[str] | None = None) -> int:
     clim = sub.add_parser("climatology", help="per cell and calendar month: mean, std, years, from a monthly series")
     clim.add_argument("--out", type=Path, required=True, help="the folder written by `monthly`")
     clim.add_argument("--period", type=int, nargs=2, default=(1991, 2020), metavar=("FIRST", "LAST"))
+    pack = sub.add_parser("repack", help="publishing layout: rows along a Hilbert curve, small row groups")
+    pack.add_argument("--src", type=Path, required=True, help="a monthly folder (cells, series, climatology) or static")
+    pack.add_argument("--out", type=Path, required=True)
+    pack.add_argument("--workers", type=int, default=None)
     join = sub.add_parser("merge", help="per-source Core-Weather folders -> one hourly and one daily table")
     join.add_argument("--root", type=Path, required=True, help="the folder holding one folder per source")
     join.add_argument("--sources", nargs="+", required=True, help="source folder names, e.g. era5 cams cpc s5p")
@@ -127,6 +131,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "climatology":
         from .monthly import climatology
         print(f"{climatology(args.out, tuple(args.period)):,} rows written", flush=True)
+        return 0
+    if args.command == "repack":
+        from .layout import repack
+        print(f"{repack(args.src, args.out, args.workers):,} files written and checked", flush=True)
         return 0
     samples = pd.concat([read_samples(p) for p in args.samples], ignore_index=True)
     print(f"{len(samples):,} samples from {samples['dataset'].nunique()} datasets", flush=True)

@@ -30,6 +30,7 @@ from majortom.cells import cell_from_name                                # noqa:
 CELLS = {"624U_29L": "Loch Lomond", "518U_90R": "Dolomites (Corvara)", "35D_667L": "Amazon (Manaus)",
          "429U_786L": "St Louis (fallback)"}
 SURFACE, INK, MUTED = "#fcfcfb", "#0b0b0b", "#52514e"
+MAX_PX = 900                   # figure width: source.coop shows README images at full size, its column is ~900 px
 BLUES = LinearSegmentedColormap.from_list("blues", ["#cde2fb", "#86b6ef", "#3987e5", "#256abf", "#184f95", "#0d366b"])
 CLASSES = ListedColormap(["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"])
 RGB = {"sentinel-2-l2a": ("B04", "B03", "B02"), "sentinel-2-l1c": ("B04", "B03", "B02"),
@@ -132,7 +133,7 @@ def gallery(samples: pd.DataFrame, out: Path) -> None:
     firsts = (ranked.sort_values(["source", "rank", "uniform", "missing", "cloud", "dominance", "datetime"])
               .drop_duplicates("source"))                    # Loch Lomond first: not uniform, least missing, clearest
     n = len(firsts)
-    cols = 6
+    cols = 4
     fig, axes = plt.subplots(-(-n // cols), cols, figsize=(cols * 2.3, -(-n // cols) * 2.75), constrained_layout=True)
     fig.patch.set_facecolor(SURFACE)
     for ax in axes.flat:
@@ -142,8 +143,8 @@ def gallery(samples: pd.DataFrame, out: Path) -> None:
         ax.imshow(image, cmap=cmap, interpolation="nearest", vmin=0 if cmap is CLASSES else None,
                   vmax=7 if cmap is CLASSES else None)
         when = (r.datetime or "")[:10]
-        ax.set_title(f"{r.source}\n{CELLS.get(r.cell, r.cell)}  {when}\n{caption}", fontsize=7, color=INK, loc="left")
-    fig.savefig(out / "gallery.png", dpi=130, facecolor=SURFACE)
+        ax.set_title(f"{r.source}\n{CELLS.get(r.cell, r.cell)}  {when}\n{caption}", fontsize=8, color=INK, loc="left")
+    fig.savefig(out / "gallery.png", dpi=MAX_PX / fig.get_figwidth(), facecolor=SURFACE)
     plt.close(fig)
 
 
@@ -167,7 +168,7 @@ def cell_map(samples: pd.DataFrame, out: Path) -> None:
     ax.set(xlim=(-180, 180), ylim=(-60, 85), aspect="equal", xticks=[], yticks=[])
     for s in ax.spines.values():
         s.set_visible(False)
-    fig.savefig(out / "cells.png", dpi=130, facecolor=SURFACE)
+    fig.savefig(out / "cells.png", dpi=MAX_PX / fig.get_figwidth(), facecolor=SURFACE)
     plt.close(fig)
 
 
@@ -254,7 +255,7 @@ in its own folder, made exactly as a real release would be (`python -m majortom.
 
 ## Where
 
-![The test cells](https://data.source.coop/major-tom/release-test/figures/cells.png)
+<img src="https://data.source.coop/major-tom/release-test/figures/cells.png" alt="The test cells" width="100%">
 
 Three cells of the Major TOM 10 km grid: **Loch Lomond** (`624U_29L`), the **Dolomites near Corvara** (`518U_90R`)
 and the **Amazon near Manaus** (`35D_667L`). {fallback} Per cell: two dates for scene products (the clearest of
@@ -263,7 +264,7 @@ Fewer samples mean the archive had nothing for that cell and period.
 
 ## What
 
-![One quicklook per source](https://data.source.coop/major-tom/release-test/figures/gallery.png)
+<img src="https://data.source.coop/major-tom/release-test/figures/gallery.png" alt="One quicklook per source" width="100%">
 
 | Source | Kind | Pixel sizes | Bands | Data types | Time | Archive | Samples | Released (all files) | Compression (rumi) | Partitions | Check |
 |---|---|---|---|---|---|---|---|---|---|---|---|
