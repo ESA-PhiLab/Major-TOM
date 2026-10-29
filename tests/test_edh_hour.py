@@ -95,3 +95,21 @@ def test_cut_download_is_retried_even_if_its_byte_count_contains_429(monkeypatch
     assert edh._read(_Flaky(cut, cut), ()).sum() == 4                     # retried twice, then read
     with pytest.raises(OSError, match="429"):
         edh._read(_Flaky(OSError("429, message='Too Many Requests'")), ())   # quota: stop at once
+
+
+class _Status(OSError):
+    """An HTTP error carrying its status, as aiohttp's ClientResponseError does."""
+
+    def __init__(self, status, message):
+        super().__init__(message)
+        self.status = status
+
+
+def test_server_error_is_retried_even_if_its_url_contains_401(monkeypatch):
+    import pytest
+    monkeypatch.setattr(edh.time, "sleep", lambda s: None)
+    url = "url='https://data.earthdatahub.destine.eu/era5/era5-land-v0.zarr/pev/c/401/18/2'"
+    assert edh._read(_Flaky(_Status(502, f"502, message='Bad Gateway', {url}")), ()).sum() == 4
+    assert edh._read(_Flaky(OSError(f"Bad Gateway {url}")), ()).sum() == 4           # no status: URL ignored
+    with pytest.raises(OSError, match="Unauthorized"):
+        edh._read(_Flaky(_Status(401, f"401, message='Unauthorized', {url}")), ())  # refused key: stop at once

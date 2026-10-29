@@ -102,8 +102,12 @@ def _read(array, sel: tuple) -> np.ndarray:
             return values
         except Exception as error:                   # aiohttp/fsspec raise several types; the message decides
             text = f"{type(error).__name__}: {error}"
-            # a status code as a whole number: "received 93429 of 3242240 bytes" (a cut download) is retried
-            if re.search(r"\b(401|403|429)\b", text) or attempt == TRIES - 1:
+            # the response's own status when the error has one; otherwise a whole number in the message outside
+            # URLs: "received 93429 of 3242240 bytes" and a 502 for ".../pev/c/401/18/2" are retried
+            status = getattr(error, "status", None)
+            bare = re.sub(r"https?://\S+", "", text)
+            refused = status in (401, 403, 429) if status is not None else re.search(r"\b(401|403|429)\b", bare)
+            if refused or attempt == TRIES - 1:
                 raise
             with _lock:
                 requests["chunks"] += 1                  # a failed request may still count against the quota
