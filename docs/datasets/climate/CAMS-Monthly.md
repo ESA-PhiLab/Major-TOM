@@ -4,7 +4,7 @@
 > when publishing. Licence and citations checked 2026-10-28 (Atmosphere Data Store catalogue: CC-BY-4.0; DataCite
 > and Crossref records of both DOIs). The credit line is ECMWF's recommended wording, not a licence requirement.
 
-<p align="center"><img src="https://data.source.coop/major-tom/climate/brand/mt-climate.svg" alt="Major TOM Climate" width="520"></p>
+<img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 
 # CAMS-Monthly
 
@@ -53,18 +53,20 @@ PM1 is not in the monthly product.
 | `series/year=YYYY/MM.parquet` | one row per cell, along the Hilbert curve: `grid_cell`, `grid_row_u`, `grid_col_r`, `year`, `month`, the columns above |
 | `climatology/band=NN.parquet` | one row per cell and calendar month over 2003–2025: `grid_cell`, `grid_row_u`, `grid_col_r`, `month`, `<column>_mean`, `<column>_std`, `n_years` |
 
+Series values are CAMS's monthly means of each variable. The climatology gives, per cell and calendar month over 2003–2025, the mean (`_mean`) and the year-to-year sample standard deviation (`_std`) of each column, and `n_years`, the years with data (23 everywhere, as CAMS has no gaps).
+
 ```python
 import pandas as pd
 url = "https://data.source.coop/major-tom/climate/CAMS-Monthly"
 sep = pd.read_parquet(f"{url}/series/year=2024/09.parquet", columns=["grid_cell", "cams_aod550", "cams_pm2p5"])
 ```
 
-## Things to know
+## Notes
 
 - **Climatology period.** CAMS EAC4 starts in 2003, so its normals use the whole record (2003–2025); `n_years` is 23.
-- **Coarse grid.** At 0.75°, a city and its surroundings share one value; for local detail, Major TOM Core-Weather adds Sentinel-5P (a few kilometres, with gaps under cloud).
-- **A model, not a measurement.** Values are reanalysis states fitted to satellite retrievals; surface quantities (PM, surface gases) depend most on the model.
-- Values are cell means, not interpolated: see the [top-level README](https://source.coop/major-tom/climate).
+- **Grid.** At 0.75°, a city and its surroundings share one value. Major TOM Core-Weather also has Sentinel-5P at a few kilometres, with gaps under cloud.
+- **Reanalysis.** Values are model states fitted to satellite retrievals. Surface quantities (PM, surface gases) depend most on the model.
+- **Cell means.** Values are area-weighted means over each cell, without interpolation; see the [top-level README](https://source.coop/major-tom/climate).
 
 ## Validation
 
@@ -76,6 +78,23 @@ Licensed CC BY 4.0. Contains modified Copernicus Atmosphere Monitoring Service i
 
 - Copernicus Atmosphere Monitoring Service (2020), CAMS global reanalysis (EAC4) monthly averaged fields, ECMWF, doi:10.24381/fd75fff2.
 - Inness, A., et al. (2019), The CAMS reanalysis of atmospheric composition, Atmos. Chem. Phys., 19, 3515–3556, doi:10.5194/acp-19-3515-2019.
+
+## Author and citation
+
+Mikolaj Czerkawski, Asterisk Labs.
+
+To cite this dataset, cite the Major TOM paper below and the source data as listed above. A Major TOM v2 paper will replace this reference when it is published.
+
+```bibtex
+@inproceedings{Francis2024MajorTOM,
+  author={Francis, Alistair and Czerkawski, Mikolaj},
+  booktitle={IGARSS 2024 - 2024 IEEE International Geoscience and Remote Sensing Symposium},
+  title={Major TOM: Expandable Datasets for Earth Observation},
+  year={2024},
+  pages={2935-2940},
+  doi={10.1109/IGARSS53475.2024.10640760}
+}
+```
 
 ---
 

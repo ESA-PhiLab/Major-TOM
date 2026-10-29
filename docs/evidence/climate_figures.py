@@ -189,7 +189,7 @@ def cpc_precip(release: Path) -> tuple:
     a = annual(release, "CPC-Monthly", "cpc_precip_mean")
     cmap, norm, ticks, labels = precipitation_scale()
     return _spec([(_image(a, "cpc_precip_mean"), None)], cmap, norm, ticks, labels,
-               "Annual precipitation from rain gauges",
+               "Annual precipitation, CPC (rain gauges), 1991–2020",
                "NOAA CPC Global Unified, normal 1991–2020 · CPC-Monthly · 1,657,095 land cells",
                "mm per year (log scale)", release / "CPC-Monthly" / "figures" / "annual-precipitation.png",
                empty_label="no data (sea)")
@@ -199,7 +199,7 @@ def imerg_precip(release: Path) -> tuple:
     a = annual(release, "IMERG-Monthly", "imerg_precip_mean", per_month=HOURS_IN)
     cmap, norm, ticks, labels = precipitation_scale()
     return _spec([(_image(a, "imerg_precip_mean"), None)], cmap, norm, ticks, labels,
-               "Annual precipitation from satellites",
+               "Annual precipitation, IMERG (satellites), 1998–2024",
                "NASA GPM IMERG Final V07, normal 1998–2024 · IMERG-Monthly · 5,109,586 cells, land and sea",
                "mm per year (log scale; same scale as CPC-Monthly)",
                release / "IMERG-Monthly" / "figures" / "annual-precipitation.png")
@@ -217,7 +217,7 @@ def cpc_temperature(release: Path) -> tuple:
     ticks = [-40, -20, -10, 0, 10, 20, 30, 40]
     panels = [(_image(t[t.month == m], "cpc_tmax_mean"), name) for m, name in ((1, "January"), (7, "July"))]
     return _spec(panels, COLD_HOT, norm, ticks, [f"{v:+d}".replace("+0", "0") for v in ticks],
-               "Daily maximum temperature from weather stations",
+               "Daily maximum temperature, CPC, 1991–2020",
                "NOAA CPC Global Unified, normal 1991–2020 · CPC-Monthly · mean of the month's daily maxima",
                "°C (grey: 0 °C, freezing)", release / "CPC-Monthly" / "figures" / "maximum-temperature.png",
                empty_label="no data (sea)")
@@ -231,9 +231,9 @@ def cams_aerosol(release: Path) -> tuple:
     a = annual(release, "CAMS-Monthly", "cams_aod550_mean", how="mean")
     ticks = [0.03, 0.05, 0.1, 0.2, 0.5, 1]
     return _spec([(_image(a, "cams_aod550_mean"), None)], HAZE, LogNorm(vmin=0.03, vmax=1), ticks,
-               [f"{t:g}" for t in ticks], "Aerosol optical depth",
+               [f"{t:g}" for t in ticks], "Aerosol optical depth at 550 nm, CAMS, 2003–2025",
                "Copernicus CAMS reanalysis EAC4, mean 2003–2025 · CAMS-Monthly · total aerosol at 550 nm",
-               "optical depth, no unit (log scale): 0.05 clear air, 1 thick haze, dust or smoke",
+               "optical depth, no unit (log scale)",
                release / "CAMS-Monthly" / "figures" / "aerosol-optical-depth.png")
 
 
@@ -242,7 +242,7 @@ def cams_pm25(release: Path) -> tuple:
     a["cams_pm2p5_mean"] *= 1e9                                          # kg m-3 -> µg m-3, for the labels only
     ticks = [2, 5, 10, 25, 50, 100, 150]
     return _spec([(_image(a, "cams_pm2p5_mean"), None)], HAZE, LogNorm(vmin=2, vmax=150), ticks,
-               [f"{t:g}" for t in ticks], "Fine particulate matter (PM2.5) at the surface",
+               [f"{t:g}" for t in ticks], "Surface PM2.5, CAMS, 2003–2025",
                "Copernicus CAMS reanalysis EAC4, mean 2003–2025 · CAMS-Monthly · stored in kg/m³",
                "µg/m³ (log scale; WHO annual guideline 5)",
                release / "CAMS-Monthly" / "figures" / "pm25.png")
@@ -259,10 +259,17 @@ def era5_height(release: Path) -> tuple:
     s["height"] = np.where(s.era5_lsm >= 0.5, s.era5_z / 9.80665, np.nan)    # sea left dark
     ticks = [0, 250, 500, 1000, 2000, 3000, 5000]
     return _spec([(_image(s, "height"), None)], TERRAIN, PowerNorm(0.5, vmin=0, vmax=5000), ticks,
-               [f"{t:,}" for t in ticks], "Surface height of the ERA5 model",
+               [f"{t:,}" for t in ticks], "Surface height, ERA5 model",
                "ECMWF ERA5, geopotential at the surface ÷ g · ERA5-Static · the model's smoothed terrain at 0.25°",
                "m above sea level (square-root scale)", release / "ERA5-Static" / "figures" / "surface-height.png",
                empty_label="sea")
+
+
+def _save_vector(fig, out: Path) -> None:
+    """Line charts as SVG: sharp at any display size; text as outlines, so no font is needed to view them."""
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with matplotlib.rc_context({"svg.fonttype": "path"}):
+        fig.savefig(out, format="svg", facecolor=PAGE)
 
 
 def _cell_normals(release: Path, dataset: str, columns: list[str], row: int, col: int) -> pd.DataFrame:
@@ -286,10 +293,10 @@ def _axes_style(ax, ylabel: str | None) -> None:
 
 
 def places(release: Path) -> None:
-    """Precipitation three ways (CPC gauges, IMERG satellites; ERA5 when published) and temperature, per place."""
+    """Monthly precipitation (CPC gauges, IMERG satellites; ERA5 when published) and temperature at the three places."""
     fig, axes = plt.subplots(2, 3, figsize=(WIDTH_PX / 100, 6.4), dpi=100, facecolor=PAGE, sharex=True, sharey="row",
                              gridspec_kw=dict(left=0.09, right=0.95, top=0.74, bottom=0.07, hspace=0.42, wspace=0.12))
-    fig.text(0.02, 0.965, "Precipitation and temperature at three places", fontsize=13, fontweight="bold",
+    fig.text(0.02, 0.965, "Monthly precipitation and temperature: Loch Lomond, Corvara, Manaus", fontsize=13, fontweight="bold",
              color=INK, va="top")
     fig.text(0.02, 0.915, "Monthly normals · precipitation: CPC rain gauges 1991–2020, IMERG satellites 1998–2024 · "
              "temperature: CPC", fontsize=9, color=INK_2, va="top")
@@ -316,16 +323,14 @@ def places(release: Path) -> None:
                labelcolor=INK_2, handlelength=1.6)
     y = axes[1, 0].get_position().y1
     fig.text(0.09, y + 0.025, "Daily maximum (solid) and minimum (dashed), mean of the month", fontsize=8, color=INK_2)
-    out = release / "figures" / "places.png"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=100 * SCALE, facecolor=PAGE)
+    _save_vector(fig, release / "figures" / "places.svg")
     plt.close(fig)
 
 
 def air_quality_seasons(release: Path) -> None:
     fig, ax = plt.subplots(figsize=(WIDTH_PX / 100, 3.8), dpi=100, facecolor=PAGE,
                            gridspec_kw=dict(left=0.08, right=0.86, top=0.74, bottom=0.12))
-    fig.text(0.02, 0.95, "Aerosol through the year at three places", fontsize=13, fontweight="bold", color=INK,
+    fig.text(0.02, 0.95, "Monthly aerosol optical depth: Loch Lomond, Corvara, Manaus", fontsize=13, fontweight="bold", color=INK,
              va="top")
     fig.text(0.02, 0.87, "CAMS reanalysis EAC4, monthly normals 2003–2025 · total aerosol optical depth at 550 nm",
              fontsize=9, color=INK_2, va="top")
@@ -336,14 +341,12 @@ def air_quality_seasons(release: Path) -> None:
     _axes_style(ax, "optical depth")
     ax.set_ylim(bottom=0)
     ax.legend(loc="upper left", bbox_to_anchor=(0, 1.2), ncol=3, frameon=False, fontsize=8, labelcolor=INK_2)
-    out = release / "figures" / "air-quality-seasons.png"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=100 * SCALE, facecolor=PAGE)
+    _save_vector(fig, release / "figures" / "air-quality-seasons.svg")
     plt.close(fig)
 
 
 def overview(release: Path) -> None:
-    """Six tiles, one per dataset map: what Major TOM Climate holds, at a glance (top-level README)."""
+    """Six maps, one or two per dataset, for the top-level README."""
     tiles = [(cpc_precip, 0, "Precipitation · rain gauges", "CPC-Monthly", "mm per year"),
              (imerg_precip, 0, "Precipitation · satellites", "IMERG-Monthly", "mm per year"),
              (cpc_temperature, 1, "July maximum temperature", "CPC-Monthly", "°C"),
@@ -355,9 +358,9 @@ def overview(release: Path) -> None:
     height = head + row_h * 3
     width = WIDTH_PX / 100
     fig = plt.figure(figsize=(width, height), dpi=100, facecolor=PAGE)
-    fig.text(0.02, 1 - 0.25 / height, "What Major TOM Climate holds", fontsize=13, fontweight="bold", color=INK,
+    fig.text(0.02, 1 - 0.25 / height, "Major TOM Climate datasets", fontsize=13, fontweight="bold", color=INK,
              va="top")
-    fig.text(0.02, 1 - 0.58 / height, "One map per dataset: normals or means per Major TOM cell, sinusoidal projection",
+    fig.text(0.02, 1 - 0.58 / height, "Normals and means per Major TOM cell, sinusoidal projection",
              fontsize=9, color=INK_2, va="top")
     for i, (spec, panel, name, dataset, unit) in enumerate(tiles):
         (panels, cmap, norm, ticks, labels, *_), _ = spec(release)

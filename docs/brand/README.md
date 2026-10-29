@@ -8,6 +8,7 @@
 |---|---|
 | `mt-climate.svg` | Major TOM Climate logo, light backgrounds (Miko, 2026-10-28; all text outlined) |
 | `mt-climate-dark.svg` | the same with white wordmark and label, dark backgrounds |
+| `mt-climate-banner.svg` | the logo centred on a canvas twice its width, for README headers shown at width="100%" (source.coop drops align="center") |
 | `mt-climate-icon.svg`, `mt-climate-icon-dark.svg` | square crop of the tile mark and label, for avatars and small sizes |
 | `earth-compress.svg` | Earth Compress logo, from https://earth-compress.github.io/benchmark/ |
 

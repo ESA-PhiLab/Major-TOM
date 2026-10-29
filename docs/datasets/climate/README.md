@@ -3,15 +3,15 @@
 > **Review status:** unreviewed draft (2026-10-28) of the top-level README for source.coop `major-tom/climate`.
 > Remove these two notes when publishing. Placeholders: `[ERA5…]` rows are added when those datasets are published.
 
-<p align="center"><img src="https://data.source.coop/major-tom/climate/brand/mt-climate.svg" alt="Major TOM Climate" width="640"></p>
+<img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 
 # Major TOM Climate
 
-Monthly climate records and climate normals for every cell of the [Major TOM](https://github.com/ESA-PhiLab/Major-TOM) grid: decades of global reanalysis, satellite and rain-gauge data, condensed into compact tables keyed by `grid_cell`. Climate context for any place on Earth becomes a join, not a download.
+Monthly climate records and climate normals for every cell of the [Major TOM](https://github.com/ESA-PhiLab/Major-TOM) grid, from reanalysis, satellite and rain-gauge sources, in Parquet tables keyed by `grid_cell`.
 
-Each dataset is a folder of its own, with its own README, and can be used without the others.
+Each dataset is a separate folder with its own README.
 
-<img src="https://data.source.coop/major-tom/climate/figures/overview.png" alt="One map per dataset: precipitation from gauges and satellites, July maximum temperature, surface height, aerosol optical depth, PM2.5" width="100%">
+<img src="https://data.source.coop/major-tom/climate/figures/overview.png" alt="Maps of the datasets: annual precipitation (CPC, IMERG), July maximum temperature, surface height, aerosol optical depth, PM2.5" width="100%">
 
 | Dataset | What | Source | Record | Grid | Cells | Variables | Size |
 |---|---|---|---|---|---|---|---|
@@ -20,25 +20,25 @@ Each dataset is a folder of its own, with its own README, and can be used withou
 | [CAMS-Monthly](https://source.coop/major-tom/climate/CAMS-Monthly) | air quality: trace gases, aerosols, particulate matter | Copernicus CAMS EAC4 | 2003–2025 | 0.75° | 5,113,745 (globe) | 19 | 58 GB |
 | [ERA5-Static](https://source.coop/major-tom/climate/ERA5-Static) | fixed surface fields: terrain, land and lake cover, soil and vegetation types | ECMWF ERA5 | — | 0.25° | 5,113,745 (globe) | 16 | 0.1 GB |
 
-Every folder is also reachable directly: `https://data.source.coop/major-tom/climate/<dataset>/...`
+Files are at `https://data.source.coop/major-tom/climate/<dataset>/...`.
 
 ## Motivation
 
-The sources were chosen to complement each other, so that every quantity that matters for Earth observation comes from more than one kind of evidence:
+The sources were chosen so that the main quantities come from more than one type of data:
 
-- **Three kinds of data.** Reanalyses (ERA5, ERA5-Land, CAMS) are models fitted to observations: complete in space and time, but modelled. Satellite products (IMERG) observe directly, at finer resolution, with their own retrieval errors. Rain-gauge analyses (CPC) are ground measurements, independent of both, but sparse where gauges are sparse.
-- **Precipitation three ways.** Precipitation is the variable that matters most for imagery (wet soil, flooding, cloud) and the one reanalyses reproduce least well, especially in mountains and the tropics. CPC (gauges), IMERG (satellite) and ERA5 / ERA5-Land (models) let users compare, or pick the one they trust for their region.
-- **Weather and land surface.** ERA5 covers the whole atmosphere and ocean surface at 0.25°; ERA5-Land reruns the land surface at 0.1° with temperatures adjusted for elevation.
-- **Air quality.** CAMS is the only global, gap-free air quality reanalysis; Sentinel-5P (in Major TOM Core-Weather) observes at a few kilometres but with gaps under cloud.
-- **Practical.** Global, long records, open licences, and free bulk access that we measured before building.
+- **Data types.** Reanalyses (ERA5, ERA5-Land, CAMS) are models fitted to observations and are complete in space and time. Satellite products (IMERG) are observations at finer resolution, with retrieval errors. Rain-gauge analyses (CPC) are ground measurements and are sparse where gauges are sparse.
+- **Precipitation from three types of source.** Precipitation affects imagery most (wet soil, flooding, cloud) and is reproduced least well by reanalyses, especially in mountains and the tropics. CPC (gauges), IMERG (satellites) and ERA5 / ERA5-Land (models) can be compared or chosen per region.
+- **Weather and land surface.** ERA5 covers the atmosphere and ocean surface at 0.25°. ERA5-Land reruns the land surface at 0.1°, with temperatures adjusted for elevation.
+- **Air quality.** CAMS is a global air-quality reanalysis without gaps. Sentinel-5P (in Major TOM Core-Weather) observes at a few kilometres, with gaps under cloud.
+- **Access.** Global coverage, long records, open licences and free bulk access, measured before building.
 
 > Routes we tested and did not use: IMERG from NASA GES DISC (0.09 MB/s from our server, against 12.9 MB/s from Earth Engine); Sentinel-5P level-2 swaths (whole orbits must be downloaded, ~18 TB for NO₂ alone); ERA5-Land daily statistics from the Climate Data Store (no accumulated variables such as precipitation).
 
-The same three places as Major TOM's release test, from the datasets here: gauges and satellites agree on the Amazon's seasons but not on how much falls in Scotland or the Alps, which is why precipitation comes from more than one source.
+Monthly normals at the three cells of Major TOM's release test. Gauges and satellites agree on the timing of the Amazon's wet season and differ in amounts in Scotland and the Alps.
 
-<img src="https://data.source.coop/major-tom/climate/figures/places.png" alt="Monthly precipitation (CPC, IMERG) and temperature at Loch Lomond, Corvara and Manaus" width="100%">
+<img src="https://data.source.coop/major-tom/climate/figures/places.svg" alt="Monthly precipitation (CPC, IMERG) and temperature at Loch Lomond, Corvara and Manaus" width="100%">
 
-<img src="https://data.source.coop/major-tom/climate/figures/air-quality-seasons.png" alt="Monthly aerosol optical depth at the three places" width="100%">
+<img src="https://data.source.coop/major-tom/climate/figures/air-quality-seasons.svg" alt="Monthly aerosol optical depth at Loch Lomond, Corvara and Manaus" width="100%">
 
 ## Layout
 
@@ -50,9 +50,23 @@ Every monthly dataset has the same three parts:
 | `series/year=YYYY/MM.parquet` | cell and month | `grid_cell`, `grid_row_u`, `grid_col_r`, `year`, `month`, `<source>_<variable>`, `<source>_valid` (share of the cell with data) |
 | `climatology/band=NN.parquet` | cell and calendar month | `grid_cell`, `grid_row_u`, `grid_col_r`, `month`, `<variable>_mean`, `<variable>_std` (spread across years), `n_years` |
 
-**Rows follow a Hilbert curve** over the globe (the same order as Major TOM's TACO releases), so nearby cells sit together, and files are written in row groups of 65,536 rows with statistics on `grid_row_u` and `grid_col_r`. A filter on those two integers reads only the row groups covering the area: one cell's 47-year CPC series reads 0.35 GB instead of 6.9 GB.
+Rows are ordered along a Hilbert curve over the globe (the order used in Major TOM's TACO releases), so neighbouring cells are stored together. Files use row groups of 65,536 rows with statistics on `grid_row_u` and `grid_col_r`. A filter on these two columns reads only the row groups that cover the area. Reading one cell's 47-year CPC series takes 0.35 GB instead of 6.9 GB.
 
-Climatology files are split into 20 bands of grid rows, so a cell's 12 months sit in one file: band = (row + 1002) × 20 // 2004, where row is `grid_row_u` (`624U_29L`: row 624, band 16; `35D_667L`: row −35, band 9).
+### Series
+
+One row per cell and month, for every month of the record. Each column holds the dataset's monthly value for that cell, as defined in the dataset's README: a monthly mean for most variables (CAMS concentrations, IMERG's mean precipitation rate in mm/h), the month's total for CPC precipitation, the mean of the month's daily maxima and minima for CPC temperature. `<source>_valid` is the share of the cell's area covered by source pixels with data (1 = fully covered).
+
+### Climatology
+
+One row per cell and calendar month (12 rows per cell), computed from the series over a reference period: 1991–2020 where the record covers it (CPC); the whole record otherwise (IMERG 1998–2024, CAMS 2003–2025).
+
+- `<variable>_mean`: the mean of that calendar month over the reference years, e.g. the average July value 1991–2020.
+- `<variable>_std`: the sample standard deviation (n − 1) of that calendar month across the reference years, i.e. the usual year-to-year variation.
+- `n_years`: the number of reference years with a value, counted on the dataset's first variable. Another variable can have fewer years in the same cell.
+
+The anomaly of a month is its series value minus the climatology `_mean` of the same cell and calendar month; dividing by `_std` gives a standardised anomaly.
+
+Climatology files are split into 20 bands of grid rows, so a cell's 12 months are in one file: band = (row + 1002) × 20 // 2004, where row is `grid_row_u` (`624U_29L`: row 624, band 16; `35D_667L`: row −35, band 9).
 
 ## Reading
 
@@ -73,18 +87,40 @@ SELECT grid_cell, cpc_precip FROM 'https://data.source.coop/major-tom/climate/CP
 WHERE grid_row_u BETWEEN 610 AND 640 AND grid_col_r BETWEEN -60 AND 0;
 ```
 
+```python
+anomaly = series.merge(normals, on=["grid_cell", "grid_row_u", "grid_col_r", "month"])
+anomaly["precip_anomaly"] = anomaly.cpc_precip - anomaly.cpc_precip_mean    # mm, against 1991-2020
+```
+
 Join to any Major TOM dataset on `grid_cell`; join a series to its climatology on `grid_cell` and `month` to get anomalies. For xarray: `series.set_index(["grid_cell", "year", "month"]).to_xarray()`.
 
-## What the values are
+## Values
 
 - **Cell means.** Each value is the area-weighted mean of the source pixels overlapping a 10 km cell. Nothing is interpolated: where a source pixel is larger than a cell (0.25° to 0.75°), neighbouring cells share its value.
 - **Units as published** by each source, not converted; each dataset's README lists them.
-- **Reanalyses are models.** ERA5 and CAMS values are model states fitted to observations, not measurements at a place.
-- **Source errors are kept.** Values are not edited; known problems in a source are listed in its README.
+- **Reanalyses.** ERA5 and CAMS values are model states fitted to observations.
+- **Source errors.** Values are not edited. Known problems are listed in each dataset's README.
 
 ## Licences
 
 Each dataset keeps its source's terms; see its README for the exact acknowledgement and citations. In short: CPC has no usage restrictions (NOAA PSL asks to be acknowledged); IMERG is NASA open data (cite the dataset); ERA5 and CAMS are under CC BY 4.0 (since 2 July 2025), credited as "Contains modified Copernicus … Service information [year]", as ECMWF recommends.
+
+## Author and citation
+
+Mikolaj Czerkawski, Asterisk Labs.
+
+To cite this dataset, cite the Major TOM paper below and the sources listed in each dataset's README. A Major TOM v2 paper will replace this reference when it is published.
+
+```bibtex
+@inproceedings{Francis2024MajorTOM,
+  author={Francis, Alistair and Czerkawski, Mikolaj},
+  booktitle={IGARSS 2024 - 2024 IEEE International Geoscience and Remote Sensing Symposium},
+  title={Major TOM: Expandable Datasets for Earth Observation},
+  year={2024},
+  pages={2935-2940},
+  doi={10.1109/IGARSS53475.2024.10640760}
+}
+```
 
 ---
 

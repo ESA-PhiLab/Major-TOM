@@ -4,7 +4,7 @@
 > when publishing. Licence and citation checked 2026-10-28 (DataCite record of the DOI; NASA Earthdata data use
 > guidance). Artifact counts from docs/evidence/monthly_artifacts.py (2026-10-28).
 
-<p align="center"><img src="https://data.source.coop/major-tom/climate/brand/mt-climate.svg" alt="Major TOM Climate" width="520"></p>
+<img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 
 # IMERG-Monthly
 
@@ -45,6 +45,8 @@ Monthly satellite precipitation for every cell of the Major TOM grid, 1998–202
 | `series/year=YYYY/MM.parquet` | one row per cell, along the Hilbert curve: `grid_cell`, `grid_row_u`, `grid_col_r`, `year`, `month`, the columns above |
 | `climatology/band=NN.parquet` | one row per cell and calendar month over 1998–2024: `grid_cell`, `grid_row_u`, `grid_col_r`, `month`, `imerg_precip_mean`, `imerg_precip_std`, `n_years` |
 
+Series values are the monthly values defined in Variables: `imerg_precip` is the month's mean precipitation rate (mm/h). The climatology gives, per cell and calendar month over 1998–2024, the mean (`_mean`) and the year-to-year sample standard deviation (`_std`), and `n_years`, the years with data.
+
 ```python
 import pandas as pd
 url = "https://data.source.coop/major-tom/climate/IMERG-Monthly"
@@ -54,15 +56,15 @@ normals = pd.read_parquet(f"{url}/climatology/band=9.parquet", filters=[("grid_c
 
 The band of a cell is (row + 1002) × 20 // 2004, with row the signed number in its name (`35D_667L`: −35, band 9).
 
-## Things to know
+## Notes
 
 - **Climatology period.** IMERG starts in 1998, so its normals use the whole record (1998–2024) rather than the WMO period 1991–2020; `n_years` gives the years behind each value (24–27).
-- **High latitudes over snow are weakest.** Satellite microwave estimates of precipitation are least reliable over snow-covered and freezing ground.
+- **High latitudes.** Satellite microwave estimates of precipitation are least reliable over snow-covered and freezing ground.
 - **Known source artifacts.** Beyond 55° latitude, 1,805 cell-months exceed 1 mm h⁻¹ (about 720 mm in a month), spread over the whole record:
   - **north-eastern Siberia** (around 68°N 145°E): 1,027 cell-months, up to 6.8 mm h⁻¹, mostly in March and September–November, in a region that receives about 250 mm a year: artifacts of the freeze and thaw seasons (e.g. 7.1 mm h⁻¹ in NASA's own file at 63.3°N 143.7°E in March 1999);
-  - **the southern Alaska coast** (around 60°N 148°W): 753 cell-months, up to 1.8 mm h⁻¹; a very wet coast, so likely overestimates rather than impossible values.
+  - **the southern Alaska coast** (around 60°N 148°W): 753 cell-months, up to 1.8 mm h⁻¹; a very wet coast; likely overestimates.
   Values are kept unchanged.
-- Values are cell means, not interpolated: see the [top-level README](https://source.coop/major-tom/climate).
+- **Cell means.** Values are area-weighted means over each cell, without interpolation; see the [top-level README](https://source.coop/major-tom/climate).
 
 ## Validation
 
@@ -71,6 +73,23 @@ Every month from 1998-01 to 2024-12 is present; every file has one row per cell;
 ## Citation
 
 Huffman, G.J., E.F. Stocker, D.T. Bolvin, E.J. Nelkin, J. Tan (2023), GPM IMERG Final Precipitation L3 1 month 0.1 degree x 0.1 degree V07, Greenbelt, MD, Goddard Earth Sciences Data and Information Services Center (GES DISC), doi:10.5067/GPM/IMERG/3B-MONTH/07.
+
+## Author and citation
+
+Mikolaj Czerkawski, Asterisk Labs.
+
+To cite this dataset, cite the Major TOM paper below and the source data as listed above. A Major TOM v2 paper will replace this reference when it is published.
+
+```bibtex
+@inproceedings{Francis2024MajorTOM,
+  author={Francis, Alistair and Czerkawski, Mikolaj},
+  booktitle={IGARSS 2024 - 2024 IEEE International Geoscience and Remote Sensing Symposium},
+  title={Major TOM: Expandable Datasets for Earth Observation},
+  year={2024},
+  pages={2935-2940},
+  doi={10.1109/IGARSS53475.2024.10640760}
+}
+```
 
 ---
 

@@ -4,7 +4,7 @@
 > when publishing. Licence and citations checked 2026-10-28 (Climate Data Store catalogue: CC-BY-4.0; DataCite and
 > Crossref records; ARCO-ERA5's "How to cite"). The credit line is ECMWF's recommended wording, not a licence requirement.
 
-<p align="center"><img src="https://data.source.coop/major-tom/climate/brand/mt-climate.svg" alt="Major TOM Climate" width="520"></p>
+<img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 
 # ERA5-Static
 
@@ -55,10 +55,10 @@ static = pd.read_parquet("https://data.source.coop/major-tom/climate/ERA5-Static
 height = static.set_index("grid_cell").era5_z / 9.80665
 ```
 
-## Things to know
+## Notes
 
-- **Model fields.** These are the surface fields the ERA5 model uses, at its own resolution: a smoothed terrain and generalised land cover, not a survey. For detail at the cell scale, use Major TOM's DEM and land-cover datasets.
-- Use them to interpret the climate datasets: for example, a cell's ERA5 temperature refers to the model's terrain height (`era5_z`), not the true height of the place.
+- **Model fields.** These are the surface fields used by the ERA5 model at 0.25°: smoothed terrain and generalised land cover. For cell-scale detail, use Major TOM's DEM and land-cover datasets.
+- **Use with ERA5 values.** A cell's ERA5 temperature refers to the model's terrain height (`era5_z`), which can differ from the true height of the place.
 
 ## Validation
 
@@ -71,6 +71,23 @@ Licensed CC BY 4.0. Contains modified Copernicus Climate Change Service informat
 - Copernicus Climate Change Service (2018), ERA5 hourly data on single levels from 1940 to present, Copernicus Climate Change Service (C3S) Climate Data Store (CDS), doi:10.24381/cds.adbb2d47.
 - Hersbach, H., et al. (2020), The ERA5 global reanalysis, Q. J. R. Meteorol. Soc., 146, 1999–2049, doi:10.1002/qj.3803.
 - Carver, R. W., and A. Merose (2023), ARCO-ERA5: An Analysis-Ready Cloud-Optimized Reanalysis Dataset, 22nd Conf. on AI for Env. Science, Denver, CO, Amer. Meteo. Soc., 4A.1.
+
+## Author and citation
+
+Mikolaj Czerkawski, Asterisk Labs.
+
+To cite this dataset, cite the Major TOM paper below and the source data as listed above. A Major TOM v2 paper will replace this reference when it is published.
+
+```bibtex
+@inproceedings{Francis2024MajorTOM,
+  author={Francis, Alistair and Czerkawski, Mikolaj},
+  booktitle={IGARSS 2024 - 2024 IEEE International Geoscience and Remote Sensing Symposium},
+  title={Major TOM: Expandable Datasets for Earth Observation},
+  year={2024},
+  pages={2935-2940},
+  doi={10.1109/IGARSS53475.2024.10640760}
+}
+```
 
 ---
 
