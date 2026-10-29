@@ -73,3 +73,25 @@ def test_fetch_then_field_from_fake_store(tmp_path, monkeypatch):
     assert (tmp_path / "fake" / "blocks" / "t2m" / "0000.t32.filled.npy").exists()
     assert (0, 1) not in edh._needed["fake"]                    # the sea chunk is never requested again
     edh._blocks.clear()
+
+
+class _Flaky:
+    """A chunk store that fails with `errors` in turn, then returns a chunk."""
+
+    def __init__(self, *errors):
+        self.errors = list(errors)
+
+    def __getitem__(self, sel):
+        if self.errors:
+            raise self.errors.pop(0)
+        return np.ones((2, 2), np.float32)
+
+
+def test_cut_download_is_retried_even_if_its_byte_count_contains_429(monkeypatch):
+    import pytest
+    monkeypatch.setattr(edh.time, "sleep", lambda s: None)
+    cut = OSError("Response payload is not completed: <ContentLengthError: 400, message='Not enough data to "
+                  "satisfy content length header (received 93429 of 3242240 bytes).'>")
+    assert edh._read(_Flaky(cut, cut), ()).sum() == 4                     # retried twice, then read
+    with pytest.raises(OSError, match="429"):
+        edh._read(_Flaky(OSError("429, message='Too Many Requests'")), ())   # quota: stop at once

@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -101,7 +102,8 @@ def _read(array, sel: tuple) -> np.ndarray:
             return values
         except Exception as error:                   # aiohttp/fsspec raise several types; the message decides
             text = f"{type(error).__name__}: {error}"
-            if any(code in text for code in ("401", "403", "429")) or attempt == TRIES - 1:
+            # a status code as a whole number: "received 93429 of 3242240 bytes" (a cut download) is retried
+            if re.search(r"\b(401|403|429)\b", text) or attempt == TRIES - 1:
                 raise
             with _lock:
                 requests["chunks"] += 1                  # a failed request may still count against the quota

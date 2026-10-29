@@ -105,6 +105,7 @@ def climatology(out: Path | str, period: tuple[int, int] = (1991, 2020), bands: 
     """
     import shutil
 
+    import pyarrow as pa
     import pyarrow.parquet as pq
 
     out = Path(out)
@@ -143,13 +144,14 @@ def climatology(out: Path | str, period: tuple[int, int] = (1991, 2020), bands: 
                                                                       for s in ("mean", "std")]
     band = (cells["grid_row_u"].to_numpy() + n_rows(10.0) // 2) * bands // n_rows(10.0)
     rows = 0
-    for b in np.unique(band):
-        at = np.flatnonzero(band == b)
-        part = pd.DataFrame({"grid_cell": np.repeat(cells["grid_cell"].to_numpy()[at], 12),
-                             "month": np.tile(np.arange(1, 13, dtype=np.int8), len(at)),
-                             **{k: np.load(parts / f"{k}.npy", mmap_mode="r")[at].ravel() for k in names}})
-        part.to_parquet(target / f"band={b:02d}.parquet", index=False)
-        rows += len(part)
+    for b in np.unique(band):                                     # straight to Arrow: no pandas block copy, so
+        at = np.flatnonzero(band == b)                            # a band holds its columns about once (ERA5:
+        part = pa.table({"grid_cell": np.repeat(cells["grid_cell"].to_numpy()[at], 12),   # ~6 GB, not ~25)
+                         "month": np.tile(np.arange(1, 13, dtype=np.int8), len(at)),
+                         **{k: np.load(parts / f"{k}.npy", mmap_mode="r")[at].ravel() for k in names}})
+        pq.write_table(part, target / f"band={b:02d}.parquet")
+        rows += part.num_rows
+        del part
     shutil.rmtree(parts)
     return rows
 
