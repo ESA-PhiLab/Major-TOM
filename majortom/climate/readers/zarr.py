@@ -12,8 +12,12 @@ import pandas as pd
 
 @cache
 def _open(store: str):
+    import aiohttp
     import xarray as xr                  # optional dependency (extra "climate"), imported when first used
-    return xr.open_zarr(store, chunks=None, storage_options={"token": "anon"})
+    # gcsfs sends requests with timeout=None, which aiohttp takes as no limit at all: a connection that stops
+    # sending mid-download then waits forever. A stall of 2 min raises SocketTimeoutError, which gcsfs retries.
+    stall = aiohttp.ClientTimeout(sock_connect=30, sock_read=120)
+    return xr.open_zarr(store, chunks=None, storage_options={"token": "anon", "requests_timeout": stall})
 
 
 def valid_range(source) -> tuple[pd.Timestamp, pd.Timestamp]:

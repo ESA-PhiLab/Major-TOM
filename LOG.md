@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-29 ARCO-ERA5 reads fail after a 2 min stall and are retried by gcsfs (it sent timeout=None, i.e. no limit; tests/test_climate_zarr.py); applies to ERA5 groups 7-8
 - 2026-10-29 EDH reader retries server errors whose chunk URL contains 401/403/429 (status read from the error; test in tests/test_edh_hour.py); ERA5-Land group 4 restarted
 - 2026-10-29 IMERG cost measured on precipitation-study (9.7 EECU-s per field, ~162 EECU-h left), build started; ERA5 groups 5-8 two at a time
 - 2026-10-28 Earth Data Hub reader reads each hour from the block file and drops it from the page cache, no open mappings (tests/test_edh_hour.py; identical on 384 real hours, docs/evidence/edh_hour_check.py)
