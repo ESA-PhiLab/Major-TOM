@@ -347,28 +347,27 @@ def air_quality_seasons(release: Path) -> None:
 
 def overview(release: Path) -> None:
     """Six maps, one or two per dataset, for the top-level README."""
-    tiles = [(cpc_precip, 0, "Precipitation · rain gauges", "CPC-Monthly", "mm per year"),
-             (imerg_precip, 0, "Precipitation · satellites", "IMERG-Monthly", "mm per year"),
-             (cpc_temperature, 1, "July maximum temperature", "CPC-Monthly", "°C"),
-             (era5_height, 0, "Surface height (model)", "ERA5-Static", "m"),
-             (cams_aerosol, 0, "Aerosol optical depth", "CAMS-Monthly", "no unit"),
-             (cams_pm25, 0, "Surface PM2.5", "CAMS-Monthly", "µg/m³")]
+    tiles = [(cpc_precip, 0, "Annual precipitation (CPC-Monthly)", "", "mm per year"),
+             (imerg_precip, 0, "Annual precipitation (IMERG-Monthly)", "", "mm per year"),
+             (cpc_temperature, 1, "July daily maximum temperature (CPC-Monthly)", "", "°C"),
+             (era5_height, 0, "Surface height (ERA5-Static)", "", "m"),
+             (cams_aerosol, 0, "Aerosol optical depth at 550 nm (CAMS-Monthly)", "", "no unit"),
+             (cams_pm25, 0, "Surface PM2.5 (CAMS-Monthly)", "", "µg/m³")]
     head, map_h, title_h, bar_h, gap = 0.95, 2.2, 0.32, 0.62, 0.15                      # inches
     row_h = title_h + map_h + bar_h + gap
     height = head + row_h * 3
     width = WIDTH_PX / 100
     fig = plt.figure(figsize=(width, height), dpi=100, facecolor=PAGE)
-    fig.text(0.02, 1 - 0.25 / height, "Major TOM Climate datasets", fontsize=13, fontweight="bold", color=INK,
+    fig.text(0.02, 1 - 0.25 / height, "Major TOM Climate", fontsize=13, fontweight="bold", color=INK,
              va="top")
-    fig.text(0.02, 1 - 0.58 / height, "Normals and means per Major TOM cell, sinusoidal projection",
+    fig.text(0.02, 1 - 0.58 / height, "Normals per Major TOM cell: CPC 1991–2020, IMERG 1998–2024, CAMS 2003–2025. Sinusoidal projection.",
              fontsize=9, color=INK_2, va="top")
     for i, (spec, panel, name, dataset, unit) in enumerate(tiles):
         (panels, cmap, norm, ticks, labels, *_), _ = spec(release)
         row, col = divmod(i, 2)
         left = 0.01 + col * 0.5
         top = height - head - row * row_h
-        fig.text(left + 0.01, (top - 0.05) / height, name, fontsize=10, fontweight="bold", color=INK, va="top")
-        fig.text(left + 0.48, (top - 0.07) / height, dataset, fontsize=8, color=INK_2, va="top", ha="right")
+        fig.text(left + 0.01, (top - 0.05) / height, name, fontsize=9, fontweight="bold", color=INK, va="top")
         draw_map(fig, [left, (top - title_h - map_h) / height, 0.48, map_h / height], panels[panel][0], cmap, norm)
         colour_bar(fig, [left + 0.06, (top - title_h - map_h - 0.22) / height, 0.36, 0.1 / height], cmap, norm,
                    ticks, labels, unit, size=7)

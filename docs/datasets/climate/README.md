@@ -11,7 +11,7 @@ Monthly climate records and climate normals for every cell of the [Major TOM](ht
 
 Each dataset is a separate folder with its own README.
 
-<img src="https://data.source.coop/major-tom/climate/figures/overview.png" alt="Maps of the datasets: annual precipitation (CPC, IMERG), July maximum temperature, surface height, aerosol optical depth, PM2.5" width="100%">
+<img src="https://data.source.coop/major-tom/climate/figures/overview.png" alt="Annual precipitation (CPC, IMERG), July daily maximum temperature (CPC), surface height (ERA5), aerosol optical depth and surface PM2.5 (CAMS)" width="100%">
 
 | Dataset | What | Source | Record | Grid | Cells | Variables | Size |
 |---|---|---|---|---|---|---|---|
