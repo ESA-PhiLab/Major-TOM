@@ -1,0 +1,44 @@
+# Each folder under apps/ is the code of one Hugging Face Space in the Major-TOM org; GitHub is where it is edited.
+# A push that changes a folder uploads that folder to its Space (files added or replaced, none deleted: Spaces keep
+# data files that are not in git, e.g. apps/viewer/helpers/*.parquet). "Run workflow" uploads every app.
+# HF_TOKEN lives in the GitHub environment "hf-space": a fine-grained HF token with write access to these Spaces only.
+name: Apps to Spaces
+on:
+  push:
+    branches: [main, refactor/v1]          # refactor/v1 removed after the merge
+    paths: ["apps/**"]
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: hf-space
+    strategy:
+      fail-fast: false
+      matrix:
+        include:                           # one line per app: its folder and its Space
+          - { folder: apps/viewer, space: Major-TOM/MajorTOM-Core-Viewer }
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: changed
+        run: |
+          # a manual run, a new branch or a diff that cannot be computed: upload
+          if [ "${{ github.event_name }}" != "push" ] || ! git diff --quiet "${{ github.event.before }}" HEAD -- "${{ matrix.folder }}" 2>/dev/null; then
+            echo "upload=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.changed.outputs.upload == 'true'
+        run: pip install huggingface_hub
+      - if: steps.changed.outputs.upload == 'true'
+        run: |
+          python - <<'EOF'
+          import os
+          from huggingface_hub import HfApi
+          HfApi(token=os.environ["HF_TOKEN"]).upload_folder(
+              folder_path=os.environ["FOLDER"], repo_id=os.environ["SPACE"], repo_type="space",
+              commit_message=f"Sync from GitHub {os.environ['GITHUB_SHA'][:7]}")
+          EOF
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          FOLDER: ${{ matrix.folder }}
+          SPACE: ${{ matrix.space }}

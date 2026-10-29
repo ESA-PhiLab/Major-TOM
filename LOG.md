@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-29 GitHub Action uploads each changed apps/<name> folder to its HF Space (.github/workflows/apps-spaces.yml; token in environment hf-space)
 - 2026-10-29 ARCO-ERA5 reads fail after a 2 min stall and are retried by gcsfs (it sent timeout=None, i.e. no limit; tests/test_climate_zarr.py); applies to ERA5 groups 7-8
 - 2026-10-29 EDH reader retries server errors whose chunk URL contains 401/403/429 (status read from the error; test in tests/test_edh_hour.py); ERA5-Land group 4 restarted
 - 2026-10-29 IMERG cost measured on precipitation-study (9.7 EECU-s per field, ~162 EECU-h left), build started; ERA5 groups 5-8 two at a time
