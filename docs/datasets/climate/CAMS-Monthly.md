@@ -10,6 +10,10 @@
 
 Monthly air quality for every cell of the Major TOM grid, 2003–2025: trace-gas columns, aerosol optical depth by type, particulate matter and surface gases, with climate normals over the whole record. Part of [Major TOM Climate](../).
 
+<img src="https://data.source.coop/major-tom/climate/CAMS-Monthly/figures/aerosol-optical-depth.png" alt="Mean aerosol optical depth, 2003-2025" width="100%">
+
+<img src="https://data.source.coop/major-tom/climate/CAMS-Monthly/figures/pm25.png" alt="Mean surface PM2.5, 2003-2025" width="100%">
+
 ## Source
 
 | | |

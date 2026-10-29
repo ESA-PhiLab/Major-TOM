@@ -26,6 +26,32 @@ _locks: dict[Path, threading.Lock] = {}
 _guard = threading.Lock()
 
 
+CPC_RAW = "https://ftp.cpc.ncep.noaa.gov/precip/CPC_UNI_PRCP/GAUGE_GLB"   # CPC's own files: rain and gauge count
+
+
+def cpc_raw_files(year: int) -> list[str]:
+    """URLs of CPC's original daily files for `year`: two fields on the 0.5° grid, rain (0.1 mm/day) and the number
+    of gauges ('gnum'), which NOAA PSL's netCDF copy leaves out. V1.0/ until 2005, RT/ from 2006; names differ
+    by period (.gz, RT.gz, .RT), so the year's folder is listed rather than names built."""
+    import re
+
+    import requests
+
+    folder = f"{CPC_RAW}/{'V1.0' if year <= 2005 else 'RT'}/{year}/"
+    names = re.findall(r'href="(PRCP_CU_GAUGE_V1\.0GLB_0\.50deg\.lnx\.\d{8}[^"]*)"', requests.get(folder, timeout=60).text)
+    return [folder + n for n in sorted(set(names)) if not n.endswith(".ctl")]
+
+
+def fetch_cpc_raw(years, target: Path, workers: int = 8) -> int:
+    """CPC's original daily files for `years` into <target>/<year>/, resumable; returns the number of files."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    urls = [u for y in years for u in cpc_raw_files(y)]
+    with ThreadPoolExecutor(workers) as pool:
+        list(pool.map(lambda u: _download(u, Path(target) / u.rsplit("/", 2)[-2] / u.rsplit("/", 1)[1]), urls))
+    return len(urls)
+
+
 def _download(url: str, target: Path, headers: dict | None = None) -> Path:
     """`url` into `target` once; a cut download resumes from its .part file."""
     import requests

@@ -10,6 +10,8 @@
 
 The fixed surface fields of ERA5 for every cell of the Major TOM grid: terrain and its roughness, land, lake and vegetation cover, soil and vegetation types. One row per cell. Part of [Major TOM Climate](../).
 
+<img src="https://data.source.coop/major-tom/climate/ERA5-Static/figures/surface-height.png" alt="Surface height of the ERA5 model" width="100%">
+
 ## Source
 
 | | |

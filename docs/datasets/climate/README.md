@@ -32,6 +32,12 @@ The sources were chosen to complement each other, so that every quantity that ma
 
 > Routes we tested and did not use: IMERG from NASA GES DISC (0.09 MB/s from our server, against 12.9 MB/s from Earth Engine); Sentinel-5P level-2 swaths (whole orbits must be downloaded, ~18 TB for NO₂ alone); ERA5-Land daily statistics from the Climate Data Store (no accumulated variables such as precipitation).
 
+The same three places as Major TOM's release test, from the datasets here: gauges and satellites agree on the Amazon's seasons but not on how much falls in Scotland or the Alps, which is why precipitation comes from more than one source.
+
+<img src="https://data.source.coop/major-tom/climate/figures/places.png" alt="Monthly precipitation (CPC, IMERG) and temperature at Loch Lomond, Corvara and Manaus" width="100%">
+
+<img src="https://data.source.coop/major-tom/climate/figures/air-quality-seasons.png" alt="Monthly aerosol optical depth at the three places" width="100%">
+
 ## Layout
 
 Every monthly dataset has the same three parts:

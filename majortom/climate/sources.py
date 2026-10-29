@@ -220,7 +220,12 @@ SOURCES = {
                                     "product_type": "monthly_mean", "first_month": "2003-01-01"}),
     "imerg-monthly": Source("imerg", "NASA/GPM_L3/IMERG_MONTHLY_V07",                   # Earth Engine, from 1998
                             Grid(west=-180.0, north=90.0, step=0.1, width=3600, height=1800),
-                            {"precip": "precipitation"}, {"precip": "mm hr**-1"}, step="1MS", reader="earthengine",
+                            # with IMERG's own quality fields: random error, how much gauges weighed in, NASA's
+                            # quality index, chance of liquid precipitation (2026-10-29: quality flags as columns)
+                            {"precip": "precipitation", "error": "randomError", "gauge_weight": "gaugeRelativeWeighting",
+                             "quality": "precipitationQualityIndex", "liquid": "probabilityLiquidPrecipitation"},
+                            {"precip": "mm hr**-1", "error": "mm hr**-1", "gauge_weight": "%", "quality": "~",
+                             "liquid": "%"}, step="1MS", reader="earthengine",
                             period="month", options={"first_month": "1998-01-01"}),
     "imerg-monthly-gesdisc": Source("imerg", "https://gpm1.gesdisc.eosdis.nasa.gov/data/GPM_L3/GPM_3IMERGM.07",
                                     Grid(west=-180.0, north=90.0, step=0.1, width=3600, height=1800),

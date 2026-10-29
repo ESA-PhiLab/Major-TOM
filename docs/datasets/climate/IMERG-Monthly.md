@@ -10,6 +10,8 @@
 
 Monthly satellite precipitation for every cell of the Major TOM grid, 1998–2024, with climate normals over the whole record. Part of [Major TOM Climate](../).
 
+<img src="https://data.source.coop/major-tom/climate/IMERG-Monthly/figures/annual-precipitation.png" alt="Annual precipitation from satellites, 1998-2024" width="100%">
+
 ## Source
 
 | | |
