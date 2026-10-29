@@ -109,3 +109,28 @@ def test_multipart_etag_matches_s3(tmp_path, s3):
     first = publish(folder, "s3://bucket/big", client=s3)
     assert first.verified and "-" in pub._sums(folder, [folder / "x_part0001.zip"])["x_part0001.zip"][1]
     assert not publish(folder, "s3://bucket/big", client=s3).uploaded
+
+
+def test_upload_retries_server_errors(monkeypatch, tmp_path):
+    """A 520 from the proxy is retried; a refusal (403) stops at once."""
+    from majortom.release import publish as p
+
+    monkeypatch.setattr("time.sleep", lambda s: None)
+    calls = []
+
+    class Client:
+        def __init__(self, errors):
+            self.errors = list(errors)
+
+        def upload_file(self, *args, **kwargs):
+            calls.append(args[2])
+            if self.errors:
+                raise RuntimeError(self.errors.pop(0))
+
+    f = tmp_path / "a.parquet"
+    f.write_bytes(b"x")
+    p._upload(Client(["An error occurred (520) when calling the PutObject operation"] * 2), f, "b", "k", None, "x")
+    assert len(calls) == 3
+    with pytest.raises(RuntimeError, match="403"):
+        p._upload(Client(["An error occurred (403) when calling the PutObject operation: Forbidden"]), f, "b", "k",
+                  None, "x")

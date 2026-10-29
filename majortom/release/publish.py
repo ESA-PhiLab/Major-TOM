@@ -40,6 +40,23 @@ def _bucket(region: str) -> str:
     """Route B's bucket for an AWS Open Data connection, e.g. eu-central-1.opendata.source.coop."""
     return f"{region}.opendata.source.coop"
 CHUNK = 64 * 1024**2
+TRIES = 6                       # per file, with 10 s, 20 s, 40 s ... between tries (source.coop's proxy answers 5xx)
+
+
+def _upload(client, path: Path, bucket: str, key: str, config, kind: str) -> None:
+    """One file, retried on server errors and dropped connections; refused credentials (403) stop at once."""
+    import time
+
+    for attempt in range(TRIES):
+        try:
+            client.upload_file(str(path), bucket, key, Config=config, ExtraArgs={"ContentType": kind})
+            return
+        except Exception as error:                       # boto3 wraps the cause in S3UploadFailedError
+            text = f"{type(error).__name__}: {error}"
+            if "(403)" in text or "AccessDenied" in text or attempt == TRIES - 1:
+                raise
+            print(f"publish: retry {attempt + 1} of {key} after {text[:160]}", flush=True)
+            time.sleep(10 * 2 ** attempt)
 
 
 @dataclass
@@ -178,7 +195,7 @@ def publish(folder: str | Path, destination: str, *, dry_run: bool = False, work
             continue
         if not dry_run:
             kind = mimetypes.guess_type(f.name)[0] or ("text/markdown" if f.suffix == ".md" else "application/octet-stream")
-            client.upload_file(str(f), bucket, f"{prefix}/{rel}", Config=config, ExtraArgs={"ContentType": kind})
+            _upload(client, f, bucket, f"{prefix}/{rel}", config, kind)
         report.uploaded.append(rel)
     if not dry_run:
         remote = _remote(client, bucket, prefix)
