@@ -4,11 +4,11 @@
 > when publishing. Licence and citations checked 2026-10-28 (Climate Data Store catalogue: CC-BY-4.0; DataCite and
 > Crossref records; ARCO-ERA5's "How to cite"). The credit line is ECMWF's recommended wording, not a licence requirement.
 
-<img src="https://data.source.coop/major-tom/climate/brand/mt-climate.svg" alt="Major TOM Climate" width="360">
+<p align="center"><img src="https://data.source.coop/major-tom/climate/brand/mt-climate.svg" alt="Major TOM Climate" width="520"></p>
 
 # ERA5-Static
 
-The fixed surface fields of ERA5 for every cell of the Major TOM grid: terrain and its roughness, land, lake and vegetation cover, soil and vegetation types. One row per cell. Part of [Major TOM Climate](../).
+The fixed surface fields of ERA5 for every cell of the Major TOM grid: terrain and its roughness, land, lake and vegetation cover, soil and vegetation types. One row per cell. Part of [Major TOM Climate](https://source.coop/major-tom/climate).
 
 <img src="https://data.source.coop/major-tom/climate/ERA5-Static/figures/surface-height.png" alt="Surface height of the ERA5 model" width="100%">
 
@@ -47,7 +47,7 @@ The fixed surface fields of ERA5 for every cell of the Major TOM grid: terrain a
 
 ## Files
 
-`static.parquet`: one row per cell along the Hilbert curve (see the [top-level README](../)), `grid_cell`, `grid_row_u`, `grid_col_r` and the columns above.
+`static.parquet`: one row per cell along the Hilbert curve (see the [top-level README](https://source.coop/major-tom/climate)), `grid_cell`, `grid_row_u`, `grid_col_r` and the columns above.
 
 ```python
 import pandas as pd

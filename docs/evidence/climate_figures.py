@@ -28,7 +28,8 @@ from matplotlib.colors import LinearSegmentedColormap, LogNorm, PowerNorm, TwoSl
 
 ROWS, COLS = 2004, 4008                  # grid rows -1002..1001, columns -2004..2003 at 10 km
 R_KM, D_KM = 6378.137, 10.0
-WIDTH_PX = 900
+WIDTH_PX = 900                           # shown width in the README (width="100%")
+SCALE = 2                                # saved at 2x (1,800 px) so maps and text stay sharp on dense screens
 PAGE, MAP_EMPTY = "#fcfcfb", "#242424"   # chart surface; cells without data, as in the Core coverage maps
 INK, INK_2, INK_MUTED = "#0b0b0b", "#52514e", "#898781"
 COAST = (0, 0, 0, 0.55)
@@ -100,11 +101,34 @@ def coloured(image: np.ndarray, cmap, norm, w: int) -> np.ndarray:
     return rgba
 
 
+def draw_map(fig, rect: list[float], image: np.ndarray, cmap, norm, name: str | None = None, size: int = 11) -> None:
+    """One sinusoidal map in `rect` (figure fractions): cells rasterised at the axes' saved width, coastlines on top."""
+    from mpl_toolkits.basemap import Basemap
+
+    ax = fig.add_axes(rect)
+    m = Basemap(projection="sinu", lon_0=0, resolution="l", ax=ax)
+    width = int(fig.get_figwidth() * rect[2] * 100 * SCALE)
+    picture = coloured(image, cmap, norm, width)
+    ax.imshow(picture, extent=(m.llcrnrx, m.urcrnrx, m.llcrnry, m.urcrnry), interpolation="nearest", zorder=1)
+    m.drawcoastlines(color=COAST, linewidth=0.3, zorder=2)
+    ax.set_axis_off()
+    if name:
+        ax.text(0.02, 0.97, name, transform=ax.transAxes, fontsize=size, fontweight="bold", color=INK, va="top")
+
+
+def colour_bar(fig, rect: list[float], cmap, norm, ticks, labels, unit: str, size: int = 8) -> None:
+    cax = fig.add_axes(rect)
+    bar = matplotlib.colorbar.ColorbarBase(cax, cmap=cmap, norm=norm, orientation="horizontal", ticks=ticks)
+    bar.set_ticklabels(labels)
+    bar.minorticks_off()
+    bar.outline.set_visible(False)
+    cax.tick_params(labelsize=size, colors=INK_2, length=0, pad=3)
+    cax.set_xlabel(unit, fontsize=size, color=INK_2, labelpad=2)
+
+
 def map_figure(panels: list[tuple[np.ndarray, str | None]], cmap, norm, ticks: list[float], labels: list[str],
                title: str, subtitle: str, unit: str, out: Path, empty_label: str | None = None) -> None:
     """One or more sinusoidal maps stacked, sharing one colour scale; header above, colour bar below."""
-    from mpl_toolkits.basemap import Basemap
-
     head, panel, foot = 0.8, 4.45, 0.75                                  # inches
     height = head + panel * len(panels) + foot
     fig = plt.figure(figsize=(WIDTH_PX / 100, height), dpi=100, facecolor=PAGE)
@@ -112,27 +136,14 @@ def map_figure(panels: list[tuple[np.ndarray, str | None]], cmap, norm, ticks: l
     fig.text(0.02, 1 - 0.55 / height, subtitle, fontsize=9, color=INK_2, va="top")
     for i, (image, name) in enumerate(panels):
         bottom = (foot + panel * (len(panels) - 1 - i)) / height
-        ax = fig.add_axes([0.01, bottom, 0.98, panel / height])
-        m = Basemap(projection="sinu", lon_0=0, resolution="l", ax=ax)
-        picture = coloured(image, cmap, norm, int(WIDTH_PX * 0.98))
-        ax.imshow(picture, extent=(m.llcrnrx, m.urcrnrx, m.llcrnry, m.urcrnry), interpolation="nearest", zorder=1)
-        m.drawcoastlines(color=COAST, linewidth=0.3, zorder=2)
-        ax.set_axis_off()
-        if name:
-            ax.text(0.02, 0.97, name, transform=ax.transAxes, fontsize=11, fontweight="bold", color=INK, va="top")
-    cax = fig.add_axes([0.25, 0.42 / height, 0.46, 0.16 / height])
-    bar = matplotlib.colorbar.ColorbarBase(cax, cmap=cmap, norm=norm, orientation="horizontal", ticks=ticks)
-    bar.set_ticklabels(labels)
-    bar.minorticks_off()
-    bar.outline.set_visible(False)
-    cax.tick_params(labelsize=8, colors=INK_2, length=0, pad=3)
-    cax.set_xlabel(unit, fontsize=8, color=INK_2, labelpad=2)
+        draw_map(fig, [0.01, bottom, 0.98, panel / height], image, cmap, norm, name)
+    colour_bar(fig, [0.25, 0.42 / height, 0.46, 0.16 / height], cmap, norm, ticks, labels, unit)
     if empty_label:
         fig.patches.append(plt.Rectangle((0.74, 0.42 / height), 0.016, 0.16 / height, transform=fig.transFigure,
                                          facecolor=MAP_EMPTY, edgecolor="none"))
         fig.text(0.762, 0.50 / height, empty_label, fontsize=8, color=INK_2, va="center")
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=100, facecolor=PAGE)
+    fig.savefig(out, dpi=100 * SCALE, facecolor=PAGE)
     plt.close(fig)
 
 
@@ -158,6 +169,11 @@ def annual(release: Path, dataset: str, column: str, per_month=None, how: str = 
     return out.reset_index()
 
 
+def _spec(*args, **kwargs) -> tuple:
+    """A map figure's description: map_figure's arguments, drawn alone (FIGURES) or as an overview tile."""
+    return args, kwargs
+
+
 def _image(t: pd.DataFrame, column: str) -> np.ndarray:
     return grid_image(t.grid_row_u.to_numpy(), t.grid_col_r.to_numpy(), t[column].to_numpy())
 
@@ -169,20 +185,20 @@ def precipitation_scale():
     return DRY_WET, norm, ticks, [f"{t:,}" for t in ticks]
 
 
-def cpc_precip(release: Path) -> None:
+def cpc_precip(release: Path) -> tuple:
     a = annual(release, "CPC-Monthly", "cpc_precip_mean")
     cmap, norm, ticks, labels = precipitation_scale()
-    map_figure([(_image(a, "cpc_precip_mean"), None)], cmap, norm, ticks, labels,
+    return _spec([(_image(a, "cpc_precip_mean"), None)], cmap, norm, ticks, labels,
                "Annual precipitation from rain gauges",
                "NOAA CPC Global Unified, normal 1991–2020 · CPC-Monthly · 1,657,095 land cells",
                "mm per year (log scale)", release / "CPC-Monthly" / "figures" / "annual-precipitation.png",
                empty_label="no data (sea)")
 
 
-def imerg_precip(release: Path) -> None:
+def imerg_precip(release: Path) -> tuple:
     a = annual(release, "IMERG-Monthly", "imerg_precip_mean", per_month=HOURS_IN)
     cmap, norm, ticks, labels = precipitation_scale()
-    map_figure([(_image(a, "imerg_precip_mean"), None)], cmap, norm, ticks, labels,
+    return _spec([(_image(a, "imerg_precip_mean"), None)], cmap, norm, ticks, labels,
                "Annual precipitation from satellites",
                "NASA GPM IMERG Final V07, normal 1998–2024 · IMERG-Monthly · 5,109,586 cells, land and sea",
                "mm per year (log scale; same scale as CPC-Monthly)",
@@ -195,12 +211,12 @@ COLD_HOT = LinearSegmentedColormap.from_list("cold_hot", ["#2c66c8", "#5b8ee0", 
                                                            "#e0675a", "#c8372f"])
 
 
-def cpc_temperature(release: Path) -> None:
+def cpc_temperature(release: Path) -> tuple:
     t = normals(release, "CPC-Monthly", ["cpc_tmax_mean"])
     norm = TwoSlopeNorm(vmin=-40, vcenter=0, vmax=40)
     ticks = [-40, -20, -10, 0, 10, 20, 30, 40]
     panels = [(_image(t[t.month == m], "cpc_tmax_mean"), name) for m, name in ((1, "January"), (7, "July"))]
-    map_figure(panels, COLD_HOT, norm, ticks, [f"{v:+d}".replace("+0", "0") for v in ticks],
+    return _spec(panels, COLD_HOT, norm, ticks, [f"{v:+d}".replace("+0", "0") for v in ticks],
                "Daily maximum temperature from weather stations",
                "NOAA CPC Global Unified, normal 1991–2020 · CPC-Monthly · mean of the month's daily maxima",
                "°C (grey: 0 °C, freezing)", release / "CPC-Monthly" / "figures" / "maximum-temperature.png",
@@ -211,21 +227,21 @@ def cpc_temperature(release: Path) -> None:
 HAZE = LinearSegmentedColormap.from_list("haze", ["#f6e6c8", "#f2c784", "#eba04f", "#d9742c", "#b9521f"])
 
 
-def cams_aerosol(release: Path) -> None:
+def cams_aerosol(release: Path) -> tuple:
     a = annual(release, "CAMS-Monthly", "cams_aod550_mean", how="mean")
     ticks = [0.03, 0.05, 0.1, 0.2, 0.5, 1]
-    map_figure([(_image(a, "cams_aod550_mean"), None)], HAZE, LogNorm(vmin=0.03, vmax=1), ticks,
+    return _spec([(_image(a, "cams_aod550_mean"), None)], HAZE, LogNorm(vmin=0.03, vmax=1), ticks,
                [f"{t:g}" for t in ticks], "Aerosol optical depth",
                "Copernicus CAMS reanalysis EAC4, mean 2003–2025 · CAMS-Monthly · total aerosol at 550 nm",
                "optical depth, no unit (log scale): 0.05 clear air, 1 thick haze, dust or smoke",
                release / "CAMS-Monthly" / "figures" / "aerosol-optical-depth.png")
 
 
-def cams_pm25(release: Path) -> None:
+def cams_pm25(release: Path) -> tuple:
     a = annual(release, "CAMS-Monthly", "cams_pm2p5_mean", how="mean")
     a["cams_pm2p5_mean"] *= 1e9                                          # kg m-3 -> µg m-3, for the labels only
     ticks = [2, 5, 10, 25, 50, 100, 150]
-    map_figure([(_image(a, "cams_pm2p5_mean"), None)], HAZE, LogNorm(vmin=2, vmax=150), ticks,
+    return _spec([(_image(a, "cams_pm2p5_mean"), None)], HAZE, LogNorm(vmin=2, vmax=150), ticks,
                [f"{t:g}" for t in ticks], "Fine particulate matter (PM2.5) at the surface",
                "Copernicus CAMS reanalysis EAC4, mean 2003–2025 · CAMS-Monthly · stored in kg/m³",
                "µg/m³ (log scale; WHO annual guideline 5)",
@@ -237,12 +253,12 @@ TERRAIN = LinearSegmentedColormap.from_list("terrain", ["#3f7f4f", "#7fa363", "#
                                                          "#f9f8f5"])
 
 
-def era5_height(release: Path) -> None:
+def era5_height(release: Path) -> tuple:
     s = pq.read_table(release / "ERA5-Static" / "static.parquet",
                       columns=["grid_row_u", "grid_col_r", "era5_z", "era5_lsm"]).to_pandas()
     s["height"] = np.where(s.era5_lsm >= 0.5, s.era5_z / 9.80665, np.nan)    # sea left dark
     ticks = [0, 250, 500, 1000, 2000, 3000, 5000]
-    map_figure([(_image(s, "height"), None)], TERRAIN, PowerNorm(0.5, vmin=0, vmax=5000), ticks,
+    return _spec([(_image(s, "height"), None)], TERRAIN, PowerNorm(0.5, vmin=0, vmax=5000), ticks,
                [f"{t:,}" for t in ticks], "Surface height of the ERA5 model",
                "ECMWF ERA5, geopotential at the surface ÷ g · ERA5-Static · the model's smoothed terrain at 0.25°",
                "m above sea level (square-root scale)", release / "ERA5-Static" / "figures" / "surface-height.png",
@@ -302,7 +318,7 @@ def places(release: Path) -> None:
     fig.text(0.09, y + 0.025, "Daily maximum (solid) and minimum (dashed), mean of the month", fontsize=8, color=INK_2)
     out = release / "figures" / "places.png"
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=100, facecolor=PAGE)
+    fig.savefig(out, dpi=100 * SCALE, facecolor=PAGE)
     plt.close(fig)
 
 
@@ -322,13 +338,51 @@ def air_quality_seasons(release: Path) -> None:
     ax.legend(loc="upper left", bbox_to_anchor=(0, 1.2), ncol=3, frameon=False, fontsize=8, labelcolor=INK_2)
     out = release / "figures" / "air-quality-seasons.png"
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=100, facecolor=PAGE)
+    fig.savefig(out, dpi=100 * SCALE, facecolor=PAGE)
     plt.close(fig)
 
 
-FIGURES = {"cpc-precip": cpc_precip, "imerg-precip": imerg_precip, "cpc-temperature": cpc_temperature,
-           "cams-aerosol": cams_aerosol, "cams-pm25": cams_pm25, "era5-height": era5_height, "places": places,
-           "air-quality": air_quality_seasons}
+def overview(release: Path) -> None:
+    """Six tiles, one per dataset map: what Major TOM Climate holds, at a glance (top-level README)."""
+    tiles = [(cpc_precip, 0, "Precipitation · rain gauges", "CPC-Monthly", "mm per year"),
+             (imerg_precip, 0, "Precipitation · satellites", "IMERG-Monthly", "mm per year"),
+             (cpc_temperature, 1, "July maximum temperature", "CPC-Monthly", "°C"),
+             (era5_height, 0, "Surface height (model)", "ERA5-Static", "m"),
+             (cams_aerosol, 0, "Aerosol optical depth", "CAMS-Monthly", "no unit"),
+             (cams_pm25, 0, "Surface PM2.5", "CAMS-Monthly", "µg/m³")]
+    head, map_h, title_h, bar_h, gap = 0.95, 2.2, 0.32, 0.62, 0.15                      # inches
+    row_h = title_h + map_h + bar_h + gap
+    height = head + row_h * 3
+    width = WIDTH_PX / 100
+    fig = plt.figure(figsize=(width, height), dpi=100, facecolor=PAGE)
+    fig.text(0.02, 1 - 0.25 / height, "What Major TOM Climate holds", fontsize=13, fontweight="bold", color=INK,
+             va="top")
+    fig.text(0.02, 1 - 0.58 / height, "One map per dataset: normals or means per Major TOM cell, sinusoidal projection",
+             fontsize=9, color=INK_2, va="top")
+    for i, (spec, panel, name, dataset, unit) in enumerate(tiles):
+        (panels, cmap, norm, ticks, labels, *_), _ = spec(release)
+        row, col = divmod(i, 2)
+        left = 0.01 + col * 0.5
+        top = height - head - row * row_h
+        fig.text(left + 0.01, (top - 0.05) / height, name, fontsize=10, fontweight="bold", color=INK, va="top")
+        fig.text(left + 0.48, (top - 0.07) / height, dataset, fontsize=8, color=INK_2, va="top", ha="right")
+        draw_map(fig, [left, (top - title_h - map_h) / height, 0.48, map_h / height], panels[panel][0], cmap, norm)
+        colour_bar(fig, [left + 0.06, (top - title_h - map_h - 0.22) / height, 0.36, 0.1 / height], cmap, norm,
+                   ticks, labels, unit, size=7)
+    out = release / "figures" / "overview.png"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=100 * SCALE, facecolor=PAGE)
+    plt.close(fig)
+
+
+def _draw(spec):
+    return lambda release: (lambda a, k: map_figure(*a, **k))(*spec(release))
+
+
+FIGURES = {"cpc-precip": _draw(cpc_precip), "imerg-precip": _draw(imerg_precip),
+           "cpc-temperature": _draw(cpc_temperature), "cams-aerosol": _draw(cams_aerosol),
+           "cams-pm25": _draw(cams_pm25), "era5-height": _draw(era5_height), "overview": overview,
+           "places": places, "air-quality": air_quality_seasons}
 
 if __name__ == "__main__":
     use_major_tom_font()

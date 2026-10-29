@@ -4,11 +4,11 @@
 > when publishing. Licence and citation checked 2026-10-28 (DataCite record of the DOI; NASA Earthdata data use
 > guidance). Artifact counts from docs/evidence/monthly_artifacts.py (2026-10-28).
 
-<img src="https://data.source.coop/major-tom/climate/brand/mt-climate.svg" alt="Major TOM Climate" width="360">
+<p align="center"><img src="https://data.source.coop/major-tom/climate/brand/mt-climate.svg" alt="Major TOM Climate" width="520"></p>
 
 # IMERG-Monthly
 
-Monthly satellite precipitation for every cell of the Major TOM grid, 1998–2024, with climate normals over the whole record. Part of [Major TOM Climate](../).
+Monthly satellite precipitation for every cell of the Major TOM grid, 1998–2024, with climate normals over the whole record. Part of [Major TOM Climate](https://source.coop/major-tom/climate).
 
 <img src="https://data.source.coop/major-tom/climate/IMERG-Monthly/figures/annual-precipitation.png" alt="Annual precipitation from satellites, 1998-2024" width="100%">
 
@@ -62,7 +62,7 @@ The band of a cell is (row + 1002) × 20 // 2004, with row the signed number in 
   - **north-eastern Siberia** (around 68°N 145°E): 1,027 cell-months, up to 6.8 mm h⁻¹, mostly in March and September–November, in a region that receives about 250 mm a year: artifacts of the freeze and thaw seasons (e.g. 7.1 mm h⁻¹ in NASA's own file at 63.3°N 143.7°E in March 1999);
   - **the southern Alaska coast** (around 60°N 148°W): 753 cell-months, up to 1.8 mm h⁻¹; a very wet coast, so likely overestimates rather than impossible values.
   Values are kept unchanged.
-- Values are cell means, not interpolated: see the [top-level README](../).
+- Values are cell means, not interpolated: see the [top-level README](https://source.coop/major-tom/climate).
 
 ## Validation
 

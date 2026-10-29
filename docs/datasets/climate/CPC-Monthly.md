@@ -4,11 +4,11 @@
 > when publishing. Licence and citations checked 2026-10-28 (NOAA PSL catalogue, datasets 48 and 49).
 > Artifact counts from docs/evidence/monthly_artifacts.py (2026-10-28).
 
-<img src="https://data.source.coop/major-tom/climate/brand/mt-climate.svg" alt="Major TOM Climate" width="360">
+<p align="center"><img src="https://data.source.coop/major-tom/climate/brand/mt-climate.svg" alt="Major TOM Climate" width="520"></p>
 
 # CPC-Monthly
 
-Monthly precipitation and daily temperature extremes from rain gauges, for every land cell of the Major TOM grid, 1979–2025, with 1991–2020 climate normals. Part of [Major TOM Climate](../).
+Monthly precipitation and daily temperature extremes from rain gauges, for every land cell of the Major TOM grid, 1979–2025, with 1991–2020 climate normals. Part of [Major TOM Climate](https://source.coop/major-tom/climate).
 
 <img src="https://data.source.coop/major-tom/climate/CPC-Monthly/figures/annual-precipitation.png" alt="Annual precipitation from rain gauges, 1991-2020" width="100%">
 
@@ -64,7 +64,7 @@ The band of a cell is (row + 1002) × 20 // 2004, with row the number in its nam
 - **The gauge network changes in 2006.** CPC's retrospective version (1979–2005) uses about 30,000 gauges, the real-time version (2006 onwards) about 17,000 (CPC's README), so values before and after 2006 rest on different networks; trends across 2006 should be read with care.
 - **CPC days end at different hours.** Each country reports its daily total for its own observation day, so a CPC day ends at a different UTC hour per region. Monthly totals are unaffected except at month boundaries.
 - **Known source artifacts.** Six months in the record have cells above 4,000 mm, all at places and seasons where such totals do not occur: February 1991 in central Mexico (up to 9,578 mm), January 1991 in Yucatán (5,195 mm), September 1999 in São Paulo state (6,375 mm), November and December 1993 and October 2001 in western Amazonas (4,505–6,011 mm); 437 cell-months in all. In these months the daily analysis carries large values on most days. They come from the source: we checked them against NOAA's daily files (equal to 0.1 mm) and kept them unchanged. Users who need clean totals can mask them by month and place.
-- Values are cell means, not interpolated: see the [top-level README](../).
+- Values are cell means, not interpolated: see the [top-level README](https://source.coop/major-tom/climate).
 
 ## Validation
 

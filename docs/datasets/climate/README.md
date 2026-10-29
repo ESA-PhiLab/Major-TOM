@@ -3,7 +3,7 @@
 > **Review status:** unreviewed draft (2026-10-28) of the top-level README for source.coop `major-tom/climate`.
 > Remove these two notes when publishing. Placeholders: `[ERA5…]` rows are added when those datasets are published.
 
-<img src="https://data.source.coop/major-tom/climate/brand/mt-climate.svg" alt="Major TOM Climate" width="420">
+<p align="center"><img src="https://data.source.coop/major-tom/climate/brand/mt-climate.svg" alt="Major TOM Climate" width="640"></p>
 
 # Major TOM Climate
 
@@ -11,12 +11,14 @@ Monthly climate records and climate normals for every cell of the [Major TOM](ht
 
 Each dataset is a folder of its own, with its own README, and can be used without the others.
 
+<img src="https://data.source.coop/major-tom/climate/figures/overview.png" alt="One map per dataset: precipitation from gauges and satellites, July maximum temperature, surface height, aerosol optical depth, PM2.5" width="100%">
+
 | Dataset | What | Source | Record | Grid | Cells | Variables | Size |
 |---|---|---|---|---|---|---|---|
-| [CPC-Monthly](CPC-Monthly/) | rain-gauge precipitation, daily max and min temperature | NOAA CPC Global Unified | 1979–2025 | 0.5° | 1,657,095 (land) | 3 | 12 GB |
-| [IMERG-Monthly](IMERG-Monthly/) | satellite precipitation | NASA GPM IMERG V07 | 1998–2024 | 0.1° | 5,109,586 (globe) | 1 | 17.5 GB |
-| [CAMS-Monthly](CAMS-Monthly/) | air quality: trace gases, aerosols, particulate matter | Copernicus CAMS EAC4 | 2003–2025 | 0.75° | 5,113,745 (globe) | 19 | 58 GB |
-| [ERA5-Static](ERA5-Static/) | fixed surface fields: terrain, land and lake cover, soil and vegetation types | ECMWF ERA5 | — | 0.25° | 5,113,745 (globe) | 16 | 0.1 GB |
+| [CPC-Monthly](https://source.coop/major-tom/climate/CPC-Monthly) | rain-gauge precipitation, daily max and min temperature | NOAA CPC Global Unified | 1979–2025 | 0.5° | 1,657,095 (land) | 3 | 12 GB |
+| [IMERG-Monthly](https://source.coop/major-tom/climate/IMERG-Monthly) | satellite precipitation | NASA GPM IMERG V07 | 1998–2024 | 0.1° | 5,109,586 (globe) | 1 | 17.5 GB |
+| [CAMS-Monthly](https://source.coop/major-tom/climate/CAMS-Monthly) | air quality: trace gases, aerosols, particulate matter | Copernicus CAMS EAC4 | 2003–2025 | 0.75° | 5,113,745 (globe) | 19 | 58 GB |
+| [ERA5-Static](https://source.coop/major-tom/climate/ERA5-Static) | fixed surface fields: terrain, land and lake cover, soil and vegetation types | ECMWF ERA5 | — | 0.25° | 5,113,745 (globe) | 16 | 0.1 GB |
 
 Every folder is also reachable directly: `https://data.source.coop/major-tom/climate/<dataset>/...`
 
