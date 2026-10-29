@@ -4,7 +4,8 @@
     <root>/release-test/<source>/  (partitions, .tacocat)    <root>/release-test/check.csv
       -> figures/cells.png    the test cells on a map of land cells (ERA5Land-Monthly's cell list)
       -> figures/gallery.png  one quicklook per source, first cell available (Loch Lomond first)
-      -> README.md            what this is; cells; gallery; modalities table; access points with quotas and
+      -> README.md            docs/datasets/release-test/README.template.md (the text, editable) with its {{markers}}
+                              filled: cells; gallery; modalities table with code links; access points with quotas and
                               measured speeds; how to read it; how it was made
     python docs/evidence/release_test_readme.py --root /data/Major-TOM/release-test
 """
@@ -12,6 +13,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -26,6 +29,7 @@ from matplotlib.colors import LightSource, LinearSegmentedColormap, ListedColorm
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from majortom.build.collections import COLLECTIONS                       # noqa: E402
 from majortom.cells import cell_from_name                                # noqa: E402
+from majortom.build.archives import ARCHIVES as BUILD_ARCHIVES           # noqa: E402
 
 CELLS = {"624U_29L": "Loch Lomond", "518U_90R": "Dolomites (Corvara)", "35D_667L": "Amazon (Manaus)",
          "429U_786L": "St Louis (fallback)"}
@@ -172,6 +176,46 @@ def cell_map(samples: pd.DataFrame, out: Path) -> None:
     plt.close(fig)
 
 
+REPO_DIR = Path(__file__).resolve().parents[2]
+TEMPLATE = REPO_DIR / "docs" / "datasets" / "release-test" / "README.template.md"
+GITHUB = "https://github.com/ESA-PhiLab/Major-TOM/blob"
+
+
+def _commit() -> str:
+    """The commit the page links to: HEAD, which must be on GitHub (else every code link would 404)."""
+    git = lambda *a: subprocess.run(["git", "-C", str(REPO_DIR), *a], capture_output=True, text=True).stdout.strip()
+    head = git("rev-parse", "HEAD")
+    if not git("branch", "-r", "--contains", head):
+        raise RuntimeError(f"commit {head[:7]} is not pushed: push it first, the page links to it")
+    return head
+
+
+def _line(path: str, pattern: str) -> int:
+    """Line number of the first line of `path` (in the repository) that starts with `pattern`."""
+    for i, text in enumerate((REPO_DIR / path).read_text().splitlines(), 1):
+        if text.startswith(pattern):
+            return i
+    raise ValueError(f"{pattern!r} not in {path}")
+
+
+def _code(source: str, archive: str, repo: str) -> str:
+    """Links to a source's definition, the archive it was read from and that archive's backend."""
+    backend = BUILD_ARCHIVES[archive].backend
+    defined = _line("majortom/build/collections.py", f'    "{source}":')
+    reached = _line("majortom/build/archives.py", f'    "{archive}":')
+    return (f"[definition]({repo}/majortom/build/collections.py#L{defined}), "
+            f"[{archive}]({repo}/majortom/build/archives.py#L{reached}) "
+            f"via [{backend}]({repo}/majortom/build/backends/{backend}.py)")
+
+
+def _render(template: str, values: dict[str, str]) -> str:
+    """Replace each {{key}} in the template; a key with no value is an error, not a silent blank."""
+    missing = set(re.findall(r"{{(\w+)}}", template)) - set(values)
+    if missing:
+        raise KeyError(f"no value for {sorted(missing)} in {TEMPLATE.name}")
+    return re.sub(r"{{(\w+)}}", lambda m: str(values[m.group(1)]), template)
+
+
 def _size(n: float) -> str:
     return f"{n / 1e6:.1f} MB" if n >= 1e5 else f"{n / 1e3:.0f} kB"
 
@@ -193,6 +237,8 @@ def _folder_size(folder: Path) -> int:
 
 
 def readme(root: Path, samples: pd.DataFrame) -> str:
+    commit = _commit()
+    repo = f"{GITHUB}/{commit}"
     check = pd.read_csv(root / "release-test" / "check.csv").set_index("collection")
     rows = []
     for source, g in samples.groupby("source"):
@@ -212,7 +258,7 @@ def readme(root: Path, samples: pd.DataFrame) -> str:
                     f"{side['archive']} | {len(g)} | {_size(released)} | "
                     f"{raw / payload if payload else float('nan'):.2f} | "
                     f"{int(k.partitions) if k is not None and k.get('partitions') == k.get('partitions') else '-'} | "
-                    f"{k.status if k is not None else '-'} |")
+                    f"{k.status if k is not None else '-'} | {_code(source, side['archive'], repo)} |")
     speed = (samples.assign(mb=samples.bytes / 1e6).groupby("archive")
              .agg(sources=("source", "nunique"), samples=("source", "size"), median_s=("seconds", "median"),
                   p90_s=("seconds", lambda s: s.quantile(.9)), mb=("mb", "median")))
@@ -244,94 +290,11 @@ def readme(root: Path, samples: pd.DataFrame) -> str:
     moved = sorted(samples[samples.cell == "429U_786L"].source.unique())
     fallback = (f"Sources with no data at any of the three cells use **St Louis** (`429U_786L`): {', '.join(f'`{m}`' for m in moved)}."
                 if moved else "Every source had data at these cells.")
-    return f"""# Major TOM release test
-
-> **Not for use.** A test of the Major TOM release framework (`majortom.release`), published to try the whole path,
-> from building samples to reading them back from source.coop, before the first real release
-> (Sentinel-2 L2A, Major TOM v2). Every number on this page is generated from the data it describes.
-
-{len(samples.source.unique())} sources, {len(samples)} samples, {total / 1e9:.2f} GB, each source its own TACO dataset
-in its own folder, made exactly as a real release would be (`python -m majortom.release build`).
-
-## Where
-
-<img src="https://data.source.coop/major-tom/release-test/figures/cells.png" alt="The test cells" width="100%">
-
-Three cells of the Major TOM 10 km grid: **Loch Lomond** (`624U_29L`), the **Dolomites near Corvara** (`518U_90R`)
-and the **Amazon near Manaus** (`35D_667L`). {fallback} Per cell: two dates for scene products (the clearest of
-May-June and of August-September 2023), two years for yearly products (2020, 2021), one sample for static products.
-Fewer samples mean the archive had nothing for that cell and period.
-
-## What
-
-<img src="https://data.source.coop/major-tom/release-test/figures/gallery.png" alt="One quicklook per source" width="100%">
-
-| Source | Kind | Pixel sizes | Bands | Data types | Time | Archive | Samples | Released (all files) | Compression (rumi) | Partitions | Check |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-{chr(10).join(rows)}
-
-"Compression" is the raw size of the arrays over the size of their rumi files (lossless, GeoZL); "Released" also
-counts TACO's catalogue in every partition, which dominates for the smallest sources. Below 1, the data are
-smaller than the rumi file's own header (MODIS 1 km: 12 x 12 pixels, ~300 bytes per image). "Check": `taco.validate` passes
-and every file reads back identical to the built sample.
-
-## Access points, quotas and speeds
-
-| Archive | Account or key | Quota | Access | Sources | Build time per sample (median) | Built sample, uncompressed (median) |
-|---|---|---|---|---|---|---|
-{chr(10).join(access)}
-
-Per source (medians over its samples; fastest first):
-
-| Source | Archive | Samples | Build time | Search | Scene choice | Reads | Mostly | Built sample, uncompressed |
-|---|---|---|---|---|---|---|---|---|
-{chr(10).join(per_rows)}
-
-Build times are measured per sample (search, scene choice, reads of every band; `timing` in each sample's sidecar),
-built with 3 workers from `cirrus` on a ~63 MB/s link shared with other large downloads at the time: they show which
-sources are slow and why, not their best speed (Sentinel-2 L2A took 97 s per sample here, 18 s in a quieter
-benchmark with 16 workers, docs/reports/2026-10-22-build-speed.md in the Major TOM repository).
-Notes from building Major TOM: Earth Engine bills reading stored images far above what its profiler reports
-(ERA5-Land hourly: ~30x); Destination Earth's Earth Data Hub serves ERA5-Land as zarr with a free quota of
-500,000 requests a month (one request per 60-day chunk).
-
-## Reading it from source.coop: measured
-
-Opened and read from `https://data.source.coop/major-tom/release-test/<source>/` without credentials, from `cirrus`
-(UK); the data are stored in AWS eu-central-1 (Frankfurt). "Open": `taco.open_dataset` and the catalogue query;
-"read": one file of one sample with `rumi.read` over HTTP (byte ranges inside the partition ZIP).
-
-| Source | Open | Read (median) | Read (max) | Identical to build |
-|---|---|---|---|---|
-{chr(10).join(remote_rows)}
-
-{remote_note}
-
-## Reading it
-
-```python
-import taco, rumi
-ds = taco.open_dataset("https://data.source.coop/major-tom/release-test/sentinel-2-l2a/")
-rows = ds.sql('SELECT id, "10m.rumi::location" AS loc, "10m.rumi::header" AS hdr FROM dataset').to_pylist()
-array = rumi.read(rows[0]["loc"], rows[0]["hdr"])               # (bands, y, x), only the bytes of this sample
-
-from majortom.release import read                                # the same sample as a GeoTIFF, for any GDAL tool
-with read(rows[0]["loc"], rows[0]["hdr"], as_="cog") as mem, mem.open() as f:
-    print(f.crs, f.transform, f.descriptions)
-```
-
-Whole datasets or selections as COG files: `python -m majortom.release to-cog --dataset <url> --out <folder>
---where "<SQL condition>"`. Each sample also carries STAC time and footprint, its Major TOM cell (`majortom:code`),
-its source products (`source:*`) and environmental attributes (`geoenrich:*`).
-
-## How it was made
-
-`majortom.build` (one window per cell, Major TOM v2) -> `majortom.release`: raster groups by pixel size and data
-type -> lossless rumi files (GeoZL, all predictor families tried) -> samples written in Hilbert order over cell
-centroids -> taco-eo partitions by size and writes the TACOCAT -> published with `python -m majortom.release
-publish`. Design and measurements: `docs/RELEASE.md` in the Major TOM repository; this page:
-`docs/evidence/release_test_readme.py`.
-"""
+    return _render(TEMPLATE.read_text(), dict(
+        n_sources=len(samples.source.unique()), n_samples=len(samples), size_gb=f"{total / 1e9:.2f}",
+        fallback=fallback, sources_table="\n".join(rows), access_table="\n".join(access),
+        per_source_table="\n".join(per_rows), remote_table="\n".join(remote_rows), remote_note=remote_note,
+        repo=repo, commit_short=commit[:7]))
 
 
 def main(root: str) -> None:
