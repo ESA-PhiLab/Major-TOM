@@ -148,7 +148,8 @@ def climatology(out: Path | str, period: tuple[int, int] = (1991, 2020), bands: 
         at = np.flatnonzero(band == b)                            # a band holds its columns about once (ERA5:
         part = pa.table({"grid_cell": np.repeat(cells["grid_cell"].to_numpy()[at], 12),   # ~6 GB, not ~25)
                          "month": np.tile(np.arange(1, 13, dtype=np.int8), len(at)),
-                         **{k: np.load(parts / f"{k}.npy", mmap_mode="r")[at].ravel() for k in names}})
+                         **{k: pa.array(np.load(parts / f"{k}.npy", mmap_mode="r")[at].ravel(), from_pandas=True)
+                            for k in names}})                     # from_pandas: NaN stored as null, as pandas did
         pq.write_table(part, target / f"band={b:02d}.parquet")
         rows += part.num_rows
         del part

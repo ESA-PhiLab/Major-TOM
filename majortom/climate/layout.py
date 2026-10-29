@@ -6,7 +6,8 @@
       -> every file's rows reordered along the curve (climatology: by curve, then month)
          and grid_row_u, grid_col_r added after grid_cell (int16), so a region is a filter on two integers
       -> <dst>/same paths, row groups of ROW_GROUP rows with statistics, zstd
-      -> each written file is read back and must equal its source row for row (same cells, same values)
+      -> each written file is read back and must equal its source row for row (same cells, same values;
+         float NaN is stored as null, so missing values are null in every file)
     Nearby cells sit in the same row groups, so a point or region query reads one small row group per file
     instead of a whole column (~16x less for a point time series of CPC-Monthly). Values are not changed.
 
@@ -52,9 +53,18 @@ def _with_position(table: pa.Table, rows: np.ndarray, cols: np.ndarray) -> pa.Ta
     return table.add_column(at + 1, "grid_col_r", pa.array(cols.astype(np.int16)))
 
 
+def _nan_as_null(table: pa.Table) -> pa.Table:
+    """Float NaN -> null, so missing values are missing everywhere (SQL tools treat NaN as a value)."""
+    for i, field in enumerate(table.schema):
+        if pa.types.is_floating(field.type):
+            col = table.column(i)
+            table = table.set_column(i, field, pc.if_else(pc.is_nan(col), pa.scalar(None, field.type), col))
+    return table
+
+
 def _one(src: Path, dst: Path, rank: pd.Series, where: pd.DataFrame, row_group: int) -> int:
     """Reorder one file along the curve, write it, read it back and check it against the source."""
-    table = pq.read_table(src)
+    table = _nan_as_null(pq.read_table(src))
     names = table.column("grid_cell").to_numpy(zero_copy_only=False)
     key = rank.reindex(names).to_numpy()
     if np.isnan(key).any():

@@ -224,7 +224,7 @@ SOURCES = {
                             # quality index, chance of liquid precipitation (2026-10-29: quality flags as columns)
                             {"precip": "precipitation", "error": "randomError", "gauge_weight": "gaugeRelativeWeighting",
                              "quality": "precipitationQualityIndex", "liquid": "probabilityLiquidPrecipitation"},
-                            {"precip": "mm hr**-1", "error": "mm hr**-1", "gauge_weight": "%", "quality": "~",
+                            {"precip": "mm hr**-1", "error": "mm hr**-1", "gauge_weight": "%", "quality": "equivalent gauges per 2.5° box",
                              "liquid": "%"}, step="1MS", reader="earthengine",
                             period="month", options={"first_month": "1998-01-01"}),
     "imerg-monthly-gesdisc": Source("imerg", "https://gpm1.gesdisc.eosdis.nasa.gov/data/GPM_L3/GPM_3IMERGM.07",

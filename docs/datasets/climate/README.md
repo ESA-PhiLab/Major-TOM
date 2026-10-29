@@ -16,7 +16,7 @@ Each dataset is a separate folder with its own README.
 | Dataset | What | Source | Record | Grid | Cells | Variables | Size |
 |---|---|---|---|---|---|---|---|
 | [CPC-Monthly](https://source.coop/major-tom/climate/CPC-Monthly) | rain-gauge precipitation, daily max and min temperature | NOAA CPC Global Unified | 1979–2025 | 0.5° | 1,657,095 (land) | 3 | 12 GB |
-| [IMERG-Monthly](https://source.coop/major-tom/climate/IMERG-Monthly) | satellite precipitation | NASA GPM IMERG V07 | 1998–2024 | 0.1° | 5,109,586 (globe) | 1 | 17.5 GB |
+| [IMERG-Monthly](https://source.coop/major-tom/climate/IMERG-Monthly) | satellite precipitation and its quality fields | NASA GPM IMERG V07 | 1998–2024 | 0.1° | 5,113,745 (globe) | 5 | 36 GB |
 | [CAMS-Monthly](https://source.coop/major-tom/climate/CAMS-Monthly) | air quality: trace gases, aerosols, particulate matter | Copernicus CAMS EAC4 | 2003–2025 | 0.75° | 5,113,745 (globe) | 19 | 58 GB |
 | [ERA5-Static](https://source.coop/major-tom/climate/ERA5-Static) | fixed surface fields: terrain, land and lake cover, soil and vegetation types | ECMWF ERA5 | — | 0.25° | 5,113,745 (globe) | 16 | 0.1 GB |
 

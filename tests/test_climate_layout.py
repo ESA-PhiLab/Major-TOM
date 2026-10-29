@@ -53,3 +53,12 @@ def test_repack_reorders_without_changing_values(tmp_path):
     assert meta.num_row_groups == -(-len(cells) // 64)
     ordered = pd.read_parquet(tmp_path / "dst" / "cells.parquet")
     assert (curve_rank(cells).reindex(ordered.grid_cell).to_numpy() == np.arange(len(cells))).all()
+
+
+def test_nan_becomes_null(tmp_path):
+    """Missing values are nulls in every file: NaN (e.g. from an Arrow-written climatology) is converted."""
+    import pyarrow as pa
+    from majortom.climate.layout import _nan_as_null
+
+    t = _nan_as_null(pa.table({"x": pa.array([1.0, float("nan"), None]), "n": pa.array([1, 2, 3])}))
+    assert t.column("x").null_count == 2 and t.column("x")[0].as_py() == 1.0 and t.column("n").null_count == 0

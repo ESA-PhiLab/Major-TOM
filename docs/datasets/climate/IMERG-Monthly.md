@@ -27,7 +27,7 @@ Monthly satellite precipitation for every cell of the Major TOM grid, 1998–202
 | | |
 |---|---|
 | Record | January 1998 – December 2024, 324 months |
-| Cells | 5,109,586: the whole globe, land and sea |
+| Cells | 5,113,745: the whole globe, land and sea |
 | Source grid | 0.1° (~11 km): about one source pixel per cell |
 
 ## Variables
@@ -35,6 +35,10 @@ Monthly satellite precipitation for every cell of the Major TOM grid, 1998–202
 | Column | Meaning | Units |
 |---|---|---|
 | `imerg_precip` | mean precipitation rate over the month | mm h⁻¹ (× 24 × days in month = monthly total in mm) |
+| `imerg_error` | random error of the merged satellite-gauge estimate (NASA's randomError) | mm h⁻¹ |
+| `imerg_gauge_weight` | weight of rain gauges relative to the satellite estimate (gaugeRelativeWeighting) | % |
+| `imerg_quality` | quality index of the precipitation field (precipitationQualityIndex) | equivalent gauges per 2.5° box |
+| `imerg_liquid` | accumulation-weighted probability that the precipitation was liquid (probabilityLiquidPrecipitation) | % |
 | `imerg_valid` | share of the cell covered by source pixels with data | 0–1 |
 
 ## Files
@@ -43,7 +47,7 @@ Monthly satellite precipitation for every cell of the Major TOM grid, 1998–202
 |---|---|
 | `cells.parquet` | `grid_cell`, `grid_row_u`, `grid_col_r` |
 | `series/year=YYYY/MM.parquet` | one row per cell, along the Hilbert curve: `grid_cell`, `grid_row_u`, `grid_col_r`, `year`, `month`, the columns above |
-| `climatology/band=NN.parquet` | one row per cell and calendar month over 1998–2024: `grid_cell`, `grid_row_u`, `grid_col_r`, `month`, `imerg_precip_mean`, `imerg_precip_std`, `n_years` |
+| `climatology/band=NN.parquet` | one row per cell and calendar month over 1998–2024: `grid_cell`, `grid_row_u`, `grid_col_r`, `month`, `<column>_mean`, `<column>_std` for each column above, `n_years` |
 
 Series values are the monthly values defined in Variables: `imerg_precip` is the month's mean precipitation rate (mm/h). The climatology gives, per cell and calendar month over 1998–2024, the mean (`_mean`) and the year-to-year sample standard deviation (`_std`), and `n_years`, the years with data.
 
@@ -59,6 +63,7 @@ The band of a cell is (row + 1002) × 20 // 2004, with row the signed number in 
 ## Notes
 
 - **Climatology period.** IMERG starts in 1998, so its normals use the whole record (1998–2024) rather than the WMO period 1991–2020; `n_years` gives the years behind each value (24–27).
+- **Quality columns.** `imerg_error`, `imerg_gauge_weight` and `imerg_quality` are IMERG's own per-pixel quality fields, averaged over the cell like precipitation. Low `imerg_quality` and `imerg_gauge_weight` and high `imerg_error` mark values to treat with caution.
 - **High latitudes.** Satellite microwave estimates of precipitation are least reliable over snow-covered and freezing ground.
 - **Known source artifacts.** Beyond 55° latitude, 1,805 cell-months exceed 1 mm h⁻¹ (about 720 mm in a month), spread over the whole record:
   - **north-eastern Siberia** (around 68°N 145°E): 1,027 cell-months, up to 6.8 mm h⁻¹, mostly in March and September–November, in a region that receives about 250 mm a year: artifacts of the freeze and thaw seasons (e.g. 7.1 mm h⁻¹ in NASA's own file at 63.3°N 143.7°E in March 1999);
