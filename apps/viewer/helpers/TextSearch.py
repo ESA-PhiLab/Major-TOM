@@ -24,18 +24,26 @@ class SearchSigLIP():
 
     def init_index(self):
         self.cpu_index = faiss.read_index(self.index_path)
-        res = faiss.StandardGpuResources()
-        cloner_options = faiss.GpuClonerOptions()
-        cloner_options.useFloat16LookupTables = True 
-        self.gpu_index = faiss.index_cpu_to_gpu(res, 0, self.cpu_index, cloner_options)
-        self.gpu_index.nprobe = 32 # Higher = more accurate, slower
+        # GPU when the Space has one (L4 grant); otherwise the same index on CPU: slower search, same results
+        self.device = 'cuda' if torch.cuda.is_available() and faiss.get_num_gpus() > 0 else 'cpu'
+        if self.device == 'cuda':
+            res = faiss.StandardGpuResources()
+            cloner_options = faiss.GpuClonerOptions()
+            cloner_options.useFloat16LookupTables = True
+            self.index = faiss.index_cpu_to_gpu(res, 0, self.cpu_index, cloner_options)
+            self.index.nprobe = 32  # Higher = more accurate, slower
+        else:
+            self.index = self.cpu_index
+            faiss.ParameterSpace().set_index_parameter(self.index, 'nprobe', 32)  # same as on GPU
+        print(f'Text search on {self.device}')
 
     def init_model(self):
         self.model, self.preprocess = create_model_from_pretrained('hf-hub:timm/ViT-SO400M-14-SigLIP-384')
         self.model.eval()
         self.tokenizer = get_tokenizer('hf-hub:timm/ViT-SO400M-14-SigLIP')
 
-    def encode_text(self, text, device='cuda'):
+    def encode_text(self, text, device=None):
+        device = device or self.device
         self.model.to(device)
         with torch.no_grad():
             text = self.tokenizer([text], context_length=self.model.context_length)
@@ -50,7 +58,7 @@ class SearchSigLIP():
         faiss.normalize_L2(query_vec)
         
         # Search
-        distances, indices = self.gpu_index.search(query_vec, k)
+        distances, indices = self.index.search(query_vec, k)
         
         # Flatten results
         ids = indices[0]
