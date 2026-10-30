@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** reviewed (Miko, 2026-10-24); draft of the dataset card for Major-TOM/Core-Weather (2026-10-23). ERA5-Land rows, note and credit added 2026-10-26: not yet reviewed.
+> **Review status:** reviewed (Miko, 2026-10-24); draft of the dataset card for Major-TOM/Core-Weather (2026-10-23). ERA5-Land rows, note and credit added 2026-10-26; ERA5 and ERA5-Land rows, Size and Validation updated 2026-10-30 (overnight, from docs/evidence/core_weather_validate.py and a trial merge of four days): not yet reviewed.
 
 # Core-Weather
 
@@ -30,14 +30,14 @@ Each source's columns carry its prefix. Units are as published by the producer; 
 
 | Source | Hourly | Daily | Grid |
 |---|---|---|---|
-| ERA5 (`era5_`) | `t2m`, `d2m` (K), `tp` (m, hour ending at the stamp), `u10`, `v10` (m s⁻¹), `sp` (Pa), `ssrd` (J m⁻²), `sf`, `sd` (m of water equivalent), `swvl1` (m³ m⁻³), `sst` (K), `siconc` (0–1), `valid`, `land` | means of states, sums of `tp`, `ssrd`, `sf`, min and max of `t2m` | 0.25° |
-| ERA5-Land (`era5land_`) | 49 land variables (starter set: `t2m`, `d2m` (K), `u10`, `v10` (m s⁻¹), `sp` (Pa), `tp` (m), `sf`, `sd` (m of water equivalent), `ssrd` (J m⁻²), `snowc` (%), `swvl1` (m³ m⁻³)); accumulated variables are amounts over the hour ending at the stamp | means of states, sums of accumulated variables, min and max of `t2m` | 0.1°, land only, 90°N–57.1°S |
+| ERA5 (`era5_`) | about 200 variables: every single-level ERA5 variable except exact duplicates ([ERA5_VARIABLES.md](../ERA5_VARIABLES.md)), among them `t2m`, `d2m` (K), `tp` (m, hour ending at the stamp), `u10`, `v10` (m s⁻¹), `sp` (Pa), `ssrd` (J m⁻²), `sf`, `sd` (m of water equivalent), `swvl1` (m³ m⁻³), `sst` (K), `siconc` (0–1); `valid`, `land` | means of states, sums of accumulated variables, min and max of the hourly extremes | 0.25° |
+| ERA5-Land (`era5land_`) | all 49 time-varying land variables (among them `t2m`, `d2m` (K), `u10`, `v10` (m s⁻¹), `sp` (Pa), `tp` (m), `sf`, `sd` (m of water equivalent), `ssrd` (J m⁻²), `snowc` (%), `swvl1` (m³ m⁻³)); accumulated variables are amounts over the hour ending at the stamp | means of states, sums of accumulated variables, min and max of `t2m` | 0.1°, land only, 90°N–57.1°S |
 | CAMS EAC4 (`cams_`) | every 3 hours: surface `no2`, `o3`, `co`, `so2`, `hcho` (kg kg⁻¹, lowest model level), `pm1`, `pm2p5`, `pm10` (kg m⁻³); total columns `tc_no2`, `tc_o3`, `tc_co`, `tc_so2`, `tc_hcho`, `tc_ch4` (kg m⁻²); aerosol optical depth at 550 nm, total and by type | means of the 8 three-hourly steps | 0.75° |
 | NOAA CPC (`cpc_`) | — | `precip` (mm), `tmax`, `tmin` (°C), `start` | 0.5° |
 | Sentinel-5P (`s5p_`) | — | `no2`, `co`, `o3`, `so2`, `hcho` (mol m⁻²), `ch4` (ppb), `aer_ai`, a valid share per product, `start` | 0.05° grid of ~5.5 × 3.5 km pixels |
 | IMERG (`imerg_`) | `precip` (mm, hour ending at the stamp) | sums | 0.1° |
 
-`<source>_valid` is the share of the cell with data. `era5_land` is the share of the cell in ERA5 land pixels (land fraction ≥ 0.5); ERA5 soil water and snow depth average over those pixels only, and are empty for cells without land. Sea surface temperature and sea ice cover are empty over land.
+`<source>_valid` is the share of the cell with data; for ERA5 it is counted on 2 m temperature, which covers every cell. `era5_land` is the share of the cell in ERA5 land pixels (land fraction ≥ 0.5); ERA5 soil water and snow depth average over those pixels only, and are empty for cells without land. Sea surface temperature and sea ice cover are empty over land.
 
 ## Notes on the sources
 
@@ -62,4 +62,14 @@ ERA5-Land is Copernicus Climate Change Service data under the Copernicus licence
 
 ## Size
 
-About 3.8 million acquisitions. ERA5 alone: ~16 GB of parquet. All sources: tens of GB.
+About 3.8 million acquisitions, 2,976 acquisition days (2015–2024). The hourly table has about 181 million rows and
+260 columns (~93 GB of parquet), the daily table about 226 million rows and 284 columns (~181 GB); estimated from a
+merge of four days.
+
+## Validation
+
+Before merging, every source folder was checked from its Parquet metadata: all 2,976 days are present for every
+source, and on every day all sources have the same number of rows (the merge joins them on cell, acquisition and
+step, so no row is left without a partner). Columns that are empty for a whole day are expected: cloud base height
+and convective inhibition without cloud or convection, ocean-only variables on days with land acquisitions only (and
+the reverse), lake variables where there is no lake, Sentinel-5P before 2018-06-28.
