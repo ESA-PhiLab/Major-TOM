@@ -25,3 +25,15 @@ def test_outer_join_per_day(tmp_path):
     assert list(other.columns) == list(day.columns) and pd.isna(other.cpc_precip.iloc[0])   # one schema
     assert other.dtypes.equals(day.dtypes)
     assert merge(tmp_path, ["era5", "cpc"], tmp_path / "out", kinds=("daily",)) == 0     # already merged
+
+
+def test_column_of_an_earlier_source_is_kept(tmp_path):
+    """Groups of one source share columns (era5_valid, era5_land): the first group's copy stays, once."""
+    t = pd.Timestamp("2021-07-01T11:21")
+    keys = {"grid_cell": ["a"], "acquired": [t], "step_d": [0]}
+    write(tmp_path, "era5-g1", "daily", "2021-07-01", {**keys, "era5_u100_mean": [3.0], "era5_valid": [1.0], "era5_land": [0.4]})
+    write(tmp_path, "era5-g4", "daily", "2021-07-01", {**keys, "era5_p2ww_mean": [1.5], "era5_valid": [0.6], "era5_land": [0.4]})
+    merge(tmp_path, ["era5-g1", "era5-g4"], tmp_path / "out", kinds=("daily",))
+    day = pd.read_parquet(tmp_path / "out" / "daily" / "year=2021" / "2021-07-01.parquet")
+    assert list(day.columns) == ["grid_cell", "acquired", "step_d", "era5_u100_mean", "era5_valid", "era5_land", "era5_p2ww_mean"]
+    assert day.era5_valid.iloc[0] == 1.0                                             # era5-g1's

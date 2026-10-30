@@ -6,7 +6,9 @@
 
 Sources keep their own prefixed columns (era5_..., cams_..., cpc_..., s5p_...). Every merged file has every
 source's columns: a day missing from one source (e.g. Sentinel-5P before 2018, or a stage not yet built) leaves
-them empty, so all files share one schema.
+them empty, so all files share one schema. A column already given by an earlier source is kept from that one: the
+groups of one source (era5-g1 ... era5-g8) each carry era5_land and era5_valid; era5_land is the same in all,
+era5_valid is counted on each group's first variable, so era5-g1's (100 m wind, everywhere) is the one kept.
 """
 from __future__ import annotations
 
@@ -30,7 +32,8 @@ def merge(root: Path | str, sources: list[str], out: Path | str, kinds: tuple[st
             first = next(iter(sorted((root / s / kind).glob("year=*/*.parquet"))), None)
             if first is not None:
                 sample = pd.read_parquet(first)
-                columns[s] = [c for c in sample.columns if c not in KEYS[kind]]
+                seen = {c for names in columns.values() for c in names}
+                columns[s] = [c for c in sample.columns if c not in KEYS[kind] and c not in seen]
                 dtypes.update(sample.dtypes.to_dict())
         for day in days:
             target = out / kind / day
@@ -39,6 +42,7 @@ def merge(root: Path | str, sources: list[str], out: Path | str, kinds: tuple[st
             parts = [pd.read_parquet(root / s / kind / day) for s in sources if (root / s / kind / day).exists()]
             table = parts[0]
             for part in parts[1:]:
+                part = part.drop(columns=[c for c in part.columns if c in table.columns and c not in KEYS[kind]])
                 table = table.merge(part, on=KEYS[kind], how="outer")
             for s, names in columns.items():
                 for name in names:
