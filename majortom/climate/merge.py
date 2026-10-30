@@ -7,8 +7,9 @@
 Sources keep their own prefixed columns (era5_..., cams_..., cpc_..., s5p_...). Every merged file has every
 source's columns: a day missing from one source (e.g. Sentinel-5P before 2018, or a stage not yet built) leaves
 them empty, so all files share one schema. A column already given by an earlier source is kept from that one: the
-groups of one source (era5-g1 ... era5-g8) each carry era5_land and era5_valid; era5_land is the same in all,
-era5_valid is counted on each group's first variable, so era5-g1's (100 m wind, everywhere) is the one kept.
+folders of one source (era5 with the basic variables, then era5-g1 ... era5-g8) each carry era5_land and
+era5_valid; era5_land is the same in all, era5_valid is counted on each folder's first variable, so era5's (2 m
+temperature, everywhere) is the one kept when era5 is listed first.
 """
 from __future__ import annotations
 
