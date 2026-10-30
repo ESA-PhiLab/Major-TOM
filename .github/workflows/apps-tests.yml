@@ -1,0 +1,20 @@
+# The climate globe in a headless browser, reading the published data (apps/climate-globe/tests). Preview images
+# are not in git, so their test is skipped here; everything read live from source.coop is checked.
+name: App tests
+on:
+  push:
+    paths: ["apps/climate-globe/**", ".github/workflows/apps-tests.yml"]
+  pull_request:
+    paths: ["apps/climate-globe/**"]
+  workflow_dispatch:
+jobs:
+  climate-globe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pytest playwright
+      - run: python -m playwright install --with-deps chromium
+      - run: python -m pytest apps/climate-globe/tests -m network -q -p no:cacheprovider

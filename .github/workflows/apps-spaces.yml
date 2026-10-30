@@ -37,7 +37,8 @@ jobs:
           from huggingface_hub import HfApi
           HfApi(token=os.environ["HF_TOKEN"]).upload_folder(
               folder_path=os.environ["FOLDER"], repo_id=os.environ["SPACE"], repo_type="space",
-              commit_message=f"Sync from GitHub {os.environ['GITHUB_SHA'][:7]}")
+              commit_message=f"Sync from GitHub {os.environ['GITHUB_SHA'][:7]}",
+              ignore_patterns=["tests/*", "**/__pycache__/*"])                # the Space needs the app only
           EOF
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}

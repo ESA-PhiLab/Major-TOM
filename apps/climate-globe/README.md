@@ -52,6 +52,15 @@ cd apps/climate-globe && python3 -m http.server 8790        # then open http://l
 Preview images are not in git: build them with `build_images.py` (Slurm, `miko-torch` environment) and upload
 them to the Space by hand (the GitHub sync uploads code only). Place names: `build_places.py` from Natural Earth.
 
+## Tests
+
+```
+pytest apps/climate-globe/tests -m network        # headless Chromium (Playwright), reads source.coop
+```
+
+On GitHub they run when the app changes (`.github/workflows/apps-tests.yml`); the preview test is skipped there, as
+the images are not in git.
+
 ## Measurements
 
 [docs/reports/2026-10-30-climate-globe-read-experiments.md](../../docs/reports/2026-10-30-climate-globe-read-experiments.md).
