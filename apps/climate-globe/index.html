@@ -47,6 +47,16 @@
   main { flex: 1; display: flex; min-height: 0; }
   #map-wrap { flex: 1; position: relative; background: var(--globe-space); }
   #map { position: absolute; inset: 0; }
+  .places { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
+  .place { position: absolute; left: 0; top: 0; margin: -7px 0 0 -4px; display: flex; align-items: center; gap: 4px;
+    font: 600 12px/14px var(--sans); color: var(--ink); white-space: nowrap;
+    text-shadow: 0 0 2px #fff, 0 0 3px #fff, 0 0 5px rgba(255,255,255,.9); }
+  .place i { font-style: normal; font-size: 8px; color: var(--ink-2); }
+  .place.capital span { font-weight: 700; }
+  .place.peak i, .place.low i, .place.pass i { color: #6b4f2a; }
+  .place.peak span, .place.low span, .place.pass span, .place.falls span { font-weight: 400; font-style: italic; }
+  .toggle { display: flex; gap: 8px; align-items: center; font-size: 14px; cursor: pointer; }
+  .toggle input { accent-color: var(--mt-blue); }
   #status:not(:empty) { position: absolute; top: 14px; left: 14px; z-index: 2; background: var(--surface);
     border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; font-size: 13px; color: var(--ink-2); }
 
@@ -142,6 +152,7 @@
 <main>
   <div id="map-wrap">
     <div id="map"></div>
+    <div id="places" class="places" aria-hidden="true"></div>
     <div id="status"></div>
     <div id="loader" role="status" aria-live="polite" hidden>
       <!-- the Major TOM Climate flag (mt-climate-icon.svg): its 20 bars light up as the data arrives -->
@@ -198,6 +209,11 @@
         <button class="step" id="next" aria-label="Next month">›</button>
       </div>
       <div class="time-meta"><span id="time-range"></span><span>← → keys</span></div>
+    </section>
+
+    <section>
+      <h2>Map</h2>
+      <label class="toggle"><input type="checkbox" id="show-places" checked> Place names (cities, peaks) from zoom 5</label>
     </section>
 
     <section>

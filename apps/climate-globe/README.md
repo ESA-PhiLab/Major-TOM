@@ -1,6 +1,16 @@
+---
+title: Major TOM Climate Globe
+emoji: 🌍
+colorFrom: blue
+colorTo: green
+sdk: static
+pinned: false
+short_description: Major TOM Climate datasets on a 3D globe, read from source.coop
+---
+
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** draft for review, 2026-10-30. First version, used for read tests; not yet a Space.
+> **Review status:** draft for review, 2026-10-30. Space created (private), not yet deployed.
 
 # Major TOM Climate Globe
 
@@ -11,10 +21,12 @@ No server: plain HTML and JavaScript, libraries from jsDelivr at pinned versions
 
 ```
 panel: layer, source, month
-  -> data.js:  preview image | monthly Parquet read live (hyparquet) | test layouts (Zarr, Parquet overviews)
+  -> data.js:  preview image | Parquet read live (hyparquet): overviews/ at globe scale, series/ zoomed in |
+              Zarr test store
   -> tiles.js: map tiles drawn in the browser, each pixel coloured by the Major TOM cell under it
-  -> app.js:   MapLibre globe; neighbouring months loaded ahead; cursor shows the cell and its value
-click a cell -> its monthly normals (one climatology file) and, on request, its whole series
+  -> app.js:   MapLibre globe; neighbouring months loaded ahead; cursor shows the cell and its value;
+              place names from zoom 5 (labels.js)
+click a cell -> its monthly normals (one climatology file) and, on request, its whole series (by_cell/)
 ```
 
 ## Files
@@ -27,7 +39,10 @@ click a cell -> its monthly normals (one climatology file) and, on request, its 
 | `tiles.js` | cell under a point (as `majortom.cells`), tiles from a field |
 | `scales.js` | colour scales of the README figures, as lookup tables |
 | `charts.js` | small SVG line charts for the selected cell |
-| `build_images.py` | climatology -> preview images on the cell grid, one pixel per cell (CPC precipitation so far) |
+| `labels.js` | place names from zoom 5: largest first, overlaps skipped |
+| `places.json` | cities and landmarks (Natural Earth 10m, public domain), made by `build_places.py` |
+| `build_images.py` | climatology -> preview images on the cell grid, one pixel per cell, for the four layers |
+| `build_places.py` | Natural Earth GeoJSON -> `places.json` |
 
 ## Run locally
 

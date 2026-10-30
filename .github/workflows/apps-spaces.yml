@@ -17,6 +17,7 @@ jobs:
       matrix:
         include:                           # one line per app: its folder and its Space
           - { folder: apps/viewer, space: Major-TOM/MajorTOM-Core-Viewer }
+          - { folder: apps/climate-globe, space: Major-TOM/MajorTOM-Climate-Globe }
     steps:
       - uses: actions/checkout@v4
         with:

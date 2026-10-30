@@ -10,6 +10,7 @@ import { feature } from 'https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/+esm
 import { LAYERS, SOURCE_COOP, cellRow, loadByCellSeries, loadCellClimatology, loadCellSeries, loadOverviewMonth,
   loadPreview, loadSeries, loadZarrCellSeries, loadZarrMonth } from './data.js'
 import { lineChart } from './charts.js'
+import { placeLabels } from './labels.js'
 import { drawBar, makeScale } from './scales.js'
 import { cellAt, gridField, imageField, renderTile } from './tiles.js'
 
@@ -52,8 +53,10 @@ const map = new maplibregl.Map({
   },
 })
 map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right')
+const places = placeLabels(map, $('places'))
+$('show-places').addEventListener('change', e => places.show(e.target.checked))
 map.addControl(new maplibregl.AttributionControl({ compact: true,
-  customAttribution: 'Coastlines: Natural Earth · Data: <a href="https://source.coop/major-tom/climate">major-tom/climate</a>' }))
+  customAttribution: 'Coastlines and places: Natural Earth · Data: <a href="https://source.coop/major-tom/climate">major-tom/climate</a>' }))
 
 let shownLevel = null
 map.on('zoomend', () => {

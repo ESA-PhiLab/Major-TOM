@@ -19,13 +19,16 @@ export const LAYERS = [
     zarr: { path: '_experiments/cpc-precip.zarr', years: [2024, 2025] } },               // test store, Zarr comparison
   { id: 'imerg-precip', name: 'Precipitation', source: 'IMERG, satellites', dataset: 'IMERG-Monthly', column: 'imerg_precip',
     unit: 'mm per month', perMonth: m => HOURS[m - 1],                            // stored as mm/h
-    scale: { type: 'log', min: 4, max: 400, ramp: 'dryWet', ticks: [4, 10, 25, 50, 100, 200, 400] }, series: [1998, 2024], normal: '1998–2024', tables: true },
+    scale: { type: 'log', min: 4, max: 400, ramp: 'dryWet', ticks: [4, 10, 25, 50, 100, 200, 400] },
+    preview: 'images/IMERG-Monthly/precip/{MM}.png', series: [1998, 2024], normal: '1998–2024', tables: true },
   { id: 'cpc-tmax', name: 'Daily maximum temperature', source: 'CPC, stations', dataset: 'CPC-Monthly', column: 'cpc_tmax',
     unit: '°C', scale: { type: 'centred', min: -40, centre: 0, max: 40, ramp: 'coldHot', ticks: [-40, -20, 0, 20, 40] },
+    preview: 'images/CPC-Monthly/tmax/{MM}.png',
     series: [1979, 2025], normal: '1991–2020', tables: true },
   { id: 'cams-pm25', name: 'Surface PM2.5', source: 'CAMS, reanalysis', dataset: 'CAMS-Monthly', column: 'cams_pm2p5',
     unit: 'µg/m³', perMonth: () => 1e9,                                          // stored as kg/m³
-    scale: { type: 'log', min: 2, max: 150, ramp: 'haze', ticks: [2, 5, 10, 25, 50, 150] }, series: [2003, 2025], normal: '2003–2025', tables: true },
+    scale: { type: 'log', min: 2, max: 150, ramp: 'haze', ticks: [2, 5, 10, 25, 50, 150] },
+    preview: 'images/CAMS-Monthly/pm25/{MM}.png', series: [2003, 2025], normal: '2003–2025', tables: true },
 ]
 
 const TAIL = 131072             // a file's first request: its last 128 KB, which hold the footer (28-97 KB here);

@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-30 Climate globe finished locally: previews for all four layers, place names (Natural Earth) from zoom 5; Space Major-TOM/MajorTOM-Climate-Globe created (private, static), in the sync workflow
 - 2026-10-30 Table layouts moved to majortom.release.tables (repack, overviews, by-cell); CPC by-cell 3.6 min / 20.5 GB peak / 8.4 GB, overviews 933 MB; READMEs for build, release, climate, climate-globe
 - 2026-10-30 Parquet by cell + overview tables (CPC test): cell series 1.5 MB/4 requests/0.7 s, globe month 0.7 MB/2 requests, on a par with Zarr; training read 570 cells/s for neighbouring cells -> [report](docs/reports/2026-10-30-climate-globe-read-experiments.md)
 - 2026-10-30 Climate globe read experiments: cell series, Zarr, loading ahead, row groups -> [report](docs/reports/2026-10-30-climate-globe-read-experiments.md)
