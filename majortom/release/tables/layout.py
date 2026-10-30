@@ -82,15 +82,17 @@ def _one(src: Path, dst: Path, rank: pd.Series, where: pd.DataFrame, row_group: 
     pos = where.reindex(out.column("grid_cell").to_numpy(zero_copy_only=False))
     out = _with_position(out, pos["grid_row_u"].to_numpy(), pos["grid_col_r"].to_numpy())
     dst.parent.mkdir(parents=True, exist_ok=True)
-    pq.write_table(out, dst, row_group_size=row_group, compression="zstd", write_statistics=True)
-    back = pq.read_table(dst).drop_columns(["grid_row_u", "grid_col_r"])
+    tmp = dst.with_name(dst.name + ".tmp")                         # renamed only once checked: a killed run
+    pq.write_table(out, tmp, row_group_size=row_group, compression="zstd", write_statistics=True)   # leaves no
+    back = pq.ParquetFile(tmp).read().drop_columns(["grid_row_u", "grid_col_r"])                  # half file
     if not back.take(pa.array(np.argsort(sort))).equals(table):
         raise ValueError(f"{dst}: does not match {src} after reordering")
+    os.replace(tmp, dst)
     return out.num_rows
 
 
 def repack(src: Path | str, dst: Path | str, workers: int | None = None, row_group: int = ROW_GROUP,
-           drop: tuple[str, ...] = ()) -> int:
+           drop: tuple[str, ...] = (), only: tuple[str, ...] = ("series", "climatology", "static")) -> int:
     """Write the publishing layout of `src` into `dst`, without the columns in `drop`; returns the files written."""
     src, dst = Path(src), Path(dst)
     if (src / "cells.parquet").exists():
@@ -102,8 +104,8 @@ def repack(src: Path | str, dst: Path | str, workers: int | None = None, row_gro
         cells = cells.assign(grid_row_u=rc[:, 0], grid_col_r=rc[:, 1])
     rank = curve_rank(cells)
     where = cells.set_index("grid_cell")[["grid_row_u", "grid_col_r"]]
-    files = [f for pattern in ("series/year=*/*.parquet", "climatology/band=*.parquet", "static.parquet")
-             for f in sorted(src.glob(pattern))]
+    patterns = {"series": "series/year=*/*.parquet", "climatology": "climatology/band=*.parquet", "static": "static.parquet"}
+    files = [f for part in only for f in sorted(src.glob(patterns[part]))]
     if (src / "cells.parquet").exists():
         ordered = cells.iloc[np.argsort(rank.reindex(cells["grid_cell"]).to_numpy())]
         dst.mkdir(parents=True, exist_ok=True)

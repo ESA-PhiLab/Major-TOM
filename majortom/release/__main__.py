@@ -72,7 +72,8 @@ def _tables(a: argparse.Namespace) -> None:
         return
     from .tables import repack
 
-    print(f"{repack(a.src, a.out, a.workers, drop=tuple(a.drop or ())):,} files written and checked", flush=True)
+    only = tuple(a.only or ("series", "climatology", "static"))
+    print(f"{repack(a.src, a.out, a.workers, drop=tuple(a.drop or ()), only=only):,} files written and checked", flush=True)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -110,6 +111,7 @@ def main(argv: list[str] | None = None) -> None:
     r.add_argument("--out", type=Path, required=True)
     r.add_argument("--workers", type=int, default=None)
     r.add_argument("--drop", nargs="+", help="columns left out, with their climatology _mean and _std (e.g. era5_ptype)")
+    r.add_argument("--only", nargs="+", choices=["series", "climatology", "static"], help="repack only these parts")
     r.set_defaults(run=_tables)
     o = tsub.add_parser("overviews", help="monthly files -> block means for globe-wide maps")
     o.add_argument("--src", type=Path, required=True, help="a dataset folder with series/year=YYYY/MM.parquet")
