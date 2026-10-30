@@ -57,8 +57,7 @@ map.addControl(new maplibregl.AttributionControl({ compact: true,
 
 let shownLevel = null
 map.on('zoomend', () => {
-  if (!levelled(state.mode)) return
-  if (zarrLevel() !== shownLevel) show()
+  if (levelFor(state.layer, state.mode) !== shownLevel) show()
 })
 map.on('load', async () => {
   const topo = await (await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-50m.json')).json()
@@ -224,13 +223,13 @@ async function pickLayer() {
   $('chart-series').hidden = true
   $('series-stats').textContent = ''
   const months = (layer.series[1] - layer.series[0] + 1) * 12
-  $('series-load').textContent = `Load all ${months} months from Parquet (one file per month)`
+  $('series-load').textContent = `Load all ${months} months`
   $('series-load').hidden = false
+  $('series-monthly').hidden = !layer.tables                    // the same series the slow way, to compare
+  $('series-monthly').textContent = `Compare: read them from the ${months} monthly files`
+  $('series-monthly-stats').textContent = ''
   $('series-zarr').hidden = !layer.zarr
-  $('series-bycell').hidden = !layer.bycell
-  $('series-bycell').textContent = `Load all ${months} months from by-cell Parquet (test)`
-  $('series-bycell-stats').textContent = ''
-  $('series-zarr').textContent = `Load all ${months} months from Zarr (test store)`
+  $('series-zarr').textContent = `Compare: read them from the Zarr test store`
   $('series-zarr-stats').textContent = ''
   try {
     const c = await loadCellClimatology(layer, row, col)
@@ -247,32 +246,54 @@ function stopSeries() {
   pick.job?.stop(); pick.job = null
 }
 
+/** The selected cell's every month from the dataset's by_cell file: one row group, a few requests. */
 $('series-load').addEventListener('click', async () => {
-  if (pick.job) { stopSeries(); $('series-load').textContent = 'Stopped. Load again'; return }
+  const layer = state.layer, ticket = pick.ticket
+  if (!layer.tables) return monthlySeries($('series-load'), $('series-stats'))
+  $('series-load').disabled = true
+  $('series-stats').textContent = 'Reading the series…'
+  try {
+    const c = await loadByCellSeries(layer, pick.cell.row, pick.cell.col)
+    if (ticket !== pick.ticket) return
+    pick.series = c.values
+    $('chart-series').hidden = false
+    $('series-load').hidden = true
+    $('series-stats').textContent = `By cell: ${c.values.length} months · ${kb(c.stats.bytes)} in ${c.stats.requests} requests · ${secs(c.stats.read)}`
+    drawPick()
+  } catch (error) {
+    if (ticket === pick.ticket) $('series-stats').textContent = `Could not load: ${error.message}`
+  } finally {
+    $('series-load').disabled = false
+  }
+})
+$('series-monthly').addEventListener('click', () => monthlySeries($('series-monthly'), $('series-monthly-stats')))
+
+/** The selected cell's every month from the monthly files: one file per month, filling in as they arrive. */
+async function monthlySeries(button, out) {
+  if (pick.job) { stopSeries(); button.textContent = 'Stopped. Load again'; return }
   const layer = state.layer, ticket = pick.ticket, [a, b] = layer.series, n = (b - a + 1) * 12
-  $('series-load').textContent = 'Stop'
-  $('series-stats').textContent = 'Finding the cell…'
+  button.textContent = 'Stop'
+  out.textContent = 'Finding the cell…'
   const rowIndex = await cellRow(layer.dataset, pick.cell.row, pick.cell.col)
   if (ticket !== pick.ticket) return
-  if (rowIndex < 0) { $('series-stats').textContent = `This cell is not in ${layer.dataset}.`; $('series-load').hidden = true; return }
+  if (rowIndex < 0) { out.textContent = `This cell is not in ${layer.dataset}.`; button.hidden = true; return }
   pick.series = new Array(n).fill(NaN)
   $('chart-series').hidden = false
   let arrived = 0, frame = 0
   const job = loadCellSeries(layer, rowIndex, (k, v, st) => {
     if (ticket !== pick.ticket) return
     pick.series[k] = v; arrived++
-    $('series-stats').textContent = `${arrived} of ${n} months · ${kb(st.bytes)} in ${st.requests} requests · ${secs(performance.now() - st.t0)}`
+    out.textContent = `${arrived} of ${n} months · ${kb(st.bytes)} in ${st.requests} requests · ${secs(performance.now() - st.t0)}`
     if (!frame) frame = requestAnimationFrame(() => { frame = 0; drawPick() })
   })
   pick.job = job
   const st = await job.done
   if (ticket !== pick.ticket || pick.job !== job) return
   pick.job = null
-  $('series-load').hidden = true
-  $('series-stats').textContent = `Parquet: ${n} months · ${kb(st.bytes)} in ${st.requests} requests · ${secs(st.read)} ` +
-    `(network ${secs(st.network)})`
+  button.hidden = true
+  out.textContent = `Monthly files: ${n} months · ${kb(st.bytes)} in ${st.requests} requests · ${secs(st.read)}`
   drawPick()
-})
+}
 
 $('series-zarr').addEventListener('click', async () => {
   const layer = state.layer, ticket = pick.ticket
@@ -289,24 +310,6 @@ $('series-zarr').addEventListener('click', async () => {
     if (ticket === pick.ticket) $('series-zarr-stats').textContent = `Zarr: could not load: ${error.message}`
   } finally {
     $('series-zarr').disabled = false
-  }
-})
-
-$('series-bycell').addEventListener('click', async () => {
-  const layer = state.layer, ticket = pick.ticket
-  $('series-bycell').disabled = true
-  $('series-bycell-stats').textContent = 'Reading the by-cell series…'
-  try {
-    const c = await loadByCellSeries(layer, pick.cell.row, pick.cell.col)
-    if (ticket !== pick.ticket) return
-    pick.series = c.values
-    $('chart-series').hidden = false
-    $('series-bycell-stats').textContent = `By cell: ${c.values.length} months · ${kb(c.stats.bytes)} in ${c.stats.requests} requests · ${secs(c.stats.read)}`
-    drawPick()
-  } catch (error) {
-    if (ticket === pick.ticket) $('series-bycell-stats').textContent = `By cell: could not load: ${error.message}`
-  } finally {
-    $('series-bycell').disabled = false
   }
 })
 
@@ -333,8 +336,7 @@ function drawPick() {
 
 /** First and last year the current source has: the series, or the Zarr test store's map months. */
 /** Test sources (Zarr store, Parquet overview tables) and the years each has; both read coarser levels by zoom. */
-const levelled = mode => mode === 'zarr' || mode === 'overview'
-const yearsFor = (layer, mode) => (mode === 'zarr' ? layer.zarr.years : mode === 'overview' ? layer.bycell.years : layer.series)
+const yearsFor = (layer, mode) => (mode === 'zarr' ? layer.zarr.years : layer.series)
 const years = () => yearsFor(state.layer, state.mode)
 
 /** Steps of the time slider: 12 climatology months, or every month of the source's years. */
@@ -366,6 +368,11 @@ function timeLabel(step) {
 
 /** Zarr level for the current zoom: the whole globe needs only the 4 x 4 block means. */
 const zarrLevel = () => (map.getZoom() < 3 ? 2 : map.getZoom() < 4.5 ? 1 : 0)
+/** Level a month is read at: Zarr by zoom; series of a dataset with overviews: 4 x 4 means at globe scale. */
+function levelFor(layer, mode) {
+  if (mode === 'zarr') return zarrLevel()
+  return mode === 'live' && layer.tables && map.getZoom() < 3.5 ? 2 : 0
+}
 
 /** Load one month of `layer` from a source (or join the load already under way, or take it from the cache).
  *  onProgress(share, bytes, expected) only reaches a load this call starts. */
@@ -380,8 +387,8 @@ function fetchField(layer, mode, step, level, onProgress = () => {}) {
       onProgress(1, p.stats.bytes, p.stats.bytes)
       return { field: imageField(p.rgba, p.width, scale), stats: p.stats }
     }
-    if (mode === 'overview' && level > 0) {
-      const o = await loadOverviewMonth(layer, year, month, level, onProgress)
+    if (mode === 'live' && level === 2) {
+      const o = await loadOverviewMonth(layer, year, month, onProgress)
       return { field: gridField(o.values, scale, level), stats: o.stats }
     }
     if (mode === 'zarr') {
@@ -415,7 +422,7 @@ async function loadAhead(layer, mode, step, level) {
 
 async function show() {
   const ticket = ++state.loading, { layer, mode, step } = state
-  const level = levelled(mode) ? zarrLevel() : 0, key = `${layer.id}/${mode}/${step}/${level}`
+  const level = levelFor(layer, mode), key = `${layer.id}/${mode}/${step}/${level}`
   $('time-label').textContent = timeLabel(step)
   $('status').textContent = ''
   startLoader(`${layer.name}, ${layer.source.split(',')[0]} · ${timeLabel(step)}`)
@@ -449,8 +456,7 @@ async function show() {
 function readout(stats, drawMs, cached, ahead) {
   $('stat-source').textContent = state.mode === 'preview' ? 'preview image (PNG)'
     : state.mode === 'zarr' ? `Zarr, level ${stats.level ?? '–'}${stats.level ? ` (${2 ** stats.level}×${2 ** stats.level} means)` : ''}`
-    : state.mode === 'overview' ? (stats.level ? `Parquet overview, ${2 ** stats.level}×${2 ** stats.level} means` : 'Parquet, read live (full resolution)')
-    : 'Parquet, read live'
+    : stats.level ? 'Parquet overview (4×4 means), read live' : 'Parquet, read live'
   $('stat-bytes').textContent = cached ? (ahead ? `loaded ahead (${(stats.bytes / 1e6).toFixed(1)} MB)` : 'cached') : `${(stats.bytes / 1e6).toFixed(1)} MB in ${stats.requests} request${stats.requests > 1 ? 's' : ''}` +
     (stats.firstOfDataset ? ' (with cell positions)' : '')
   $('stat-read').textContent = cached ? '–' : stats.network === undefined ? `${Math.round(stats.read)} ms`
@@ -492,15 +498,11 @@ function buildLayerList() {
 
 /** Source and time controls follow the layer: a layer without preview images is read live. */
 function syncControls() {
-  const hasPreview = Boolean(state.layer.preview), tests = { zarr: Boolean(state.layer.zarr), overview: Boolean(state.layer.bycell) }
+  const hasPreview = Boolean(state.layer.preview), hasZarr = Boolean(state.layer.zarr)
   $('mode-preview').disabled = !hasPreview
-  $('mode-test').disabled = !tests.zarr && !tests.overview
-  for (const o of $('test-kind').options) o.disabled = !tests[o.value]
-  if ((!hasPreview && state.mode === 'preview') || (levelled(state.mode) && !tests[state.mode])) state.mode = 'live'
-  $('test-kind').hidden = !levelled(state.mode)
-  for (const b of document.querySelectorAll('[data-mode]')) {
-    b.setAttribute('aria-pressed', String(b.dataset.mode === state.mode || (b.dataset.mode === 'test' && levelled(state.mode))))
-  }
+  $('mode-zarr').disabled = !hasZarr
+  if ((!hasPreview && state.mode === 'preview') || (!hasZarr && state.mode === 'zarr')) state.mode = 'live'
+  for (const b of document.querySelectorAll('[data-mode]')) b.setAttribute('aria-pressed', String(b.dataset.mode === state.mode))
   $('mode-note').textContent = hasPreview ? '' : 'No preview images for this layer yet: read live.'
   const n = steps()
   state.step = Math.min(state.step, n - 1)
@@ -522,14 +524,10 @@ for (const b of document.querySelectorAll('[data-mode]')) {
   b.addEventListener('click', () => {
     if (b.disabled) return
     const t = when(state.step)
-    state.mode = b.dataset.mode === 'test' ? $('test-kind').value : b.dataset.mode
+    state.mode = b.dataset.mode
     state.step = stepFor(t); syncControls(); show()
   })
 }
-$('test-kind').addEventListener('change', () => {
-  const t = when(state.step)
-  state.mode = $('test-kind').value; state.step = stepFor(t); syncControls(); show()
-})
 $('time').addEventListener('input', e => { state.step = Number(e.target.value); $('time-label').textContent = timeLabel(state.step) })
 $('time').addEventListener('change', () => show())
 $('prev').addEventListener('click', () => move(-1))

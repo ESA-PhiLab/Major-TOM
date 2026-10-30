@@ -68,9 +68,6 @@
   .segmented button small { display: block; font-size: 12px; color: var(--ink-3); }
   .segmented button[aria-pressed=true] { background: var(--tint); color: var(--mt-blue); font-weight: 600; }
   .segmented button:disabled { cursor: not-allowed; opacity: .45; }
-  .test-kind { font: inherit; font-size: 13px; width: 100%; margin-top: 8px; padding: 5px 8px; border: 1px solid var(--line);
-    border-radius: 8px; background: var(--surface); color: var(--ink); }
-  .test-kind[hidden] { display: none; }
   .note { font-size: 13px; color: var(--ink-3); margin: 8px 0 0; }
   .note:empty { display: none; }
 
@@ -107,6 +104,7 @@
   .action { font: inherit; font-size: 13px; width: 100%; margin: 6px 0 4px; padding: 6px 10px; border: 1px solid var(--line);
     border-radius: 8px; background: var(--surface); color: var(--ink); cursor: pointer; text-align: left; }
   .action:hover { border-color: var(--mt-blue); color: var(--mt-blue); }
+  .action.secondary { font-size: 12px; padding: 4px 10px; color: var(--ink-2); }
   dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; margin: 0; font-size: 14px; }
   dt { color: var(--ink-3); }
   dd { margin: 0; font-family: var(--mono); font-size: 13px; text-align: right; overflow-wrap: anywhere; }
@@ -186,12 +184,8 @@
       <div class="segmented">
         <button id="mode-preview" data-mode="preview">Climatology<small>preview images</small></button>
         <button data-mode="live">Series<small>Parquet, read live</small></button>
-        <button id="mode-test" data-mode="test">Test<small>other layouts</small></button>
+        <button id="mode-zarr" data-mode="zarr">Test<small>Zarr, read live</small></button>
       </div>
-      <select id="test-kind" class="test-kind" aria-label="Test layout" hidden>
-        <option value="zarr">Test: Zarr store (overviews, then full cells)</option>
-        <option value="overview">Test: Parquet overview tables (then monthly files)</option>
-      </select>
       <p class="note" id="mode-note"></p>
     </section>
 
@@ -223,10 +217,10 @@
       <svg id="chart-series" class="chart" role="img" aria-label="Every month of the selected cell" hidden></svg>
       <button id="series-load" class="action"></button>
       <div class="tiny" id="series-stats"></div>
-      <button id="series-zarr" class="action" hidden></button>
+      <button id="series-zarr" class="action secondary" hidden></button>
       <div class="tiny" id="series-zarr-stats"></div>
-      <button id="series-bycell" class="action" hidden></button>
-      <div class="tiny" id="series-bycell-stats"></div>
+      <button id="series-monthly" class="action secondary" hidden></button>
+      <div class="tiny" id="series-monthly-stats"></div>
     </section>
 
     <section>

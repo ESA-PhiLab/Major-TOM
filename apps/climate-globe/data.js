@@ -15,18 +15,17 @@ const HOURS = [744, 678, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744]      
 export const LAYERS = [
   { id: 'cpc-precip', name: 'Precipitation', source: 'CPC, rain gauges', dataset: 'CPC-Monthly', column: 'cpc_precip',
     unit: 'mm per month', scale: { type: 'log', min: 4, max: 400, ramp: 'dryWet', ticks: [4, 10, 25, 50, 100, 200, 400] },
-    preview: 'images/CPC-Monthly/precip/{MM}.png', series: [1979, 2025], normal: '1991–2020',
-    zarr: { path: '_experiments/cpc-precip.zarr', years: [2024, 2025] },                 // test store, Zarr comparison
-    bycell: { path: '_experiments/cpc-bycell', years: [2024, 2025] } },                  // test layouts, Parquet
+    preview: 'images/CPC-Monthly/precip/{MM}.png', series: [1979, 2025], normal: '1991–2020', tables: true,
+    zarr: { path: '_experiments/cpc-precip.zarr', years: [2024, 2025] } },               // test store, Zarr comparison
   { id: 'imerg-precip', name: 'Precipitation', source: 'IMERG, satellites', dataset: 'IMERG-Monthly', column: 'imerg_precip',
     unit: 'mm per month', perMonth: m => HOURS[m - 1],                            // stored as mm/h
-    scale: { type: 'log', min: 4, max: 400, ramp: 'dryWet', ticks: [4, 10, 25, 50, 100, 200, 400] }, series: [1998, 2024], normal: '1998–2024' },
+    scale: { type: 'log', min: 4, max: 400, ramp: 'dryWet', ticks: [4, 10, 25, 50, 100, 200, 400] }, series: [1998, 2024], normal: '1998–2024', tables: true },
   { id: 'cpc-tmax', name: 'Daily maximum temperature', source: 'CPC, stations', dataset: 'CPC-Monthly', column: 'cpc_tmax',
     unit: '°C', scale: { type: 'centred', min: -40, centre: 0, max: 40, ramp: 'coldHot', ticks: [-40, -20, 0, 20, 40] },
-    series: [1979, 2025], normal: '1991–2020' },
+    series: [1979, 2025], normal: '1991–2020', tables: true },
   { id: 'cams-pm25', name: 'Surface PM2.5', source: 'CAMS, reanalysis', dataset: 'CAMS-Monthly', column: 'cams_pm2p5',
     unit: 'µg/m³', perMonth: () => 1e9,                                          // stored as kg/m³
-    scale: { type: 'log', min: 2, max: 150, ramp: 'haze', ticks: [2, 5, 10, 25, 50, 150] }, series: [2003, 2025], normal: '2003–2025' },
+    scale: { type: 'log', min: 2, max: 150, ramp: 'haze', ticks: [2, 5, 10, 25, 50, 150] }, series: [2003, 2025], normal: '2003–2025', tables: true },
 ]
 
 const TAIL = 131072             // a file's first request: its last 128 KB, which hold the footer (28-97 KB here);
@@ -181,20 +180,20 @@ export async function loadCellClimatology(layer, row, col) {
   return { mean, std, stats }
 }
 
-/** One cell's every month from the by-cell test layout: its band file, the row group holding its series. */
+/** One cell's every month from the dataset's by_cell layout: its band file, the row group holding its series. */
 export async function loadByCellSeries(layer, row, col) {
   const stats = newStats(), [a, b] = layer.series, values = new Array((b - a + 1) * 12).fill(NaN)
-  const rows = await cellRows(`${SOURCE_COOP}/${layer.bycell.path}/by_cell/band=${bandOf(row)}.parquet`, row, col,
+  const rows = await cellRows(`${SOURCE_COOP}/${layer.dataset}/by_cell/band=${bandOf(row)}.parquet`, row, col,
     ['grid_row_u', 'grid_col_r', 'year', 'month', layer.column], stats)
   for (const [, , y, m, v] of rows) if (v !== null) values[(y - a) * 12 + m - 1] = v * factor(layer, Number(m))
   stats.read = performance.now() - stats.t0
   return { values, stats }
 }
 
-/** One month of the overview tables at `level` (2^level x 2^level block means): values on the block array. */
-export async function loadOverviewMonth(layer, year, month, level, onProgress = () => {}) {
-  const stats = newStats()
-  const url = `${SOURCE_COOP}/${layer.bycell.path}/overviews/level=${level}/year=${year}/${String(month).padStart(2, '0')}.parquet`
+/** One month of the dataset's overview tables (4 x 4 block means, level 2): values on the block array. */
+export async function loadOverviewMonth(layer, year, month, onProgress = () => {}) {
+  const stats = newStats(), level = 2
+  const url = `${SOURCE_COOP}/${layer.dataset}/overviews/year=${year}/${String(month).padStart(2, '0')}.parquet`
   const file = await countedFile(url, stats)
   const w = Math.ceil(COLS / 2 ** level), values = new Float32Array(Math.ceil(ROWS / 2 ** level) * w).fill(NaN)
   const f = factor(layer, month)
