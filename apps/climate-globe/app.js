@@ -61,11 +61,32 @@ map.on('zoomend', () => {
 })
 map.on('load', async () => {
   const topo = await (await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-50m.json')).json()
-  const land = feature(topo, topo.objects.land)
+  const land = continuousRings(feature(topo, topo.objects.land))
   map.getSource('land').setData(land)
   map.getSource('coast').setData(coastLines(land))
   show()
 })
+
+/** Land polygons whose rings step across the date line (Russia, Fiji) made continuous: longitudes carried past
+ *  ±180 instead of jumping back, which a map would fill the long way round, as a band along those latitudes.
+ *  Antarctica's ring is left as it is: it is meant to close along the South Pole. */
+function continuousRings(land) {
+  const unwrap = ring => {
+    if (ring.some(([, y]) => y <= -89.99)) return ring
+    const out = [ring[0]]
+    for (let i = 1, shift = 0; i < ring.length; i++) {
+      const dx = ring[i][0] + shift - out[i - 1][0]
+      if (dx > 180) shift -= 360; else if (dx < -180) shift += 360
+      out.push([ring[i][0] + shift, ring[i][1]])
+    }
+    return out
+  }
+  for (const f of land.features) {
+    const g = f.geometry
+    g.coordinates = g.type === 'Polygon' ? g.coordinates.map(unwrap) : g.coordinates.map(p => p.map(unwrap))
+  }
+  return land
+}
 
 /** Coastlines from the land polygons, without the edges that are not coast: those closing Antarctica along the
  *  date line and the pole, and steps across the date line (Fiji, Chukotka), which a map draws the long way round,
