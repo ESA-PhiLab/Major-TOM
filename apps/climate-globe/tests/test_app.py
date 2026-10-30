@@ -58,6 +58,12 @@ def loaded(page, prefix, timeout=300_000):
     page.wait_for_function(f"(document.body.dataset.loaded || '').startsWith('{prefix}')", timeout=timeout)
 
 
+def series(page):
+    """Switch to the series read live: the tests that are not about previews do not need images/."""
+    page.click("[data-mode=live]")
+    loaded(page, "cpc-precip/live")
+
+
 def at(page, lon, lat):
     """Screen position of a point on the globe."""
     return page.evaluate(f"(() => {{ const p = globe.project([{lon}, {lat}]); const r = globe.getCanvas()"
@@ -85,7 +91,7 @@ def test_series_month_and_cell(page):
 
 
 def test_keys_change_the_month_not_the_map(page):
-    loaded(page, "cpc-precip/preview")
+    series(page)
     page.mouse.click(*at(page, 12, 22))                            # focus the map
     centre = page.evaluate("globe.getCenter().toArray()")
     month = page.text_content("#time-label")
@@ -96,7 +102,7 @@ def test_keys_change_the_month_not_the_map(page):
 
 
 def test_cursor_only_on_the_globe(page):
-    loaded(page, "cpc-precip/preview")
+    series(page)
     page.mouse.move(*at(page, 10, 30))
     page.wait_for_timeout(300)
     assert page.text_content("#cursor-cell") != "–"
@@ -106,7 +112,7 @@ def test_cursor_only_on_the_globe(page):
 
 
 def test_place_names_from_zoom_five(page):
-    loaded(page, "cpc-precip/preview")
+    series(page)
     names = lambda: page.evaluate("[...document.querySelectorAll('#places .place span')].map(s => s.textContent)")
     assert names() == []                                           # globe scale: none
     page.evaluate("globe.jumpTo({center: [9.5, 46.3], zoom: 6})")
