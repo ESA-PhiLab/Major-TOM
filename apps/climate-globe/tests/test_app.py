@@ -6,7 +6,7 @@
       -> keys (left/right change the month, not the map), cursor off the globe, place names from zoom 5
       -> previews of the four layers (skipped where images/ is absent: the images are not in git)
 
-    pytest apps/climate-globe/tests -m network        (needs `pip install pytest playwright && playwright install chromium`)
+    cd apps/climate-globe && pytest -m network        (needs `pip install pytest playwright && playwright install chromium`)
 """
 from __future__ import annotations
 

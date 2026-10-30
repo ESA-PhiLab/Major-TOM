@@ -55,7 +55,7 @@ them to the Space by hand (the GitHub sync uploads code only). Place names: `bui
 ## Tests
 
 ```
-pytest apps/climate-globe/tests -m network        # headless Chromium (Playwright), reads source.coop
+cd apps/climate-globe && pytest -m network        # headless Chromium (Playwright), reads source.coop
 ```
 
 On GitHub they run when the app changes (`.github/workflows/apps-tests.yml`); the preview test is skipped there, as

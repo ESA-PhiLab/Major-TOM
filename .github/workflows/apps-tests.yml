@@ -26,6 +26,7 @@ jobs:
       - name: Browser tests
         run: |
           set -o pipefail
-          python -m pytest apps/climate-globe/tests -m network -q -p no:cacheprovider -rfE --tb=line 2>&1 | tee pytest.txt || {
+          cd apps/climate-globe                                  # its own pytest.ini: the app alone
+          python -m pytest -m network -q -p no:cacheprovider -rfE --tb=line 2>&1 | tee pytest.txt || {
             grep -E "^(FAILED|ERROR)|Error:|assert" pytest.txt | head -20 | while read -r line; do echo "::error::$line"; done
             exit 1; }
