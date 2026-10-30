@@ -5,7 +5,7 @@ import pyarrow.parquet as pq
 
 from majortom.release.tables.bycell import by_cell
 from majortom.release.tables.layout import repack
-from tests.test_release_tables_layout import _monthly
+from test_release_tables_layout import _monthly          # pytest puts tests/ on the path
 
 
 def test_by_cell_keeps_values_and_whole_cells(tmp_path):

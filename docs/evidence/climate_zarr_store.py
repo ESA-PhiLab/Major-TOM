@@ -12,7 +12,7 @@
     For comparing reads with the Parquet layout in apps/climate-globe (map months and one cell's series);
     uploaded to major-tom/climate/_experiments and removed after the tests. Needs ~40 GB of memory (Slurm).
 
-    python docs/evidence/climate_zarr_test.py /data/Major-TOM/climate-release/CPC-Monthly /data/Major-TOM/experiments
+    python docs/evidence/climate_zarr_store.py /data/Major-TOM/climate-release/CPC-Monthly /data/Major-TOM/experiments
 """
 from __future__ import annotations
 

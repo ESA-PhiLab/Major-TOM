@@ -31,7 +31,7 @@ Full series: every monthly file, its footer plus the column chunk holding the ce
 
 ## 2. Zarr test store
 
-`docs/evidence/climate_zarr_test.py` writes CPC precipitation on the (row, column) array: map months in
+`docs/evidence/climate_zarr_store.py` writes CPC precipitation on the (row, column) array: map months in
 512 x 512 chunks with 2 x 2 and 4 x 4 overviews, and the series in (564, 32, 32) chunks in shards.
 Values equal the Parquet files (sampled check, four months).
 
@@ -51,7 +51,7 @@ A step then draws in 0.15 s (was 2-2.5 s for Parquet). Stepping faster than load
 
 ## 4. Larger row groups
 
-`docs/evidence/climate_rowgroup_test.py`, January-June 2024, all columns:
+`docs/evidence/climate_rowgroup_files.py`, January-June 2024, all columns:
 
 | Rows per group | CPC month | IMERG month | One cell, per file (CPC / IMERG) |
 |---|---|---|---|
@@ -63,7 +63,7 @@ Map months get 2-6x faster; a cell's series 3-7x more bytes.
 
 ## 5. Parquet in two more layouts, instead of Zarr
 
-`docs/evidence/climate_bycell_test.py`, CPC, all four columns:
+`docs/evidence/climate_bycell_layout.py`, CPC, all four columns:
 
 - `by_cell/band=NN.parquet`: rows by Hilbert curve, then year and month; row groups of 116 cells x 564 months.
   8.4 GB, against 11.6 GB for the monthly files (a cell's months compress better side by side).
@@ -111,5 +111,5 @@ buffer, or download the band files first (8.4 GB for CPC).
 ## Look at first
 
 - apps/climate-globe/data.js (loaders, `countedFile`, `loadCellClimatology`, `loadZarrMonth`)
-- docs/evidence/climate_zarr_test.py
+- docs/evidence/climate_zarr_store.py
 - apps/climate-globe/app.js (`fetchField`, `loadAhead`)

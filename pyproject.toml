@@ -55,5 +55,6 @@ packages = ["majortom"]
 "MajorTOM.py" = "MajorTOM.py"                     # alias module for existing code (one file: no case clash)
 
 [tool.pytest.ini_options]
+testpaths = ["tests"]                     # scripts in docs/evidence are not tests
 markers = ["network: reads live data archives; skipped unless run with `pytest -m network`"]
 addopts = "-m 'not network'"

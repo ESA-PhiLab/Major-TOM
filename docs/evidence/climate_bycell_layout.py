@@ -13,7 +13,7 @@
     Values are unchanged (by_cell) or means of unchanged values (overviews). Uploaded to
     major-tom/climate/_experiments/cpc-bycell and removed after the tests. Needs ~40 GB of memory (Slurm).
 
-    python docs/evidence/climate_bycell_test.py /data/Major-TOM/climate-release/CPC-Monthly /data/Major-TOM/experiments
+    python docs/evidence/climate_bycell_layout.py /data/Major-TOM/climate-release/CPC-Monthly /data/Major-TOM/experiments
 """
 from __future__ import annotations
 

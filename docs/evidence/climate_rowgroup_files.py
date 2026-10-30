@@ -6,7 +6,7 @@
     A map month then takes fewer requests (fewer row groups), a cell's value a larger chunk per file. Uploaded to
     major-tom/climate/_experiments and removed after the tests.
 
-    python docs/evidence/climate_rowgroup_test.py /data/Major-TOM/climate-release /data/Major-TOM/experiments
+    python docs/evidence/climate_rowgroup_files.py /data/Major-TOM/climate-release /data/Major-TOM/experiments
 """
 from __future__ import annotations
 
