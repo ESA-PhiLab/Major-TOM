@@ -103,10 +103,12 @@ buffer, or download the band files first (8.4 GB for CPC).
 - Zarr compared in our own renderer, not deck.gl-raster: same drawing, so only the format differs; deck.gl-raster
   has no globe until deck.gl v10.
 
-## Open
+## Outcome
 
-- Test files stay at `major-tom/climate/_experiments/` while the Zarr option is tried in the app; to be removed
-  before the release goes public.
+- Release: `by_cell/` and `overviews/` built with `majortom.release.tables` for CPC, IMERG and CAMS and published
+  next to `series/`; the app reads them (globe month 0.7-1.9 MB, a cell's series 1.5-2.5 MB, 3-4 requests).
+- Zarr dropped: test source removed from the app; `major-tom/climate/_experiments/` deleted (1,042 objects,
+  11.9 GB), local copies moved to `/RUBBISH`. The build scripts above stay, so the tests can be rerun.
 
 ## Look at first
 
