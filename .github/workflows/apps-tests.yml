@@ -15,6 +15,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install pytest playwright pytest-github-actions-annotate-failures   # failures show as annotations
+      - run: pip install pytest playwright
       - run: python -m playwright install --with-deps chromium
-      - run: python -m pytest apps/climate-globe/tests -m network -q -p no:cacheprovider
+      - name: Reach the data and libraries
+        run: |
+          for u in https://data.source.coop/major-tom/climate/CPC-Monthly/cells.parquet \
+                   https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.mjs; do
+            echo "::notice::$(curl -s -o /dev/null -w '%{http_code}' -r 0-99 "$u") $u"
+          done
+      - name: Browser tests
+        run: |
+          set -o pipefail
+          python -m pytest apps/climate-globe/tests -m network -q -p no:cacheprovider -rfE --tb=line 2>&1 | tee pytest.txt || {
+            grep -E "^(FAILED|ERROR)|Error:|assert" pytest.txt | head -20 | while read -r line; do echo "::error::$line"; done
+            exit 1; }
