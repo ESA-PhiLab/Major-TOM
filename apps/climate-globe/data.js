@@ -280,9 +280,13 @@ export async function loadZarrCellSeries(layer, row, col) {
 /** One month of a layer's climatology preview image: RGBA pixels, width x width/2. */
 export async function loadPreview(layer, month) {
   const stats = { bytes: 0, requests: 1, t0: performance.now() }
-  const blob = await (await fetch(layer.preview.replace('{MM}', String(month).padStart(2, '0')))).blob()
+  // revalidated with the server: a cached image from an earlier build (another layout) is never used
+  const blob = await (await fetch(layer.preview.replace('{MM}', String(month).padStart(2, '0')), { cache: 'no-cache' })).blob()
   stats.bytes = blob.size
   const bitmap = await createImageBitmap(blob, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' })  // colours as stored
+  if (bitmap.width !== COLS || bitmap.height !== ROWS) {
+    throw new Error(`preview image is ${bitmap.width} x ${bitmap.height}, expected ${COLS} x ${ROWS} (one pixel per cell); rebuild it with build_images.py`)
+  }
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height), ctx = canvas.getContext('2d')
   ctx.drawImage(bitmap, 0, 0)
   stats.read = performance.now() - stats.t0
