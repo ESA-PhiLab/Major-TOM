@@ -27,7 +27,7 @@ click a cell -> its monthly normals (one climatology file) and, on request, its 
 | `tiles.js` | cell under a point (as `majortom.cells`), tiles from a field |
 | `scales.js` | colour scales of the README figures, as lookup tables |
 | `charts.js` | small SVG line charts for the selected cell |
-| `build_images.py` | climatology -> longitude/latitude preview images (CPC precipitation so far) |
+| `build_images.py` | climatology -> preview images on the cell grid, one pixel per cell (CPC precipitation so far) |
 
 ## Run locally
 

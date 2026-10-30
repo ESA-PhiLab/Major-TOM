@@ -35,7 +35,7 @@ const map = new maplibregl.Map({
     version: 8, projection: { type: 'globe' },
     sky: { 'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 0.6, 4, 0.3, 7, 0] },
     sources: {
-      field: { type: 'raster', tiles: ['mt://0/{z}/{x}/{y}'], tileSize: 256, maxzoom: 7 },
+      field: { type: 'raster', tiles: ['mt://0/{z}/{x}/{y}'], tileSize: 256, maxzoom: 9 },   // drawn to the deepest zoom: cell edges exact
       land: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
       coast: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
       cell: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
@@ -384,7 +384,7 @@ function fetchField(layer, mode, step, level, onProgress = () => {}) {
     if (mode === 'preview') {
       const p = await loadPreview(layer, month)
       onProgress(1, p.stats.bytes, p.stats.bytes)
-      return { field: imageField(p.rgba, p.width, scale), stats: p.stats }
+      return { field: imageField(p.rgba, scale), stats: p.stats }
     }
     if (mode === 'live' && level === 2) {
       const o = await loadOverviewMonth(layer, year, month, onProgress)

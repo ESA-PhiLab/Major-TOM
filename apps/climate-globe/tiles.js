@@ -57,18 +57,14 @@ export function gridField(values, scale, level = 0) {
   }
 }
 
-/** A field read from a preview image: RGBA pixels on a longitude/latitude grid (width x width/2). */
-export function imageField(rgba, width, scale) {
-  const height = width / 2
-  return {
-    scale, valueAt: () => undefined,                    // colours only: exact values come from the Parquet files
-    pixel(lon, lat, out, o) {
-      const x = Math.min(width - 1, Math.floor(((lon + 180) / 360) * width))
-      const y = Math.min(height - 1, Math.floor(((90 - lat) / 180) * height))
-      const i = (y * width + x) * 4
-      out[o] = rgba[i]; out[o + 1] = rgba[i + 1]; out[o + 2] = rgba[i + 2]; out[o + 3] = rgba[i + 3]
-    },
+/** A field read from a preview image of the (row, column) array, north up (build_images.py): pixel (x, y) is the
+ *  cell grid_col_r = x - 2004, grid_row_u = 1001 - y, so a point finds its pixel exactly as live data finds its value. */
+export function imageField(rgba, scale) {
+  const colour = (lon, lat, out, o) => {
+    const k = cellIndex(lon, lat), i = ((ROWS - 1 - Math.floor(k / COLS)) * COLS + (k % COLS)) * 4
+    out[o] = rgba[i]; out[o + 1] = rgba[i + 1]; out[o + 2] = rgba[i + 2]; out[o + 3] = rgba[i + 3]
   }
+  return { scale, valueAt: () => undefined, pixel: colour }    // colours only: exact values come from the Parquet files
 }
 
 /** One 256 px tile of `field` at z/x/y. */

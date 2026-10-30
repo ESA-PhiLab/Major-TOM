@@ -1,11 +1,10 @@
-"""Images for the climate globe: one longitude/latitude picture per dataset, variable and month.
+"""Images for the climate globe: one picture per dataset, variable and month, one pixel per Major TOM cell.
 
     climatology/band=NN.parquet (grid_row_u, grid_col_r, month, <variable>_mean)       (the published release)
-      -> per month, every cell's normal on the 2004 x 4008 (row, column) array     (docs/evidence/climate_figures.py)
-      -> each output pixel takes the value of the Major TOM cell its centre falls in (no interpolation: every
-         pixel shows one cell's real value, as in the README maps)
+      -> per month, every cell's normal on the (row, column) array, north up     (docs/evidence/climate_figures.py)
       -> colour scale as in the README figures (log scale for precipitation); no cell or no value: transparent
-      -> images/<dataset>/<variable>/MM.png (WIDTH x WIDTH/2, plate carrée: what a web globe drapes over the sphere)
+      -> images/<dataset>/<variable>/MM.png (4008 x 2004: pixel (x, y) is the cell grid_col_r = x - 2004,
+         grid_row_u = 1001 - y; the page finds a point's cell as for live data, so colours and cell outlines match)
          and images/images.json, which lists them with their scale for the page
     Runs in the miko-torch environment (shares the figure script's imports):
 
@@ -22,9 +21,8 @@ from matplotlib.colors import LogNorm
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "docs" / "evidence"))
-from climate_figures import COLS, D_KM, DRY_WET, R_KM, ROWS, grid_image, normals  # noqa: E402
+from climate_figures import DRY_WET, grid_image, normals  # noqa: E402
 
-WIDTH = 4096                             # ~9.8 km per pixel at the equator, close to the 10 km cells
 OUT = Path(__file__).resolve().parent / "images"
 
 # dataset, variable, column, title, unit, colour scale, normalisation, ticks
@@ -34,21 +32,8 @@ LAYERS = [
 ]
 
 
-def cell_index(width: int = WIDTH) -> tuple[np.ndarray, np.ndarray]:
-    """(height, width) indices into the (row, column) array of the cell under each pixel centre (north up)."""
-    lat = 90 - (np.arange(width // 2) + 0.5) * 180 / (width // 2)
-    lon = -180 + (np.arange(width) + 0.5) * 360 / width
-    dlat = 180 / ROWS
-    row = np.clip(np.floor(lat / dlat).astype(int), -ROWS // 2, ROWS // 2 - 1)      # Major TOM row of each latitude
-    n_cols = np.maximum(np.ceil(2 * np.pi * R_KM * np.cos(np.radians(row * dlat)) / D_KM), 1).astype(int)
-    col = np.floor(lon[None, :] / (360 / n_cols[:, None])).astype(int)              # column within that row
-    col = np.clip(col, -(n_cols[:, None] // 2), n_cols[:, None] - 1 - n_cols[:, None] // 2)
-    return np.broadcast_to((ROWS - (row + ROWS // 2) - 1)[:, None], col.shape), col + COLS // 2
-
-
-def picture(values: np.ndarray, at: tuple[np.ndarray, np.ndarray], cmap, norm) -> Image.Image:
-    """RGBA picture: each pixel the colour of its cell's value; transparent where there is none."""
-    v = values[at]
+def picture(v: np.ndarray, cmap, norm) -> Image.Image:
+    """RGBA picture of the (row, column) array: each pixel its cell's colour; transparent where there is none."""
     # outside the scale -> its end colours (a log scale has no place for 0 mm: a month without rain is driest)
     rgba = (cmap(norm(np.clip(np.ma.masked_invalid(v), norm.vmin, norm.vmax))) * 255).astype(np.uint8)
     rgba[..., 3] = np.where(np.isfinite(v), 255, 0)
@@ -56,7 +41,6 @@ def picture(values: np.ndarray, at: tuple[np.ndarray, np.ndarray], cmap, norm) -
 
 
 def build(release: Path) -> None:
-    at = cell_index()
     listing = []
     for dataset, variable, column, title, unit, cmap, norm, ticks in LAYERS:
         t = normals(release, dataset, [column])
@@ -65,7 +49,7 @@ def build(release: Path) -> None:
         for month in range(1, 13):
             m = t[t["month"] == month]
             image = grid_image(m.grid_row_u.to_numpy(), m.grid_col_r.to_numpy(), m[column].to_numpy())
-            picture(image, at, cmap, norm).save(folder / f"{month:02d}.png", optimize=True)
+            picture(image, cmap, norm).save(folder / f"{month:02d}.png", optimize=True)
             print(f"{dataset} {variable} {month:02d}", flush=True)
         listing.append({"dataset": dataset, "variable": variable, "title": title, "unit": unit,
                         "path": f"{dataset}/{variable}/{{month}}.png", "scale": "log",
