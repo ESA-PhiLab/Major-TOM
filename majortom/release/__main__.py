@@ -11,6 +11,8 @@
         tables keyed by grid_cell (cells, series, climatology, or a static table) -> rows along a Hilbert curve
     python -m majortom.release tables overviews --src <dataset folder> --out <dataset folder> [--level 2]
         monthly files -> overviews/year=YYYY/MM.parquet: block means for globe-wide maps
+    python -m majortom.release tables by-cell --src <dataset folder> --out <dataset folder> [--workers 4]
+        monthly files -> by_cell/band=NN.parquet: every cell's whole series together
 """
 from __future__ import annotations
 
@@ -58,6 +60,11 @@ def _publish(a: argparse.Namespace) -> None:
 
 
 def _tables(a: argparse.Namespace) -> None:
+    if a.layout == "by-cell":
+        from .tables import by_cell
+
+        print(f"{by_cell(a.src, a.out, a.workers):,} cells written and checked", flush=True)
+        return
     if a.layout == "overviews":
         from .tables import overviews
 
@@ -109,6 +116,11 @@ def main(argv: list[str] | None = None) -> None:
     o.add_argument("--level", type=int, default=2, help="blocks of 2^level x 2^level cells (default 2: 4 x 4)")
     o.add_argument("--workers", type=int, default=None)
     o.set_defaults(run=_tables)
+    c = tsub.add_parser("by-cell", help="monthly files -> every cell's whole series together, by band")
+    c.add_argument("--src", type=Path, required=True, help="a dataset folder (cells.parquet, series/)")
+    c.add_argument("--out", type=Path, required=True, help="dataset folder to write by_cell/ into")
+    c.add_argument("--workers", type=int, default=4, help="bands at once (memory: ~1/20 of the dataset each)")
+    c.set_defaults(run=_tables)
     a = p.parse_args(argv)
     a.run(a)
 
