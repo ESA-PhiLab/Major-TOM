@@ -22,7 +22,7 @@ function rowCol(lon, lat) {
 }
 
 /** Index of the cell under (lon, lat) in the (row, column) array, or at `level` in its 2^level-coarser block means
- *  (a Zarr overview); used for every pixel, so no objects. */
+ *  (a dataset's overview); used for every pixel, so no objects. */
 function cellIndex(lon, lat, level = 0) {
   const row = Math.min(Math.max(Math.floor(lat / DLAT), -ROWS / 2), ROWS / 2 - 1)
   const n = nCols(row)

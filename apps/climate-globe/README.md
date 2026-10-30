@@ -21,8 +21,7 @@ No server: plain HTML and JavaScript, libraries from jsDelivr at pinned versions
 
 ```
 panel: layer, source, month
-  -> data.js:  preview image | Parquet read live (hyparquet): overviews/ at globe scale, series/ zoomed in |
-              Zarr test store
+  -> data.js:  preview image | Parquet read live (hyparquet): overviews/ at globe scale, series/ zoomed in
   -> tiles.js: map tiles drawn in the browser, each pixel coloured by the Major TOM cell under it
   -> app.js:   MapLibre globe; neighbouring months loaded ahead; cursor shows the cell and its value;
               place names from zoom 5 (labels.js)
@@ -50,8 +49,8 @@ click a cell -> its monthly normals (one climatology file) and, on request, its 
 cd apps/climate-globe && python3 -m http.server 8790        # then open http://localhost:8790
 ```
 
-Preview images are not in git: build them with `build_images.py` (Slurm, `miko-torch` environment). The test
-sources read `major-tom/climate/_experiments/`, which will be removed before the release goes public.
+Preview images are not in git: build them with `build_images.py` (Slurm, `miko-torch` environment) and upload
+them to the Space by hand (the GitHub sync uploads code only). Place names: `build_places.py` from Natural Earth.
 
 ## Measurements
 

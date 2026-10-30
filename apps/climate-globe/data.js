@@ -6,7 +6,6 @@
 
 import { parquetMetadataAsync, parquetRead } from 'https://cdn.jsdelivr.net/npm/hyparquet@1.31.4/+esm'
 import { compressors } from 'https://cdn.jsdelivr.net/npm/hyparquet-compressors@1.1.2/+esm'
-import * as zarr from 'https://cdn.jsdelivr.net/npm/zarrita@0.7.5/+esm'
 import { COLS, ROWS } from './tiles.js'
 
 export const SOURCE_COOP = 'https://data.source.coop/major-tom/climate'
@@ -15,8 +14,7 @@ const HOURS = [744, 678, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744]      
 export const LAYERS = [
   { id: 'cpc-precip', name: 'Precipitation', source: 'CPC, rain gauges', dataset: 'CPC-Monthly', column: 'cpc_precip',
     unit: 'mm per month', scale: { type: 'log', min: 4, max: 400, ramp: 'dryWet', ticks: [4, 10, 25, 50, 100, 200, 400] },
-    preview: 'images/CPC-Monthly/precip/{MM}.png', series: [1979, 2025], normal: '1991–2020', tables: true,
-    zarr: { path: '_experiments/cpc-precip.zarr', years: [2024, 2025] } },               // test store, Zarr comparison
+    preview: 'images/CPC-Monthly/precip/{MM}.png', series: [1979, 2025], normal: '1991–2020', tables: true },
   { id: 'imerg-precip', name: 'Precipitation', source: 'IMERG, satellites', dataset: 'IMERG-Monthly', column: 'imerg_precip',
     unit: 'mm per month', perMonth: m => HOURS[m - 1],                            // stored as mm/h
     scale: { type: 'log', min: 4, max: 400, ramp: 'dryWet', ticks: [4, 10, 25, 50, 100, 200, 400] },
@@ -239,45 +237,6 @@ export function loadCellSeries(layer, rowIndex, onValue) {
     }
   })).then(() => { stats.read = performance.now() - stats.t0; return stats })
   return { done, stop: () => { stopped = true }, stats }
-}
-
-// ---- Zarr test store (docs/evidence/climate_zarr_test.py): the same values on the (row, column) array ---------
-
-/** A zarrita store for the layer's test store whose requests are counted like the Parquet ones. A missing chunk
- *  (no values in it, so not written) answers 404, which zarrita reads as all NaN. */
-function zarrStore(layer, stats, onResponse = () => {}) {
-  return new zarr.FetchStore(`${SOURCE_COOP}/${layer.zarr.path}`, {
-    async fetch(request) {
-      if (stats.active++ === 0) stats.since = performance.now()
-      try {
-        const r = await fetch(request), body = await r.arrayBuffer()
-        stats.requests += 1; stats.bytes += body.byteLength; onResponse()
-        return new Response(body, { status: r.status, headers: r.headers })
-      } finally {
-        if (--stats.active === 0) stats.network += performance.now() - stats.since
-      }
-    },
-  })
-}
-
-/** One month (k-th of the store's map months) at `level` (0: cells, 1: 2 x 2, 2: 4 x 4 block means), whole. */
-export async function loadZarrMonth(layer, k, level, onProgress = () => {}) {
-  const stats = newStats(), chunks = { done: 0, total: 1 }
-  const store = zarrStore(layer, stats, () => { chunks.done++; onProgress(chunks.done / chunks.total, stats.bytes, 0) })
-  const array = await zarr.open(zarr.root(store).resolve(`map/${level}`), { kind: 'array' })
-  chunks.total = Math.ceil(array.shape[1] / array.chunks[1]) * Math.ceil(array.shape[2] / array.chunks[2]); chunks.done = 0
-  const { data } = await zarr.get(array, [k, null, null])
-  stats.read = performance.now() - stats.t0; stats.level = level; stats.chunks = chunks.total
-  return { values: data, stats }
-}
-
-/** One cell's every month from the store's series array: one chunk (all months of 32 x 32 cells) in its shard. */
-export async function loadZarrCellSeries(layer, row, col) {
-  const stats = newStats(), store = zarrStore(layer, stats)
-  const array = await zarr.open(zarr.root(store).resolve('series'), { kind: 'array' })
-  const { data } = await zarr.get(array, [null, row + ROWS / 2, col + COLS / 2])
-  stats.read = performance.now() - stats.t0
-  return { values: Array.from(data), stats }
 }
 
 /** One month of a layer's climatology preview image: RGBA pixels, width x width/2. */
