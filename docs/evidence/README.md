@@ -4,7 +4,7 @@
 
 # Evidence scripts
 
-Scripts behind `docs/reports/2026-09-30-refactor-research.md`. They write outputs next to themselves; large outputs are not committed.
+Scripts behind [docs/reports/2026-09-30-refactor-research.md](../reports/2026-09-30-refactor-research.md). They write outputs next to themselves; large outputs are not committed.
 
 - `check_geotransform.py` — range-reads B04/B11/B01 from random Core rows, writes `results_*.jsonl`.
 - `analyse.py` — summarises origin offsets from `results_*.jsonl`.

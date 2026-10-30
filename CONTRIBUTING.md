@@ -85,4 +85,4 @@ Then add the product's test dates to `DATES` in `tests/test_products.py`, and ru
 - [ ] Cross-archive comparison, if the data exist elsewhere
 - [ ] `python -m majortom.build.catalogue` run (the table test fails otherwise)
 - [ ] A setup section in docs/ARCHIVES.md for a new archive
-- [ ] One line in `LOG.md`: date, what changed
+- [ ] One line in [LOG.md](LOG.md): date, what changed

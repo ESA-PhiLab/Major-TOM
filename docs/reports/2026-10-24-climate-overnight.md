@@ -36,7 +36,7 @@ CPC's README: the end of day "differs from country to country", with a 0.5° end
 
 ## ERA5-Land from raw hours
 
-Reading one stored hourly ERA5-Land image costs ~0.21 EECU-s per 600 × 600 seven-band tile (`getPixels` or `computePixels`); the earlier ~41 EECU-s per tile was the server-side 24-hour mean. Raw hours averaged on cirrus: ~76 EECU-hours for Core, ~8-26 TB moved. Recorded as a future option in `docs/CLIMATE.md`.
+Reading one stored hourly ERA5-Land image costs ~0.21 EECU-s per 600 × 600 seven-band tile (`getPixels` or `computePixels`); the earlier ~41 EECU-s per tile was the server-side 24-hour mean. Raw hours averaged on cirrus: ~76 EECU-hours for Core, ~8-26 TB moved. Recorded as a future option in [docs/CLIMATE.md](../CLIMATE.md).
 
 ## Sentinel-5P stage 1 (job 1698)
 
@@ -64,7 +64,7 @@ Done by morning: IMERG-Monthly (324 months, 1998-2024, 14 GB; global mean 2.76-2
 
 - `merge` command: per-source folders into one hourly and one daily table, one schema per kind (`majortom/climate/merge.py`).
 - `fetch` command: several CAMS months in flight.
-- Draft dataset card: `docs/datasets/Core-Weather.md`.
+- Draft dataset card: [docs/datasets/Core-Weather.md](../datasets/Core-Weather.md).
 
 ## Decisions
 

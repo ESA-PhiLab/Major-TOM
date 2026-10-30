@@ -4,7 +4,7 @@
 
 # 2026-09-30 — Refactor research: geotransforms, sample windows, storage, tooling
 
-Findings that feed `docs/STRATEGY.md`. Scripts are in `docs/evidence/`. Large intermediate data (Core metadata, index copy, per-cell CSV) was not committed; the scripts regenerate it.
+Findings that feed [docs/STRATEGY.md](../STRATEGY.md). Scripts are in `docs/evidence/`. Large intermediate data (Core metadata, index copy, per-cell CSV) was not committed; the scripts regenerate it.
 
 ## 1. Core geotransforms are fractional in every sample
 

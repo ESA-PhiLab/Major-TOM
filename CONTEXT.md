@@ -10,19 +10,19 @@ Major TOM (Terrestrial Observation Metaset) is a standard for large EO datasets:
 
 - `majortom/` — the package (`import majortom`; `import MajorTOM` and the old module names still work through `MajorTOM.py` and small alias modules).
   - `grid.py`, `cells.py` — grid construction; cells at any spacing from the grid formulas.
-  - `spec.py` — sample windows: cell → CRS → window on a pixel lattice (`docs/SPEC.md`).
+  - `spec.py` — sample windows: cell → CRS → window on a pixel lattice ([docs/SPEC.md](docs/SPEC.md)).
   - `metadata.py`, `sample.py`, `dataset.py` — metadata reads and filters, sample decoding, torch `Dataset`.
   - `embedder/` — tile fragmenting and embedding models (SSL4EO, DINOv2, SigLIP).
-  - `build/` — `majortom.build`: samples for any cell from public archives (`docs/ARCHIVES.md`). Products and band names per archive in `collections.py`; archives in `archives.py`; access methods in `backends/` (`stac`, `earthengine`); credentials in `credentials.py`.
+  - `build/` — `majortom.build`: samples for any cell from public archives ([docs/ARCHIVES.md](docs/ARCHIVES.md)). Products and band names per archive in `collections.py`; archives in `archives.py`; access methods in `backends/` (`stac`, `earthengine`); credentials in `credentials.py`.
 - `tests/` — offline tests (CI); `-m network` tests read live archives.
-- `docs/SPEC.md` — sample specification. `docs/STRATEGY.md` — refactor plan. `docs/ARCHIVES.md` — data sources and setup. `CONTRIBUTING.md` — adding products and archives.
+- [docs/SPEC.md](docs/SPEC.md) — sample specification. [docs/STRATEGY.md](docs/STRATEGY.md) — refactor plan. [docs/ARCHIVES.md](docs/ARCHIVES.md) — data sources and setup. [CONTRIBUTING.md](CONTRIBUTING.md) — adding products and archives.
 - `docs/reports/` — dated reports. `docs/evidence/` — scripts and tables behind report findings (benchmark, gallery, cross-archive comparisons).
 - `docs/workshop/workshop.ipynb` — workshop notebook (tag `cng-workshop-2026` holds the version taught).
 - `0*-*.ipynb` — the original example notebooks.
 
 ## Current state (2026-10-22)
 
-- Refactor in progress on `refactor/v1`. Plan: `docs/STRATEGY.md`; progress: `CHECKLIST.md`.
+- Refactor in progress on `refactor/v1`. Plan: [docs/STRATEGY.md](docs/STRATEGY.md); progress: [CHECKLIST.md](CHECKLIST.md).
 - `majortom.build`: five archives (Planetary Computer, Earth Search, CDSE, NASA Earthdata, Earth Engine), 33 products, all building at the test cell 624U_29L.
 - Known defect: every Core sample has a fractional geotransform (sub-pixel error). Pixel match done ([report](docs/reports/2026-10-22-core-pixel-match.md)); `majortom.spec.correct_core_transform` gives the corrected grid. Readers do not apply it yet.
 - `main` has a stash (`stash@{0}`) with the embedding reproducibility check and the embedder import re-enabled.

@@ -5,7 +5,7 @@
 # majortom.release
 
 Turns built data into published Major TOM datasets: the file formats and layouts, and the upload. Other packages
-produce data (`majortom.build`: image samples; `majortom.climate`: tables per cell); this one decides how it is
+produce data ([majortom.build](../build/README.md): image samples; [majortom.climate](../climate/README.md): tables per cell); this one decides how it is
 stored and published. Needs `pip install 'majortom[release]'`.
 
 ## Two kinds of data
@@ -25,7 +25,7 @@ tables keyed by grid_cell, one file per month (majortom.climate)
 
 The monthly files suit one month over the globe; `by_cell` suits one place over time (an app's chart, training on
 series); `overviews` suit a map of the whole globe from one small file. See
-`docs/reports/2026-10-30-climate-globe-read-experiments.md` for the measurements behind these layouts.
+[the read experiments report](../../docs/reports/2026-10-30-climate-globe-read-experiments.md) for the measurements behind these layouts.
 
 ## Modules
 
@@ -53,5 +53,5 @@ python -m majortom.release tables by-cell   --src <dataset folder> --out <datase
 
 ## More
 
-- `docs/RELEASE.md`: design, decisions and benchmarks for image samples
-- `docs/CLIMATE.md`: the climate tables and where they are published
+- [docs/RELEASE.md](../../docs/RELEASE.md): design, decisions and benchmarks for image samples
+- [docs/CLIMATE.md](../../docs/CLIMATE.md): the climate tables and where they are published

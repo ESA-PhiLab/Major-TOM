@@ -82,13 +82,14 @@ def _band(src: Path, dst: Path, band: int, seed: int = 0) -> int:
 
 def _check(path: Path, months, at: np.ndarray, cells: pa.Table, names: list[str], rng) -> None:
     """50 random cells of the band in 3 months: the written rows equal the source rows."""
-    written = pq.read_table(path, columns=["grid_cell", "year", "month", *names]).to_pandas()
-    written["grid_cell"] = written.grid_cell.astype(str)
     pick = rng.choice(len(at), min(50, len(at)), replace=False)
-    want_cells = set(cells.column("grid_cell").take(pa.array(at[pick])).to_pylist())
+    want_cells = sorted(set(cells.column("grid_cell").take(pa.array(at[pick])).to_pylist()))
+    only = [("grid_cell", "in", want_cells)]                                  # read the sampled cells only
+    written = pq.read_table(path, columns=["grid_cell", "year", "month", *names], filters=only).to_pandas()
+    written["grid_cell"] = written.grid_cell.astype(str)
     for y, mo, f in [months[0], months[len(months) // 2], months[-1]]:
-        src = pq.read_table(f, columns=["grid_cell", *names]).to_pandas().set_index("grid_cell").loc[sorted(want_cells)]
-        got = written[(written.year == y) & (written.month == mo) & written.grid_cell.isin(want_cells)]
+        src = pq.read_table(f, columns=["grid_cell", *names], filters=only).to_pandas().set_index("grid_cell").loc[want_cells]
+        got = written[(written.year == y) & (written.month == mo)]
         got = got.set_index("grid_cell").loc[src.index, names]
         if not got.equals(src[names]):
             raise ValueError(f"{path}: {y}-{mo:02d} differs from {f}")

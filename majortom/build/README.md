@@ -18,7 +18,7 @@ cells (from points or an area)
   -> chips/<collection>/<index>.npz (one array per band) + .json sidecar (georeferencing, scene, choices)
 ```
 
-Built samples go to `majortom.release` to become a published dataset.
+Built samples go to [majortom.release](../release/README.md) to become a published dataset.
 
 ## Modules
 
@@ -31,7 +31,7 @@ Built samples go to `majortom.release` to become a published dataset.
 | `read.py` | one scene onto a sample window, from any archive |
 | `backends/` | one module per access method (`stac`: STAC + GDAL; `earthengine`: computePixels), same four functions |
 | `credentials.py` | set up credentials once: `python -m majortom.build.credentials <name>` with `cdse`, `earthdata`, `earth-engine`, `cds`, `edh` or `source-coop` |
-| `catalogue.py` | the products table of `docs/ARCHIVES.md`, generated from `collections.py` |
+| `catalogue.py` | the products table of [docs/ARCHIVES.md](../../docs/ARCHIVES.md), generated from `collections.py` |
 
 ## Use
 
@@ -43,5 +43,5 @@ errors = build.download(cells, "sentinel-2-l2a", "2024-06-01/2024-08-31")
 
 ## More
 
-- `CONTRIBUTING.md`: how the builder is organised, adding a product or an archive
-- `docs/ARCHIVES.md`: archives and products
+- [CONTRIBUTING.md](../../CONTRIBUTING.md): how the builder is organised, adding a product or an archive
+- [docs/ARCHIVES.md](../../docs/ARCHIVES.md): archives and products

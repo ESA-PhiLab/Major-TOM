@@ -31,7 +31,7 @@ How a Major TOM grid cell becomes a sample: a window of pixels from a data sourc
 
 The grid is an index: a set of named points covering the Earth. It is defined by the paper (arXiv 2402.12095, §3.1) and implemented in `majortom/grid.py`. This section restates that implementation; it does not change it.
 
-**The grid is frozen.** Cell names are the key that joins all Major TOM datasets. Nothing in this spec or the library changes which points exist or how they are named (decision D10 in `docs/STRATEGY.md`). Irregularities listed below are handled by the window rule, not by changing the grid.
+**The grid is frozen.** Cell names are the key that joins all Major TOM datasets. Nothing in this spec or the library changes which points exist or how they are named (decision D10 in [docs/STRATEGY.md](STRATEGY.md)). Irregularities listed below are handled by the window rule, not by changing the grid.
 
 ### 2.1 Rows
 
@@ -251,7 +251,7 @@ The CRS rule prefers a native tile that contains the whole window. Where none do
 
 ## 7. Legacy Core v1
 
-Major TOM Core (Core-S2L2A, Core-S2L1C, Core-S1RTC, Core-DEM on Hugging Face) was built before this spec, with a different window rule. Its data are not re-made (decision D11); this section says how to read them correctly. Evidence: `docs/reports/2026-09-30-refactor-research.md`.
+Major TOM Core (Core-S2L2A, Core-S2L1C, Core-S1RTC, Core-DEM on Hugging Face) was built before this spec, with a different window rule. Its data are not re-made (decision D11); this section says how to read them correctly. Evidence: [docs/reports/2026-09-30-refactor-research.md](reports/2026-09-30-refactor-research.md).
 
 ### 7.1 How Core windows were made
 

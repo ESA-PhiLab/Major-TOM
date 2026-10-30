@@ -4,7 +4,7 @@
 
 # [Source]-Monthly
 
-Monthly values for every Major TOM grid cell over each source's whole record, and a climatology (each calendar month's mean and spread across years). One dataset per source. Built with `python -m majortom.climate monthly` and `climatology`; design in `docs/CLIMATE.md` section 4.
+Monthly values for every Major TOM grid cell over each source's whole record, and a climatology (each calendar month's mean and spread across years). One dataset per source. Built with `python -m majortom.climate monthly` and `climatology`; design in [docs/CLIMATE.md](../CLIMATE.md) section 4.
 
 | Dataset | Source | Record | Cells | Grid |
 |---|---|---|---|---|
@@ -36,7 +36,7 @@ Units are as published; values are cell means, not converted.
 
 ## Licences and attribution
 
-As for Core-Weather (`docs/datasets/Core-Weather.md`): Copernicus licence for ERA5, ERA5-Land and CAMS, with the "Contains modified Copernicus … information" notice; NOAA PSL acknowledgement for CPC; IMERG V07 citation.
+As for Core-Weather ([docs/datasets/Core-Weather.md](Core-Weather.md)): Copernicus licence for ERA5, ERA5-Land and CAMS, with the "Contains modified Copernicus … information" notice; NOAA PSL acknowledgement for CPC; IMERG V07 citation.
 
 ## Size
 

@@ -4,7 +4,7 @@
 
 # Core-Weather
 
-Weather and air quality around every acquisition of the timestamped Major TOM Core datasets (Core-S2L2A, Core-S2L1C, Core-S1RTC): an hourly table for the 24 hours either side of each image, and a daily table for the 30 days either side. Values are means over each 10 km grid cell. Built with `majortom.climate` (`python -m majortom.climate stream`); design in `docs/CLIMATE.md`.
+Weather and air quality around every acquisition of the timestamped Major TOM Core datasets (Core-S2L2A, Core-S2L1C, Core-S1RTC): an hourly table for the 24 hours either side of each image, and a daily table for the 30 days either side. Values are means over each 10 km grid cell. Built with `majortom.climate` (`python -m majortom.climate stream`); design in [docs/CLIMATE.md](../CLIMATE.md).
 
 ## Tables
 

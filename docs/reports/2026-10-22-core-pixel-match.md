@@ -4,7 +4,7 @@
 
 # 2026-10-22 — Core pixel match against the sources
 
-Which source pixels each Core sample holds, for 12 samples per Core dataset (48 samples, 93 band comparisons). Extends the single-sample check of `docs/reports/2026-09-30-refactor-research.md`. Script: `docs/evidence/pixel_match_set.py`; rows: `docs/evidence/pixel_match.csv`.
+Which source pixels each Core sample holds, for 12 samples per Core dataset (48 samples, 93 band comparisons). Extends the single-sample check of [docs/reports/2026-09-30-refactor-research.md](2026-09-30-refactor-research.md). Script: `docs/evidence/pixel_match_set.py`; rows: `docs/evidence/pixel_match.csv`.
 
 ## Method
 

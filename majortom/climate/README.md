@@ -5,7 +5,7 @@
 # majortom.climate
 
 Produces weather and climate values for Major TOM grid cells, from global sources (ERA5, ERA5-Land, CAMS, NOAA CPC,
-GPM IMERG, Sentinel-5P). It produces data only; publishing layouts and the upload are in `majortom.release`.
+GPM IMERG, Sentinel-5P). It produces data only; publishing layouts and the upload are in [majortom.release](../release/README.md).
 Needs `pip install 'majortom[climate]'`.
 
 ## Two products
@@ -52,6 +52,6 @@ Runs resume where they stopped. Credentials for each source: `python -m majortom
 
 ## More
 
-- `docs/CLIMATE.md`: sources, the cell-value method, both products, decisions
-- `docs/ERA5_VARIABLES.md`: the ERA5 variable catalogue
-- `docs/datasets/climate/`: the published dataset READMEs
+- [docs/CLIMATE.md](../../docs/CLIMATE.md): sources, the cell-value method, both products, decisions
+- [docs/ERA5_VARIABLES.md](../../docs/ERA5_VARIABLES.md): the ERA5 variable catalogue
+- [docs/datasets/climate/](../../docs/datasets/climate/README.md): the published dataset READMEs

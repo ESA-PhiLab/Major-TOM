@@ -40,4 +40,4 @@ sources read `major-tom/climate/_experiments/`, which will be removed before the
 
 ## Measurements
 
-`docs/reports/2026-10-30-climate-globe-read-experiments.md`.
+[docs/reports/2026-10-30-climate-globe-read-experiments.md](../../docs/reports/2026-10-30-climate-globe-read-experiments.md).

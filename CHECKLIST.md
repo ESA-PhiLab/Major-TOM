@@ -4,11 +4,11 @@
 
 # Checklist
 
-Workstreams are defined in `docs/STRATEGY.md`.
+Workstreams are defined in [docs/STRATEGY.md](docs/STRATEGY.md).
 
 ## WS0 — Scaffolding
 - [x] Branch `refactor/v1`; stash `main` changes
-- [x] `CONTEXT.md`, `CHECKLIST.md`, `LOG.md`, `docs/STRATEGY.md`, research report
+- [x] [CONTEXT.md](CONTEXT.md), [CHECKLIST.md](CHECKLIST.md), [LOG.md](LOG.md), [docs/STRATEGY.md](docs/STRATEGY.md), research report
 - [ ] Review and mark docs reviewed (Miko): SPEC and STRATEGY done; reports, GIFs pending
 
 ## WS1 — Packaging and PyPI
@@ -26,7 +26,7 @@ Workstreams are defined in `docs/STRATEGY.md`.
 
 ## WS3 — Spec and Core correction
 - [x] Pixel match on 12 samples per Core dataset: native samples are exact copies at the stored origin rounded to the band grid ([report](docs/reports/2026-10-22-core-pixel-match.md))
-- [x] `docs/SPEC.md` drafted (any spacing, source profiles) and reviewed (Miko, 2026-10-15)
+- [x] [docs/SPEC.md](docs/SPEC.md) drafted (any spacing, source profiles) and reviewed (Miko, 2026-10-15)
 - [x] `correct_core_transform` (`majortom/spec.py`): rounded origin for Core-S2L2A, S2L1C, S1RTC (all samples, no flag needed); Core-DEM unchanged
 - [ ] `sample_window`, `crop_1068_to_1056`
 - [ ] Readers apply correction by default
@@ -49,7 +49,7 @@ Workstreams are defined in `docs/STRATEGY.md`.
 - [x] Same data identical across archives where processing matches: S2 L2A/L1C, Landsat 5/9, HLS L30, Copernicus DEM
 - [x] Read paths: native/warped COG and JPEG 2000, ground control points (raw S1 GRD), netCDF swaths (Sentinel-3)
 - [x] Product gallery (`docs/evidence/gallery.py`) and reading-speed report (`docs/evidence/build_speed.py`)
-- [x] Docs: `docs/ARCHIVES.md` (generated products table), `CONTRIBUTING.md`
+- [x] Docs: [docs/ARCHIVES.md](docs/ARCHIVES.md) (generated products table), [CONTRIBUTING.md](CONTRIBUTING.md)
 - [x] Sentinel-3 swath reads: 83 s -> 24 s per sample (download cache; the first coordinate read per scene stays ~20 s)
 - [x] MODIS: Terra and Aqua told apart (`platform`, filter `platform="terra"`); no longer stitched together
 - [x] Producer page per product, linked in the products table

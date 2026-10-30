@@ -4,7 +4,7 @@
 
 # Major TOM refactor strategy
 
-Branch: `refactor/v1`. Evidence: `docs/reports/2026-09-30-refactor-research.md`.
+Branch: `refactor/v1`. Evidence: [docs/reports/2026-09-30-refactor-research.md](reports/2026-09-30-refactor-research.md).
 
 ## 1. Goals
 
@@ -50,7 +50,7 @@ Non-goals:
 
 ### WS0 — Scaffolding
 
-`CONTEXT.md`, `CHECKLIST.md`, `LOG.md`, `docs/`, `.gitignore` for large local files.
+[CONTEXT.md](../CONTEXT.md), [CHECKLIST.md](../CHECKLIST.md), [LOG.md](../LOG.md), `docs/`, `.gitignore` for large local files.
 
 ### WS1 — Packaging and PyPI (issues #20, #18, #14)
 
@@ -88,7 +88,7 @@ Non-goals:
 
 ### WS3 — Sample-window specification and Core correction
 
-- `docs/SPEC.md`: cell → CRS → integer geotransform → window, for any size and resolution set.
+- [docs/SPEC.md](SPEC.md): cell → CRS → integer geotransform → window, for any size and resolution set.
 - v2 rule (D8). CRS rule: among S2 tiles containing the snapped window, choose the zone whose central meridian is nearest the centroid; tie-break by tile id. Resolves the index's 2.9% CRS/tile mismatch.
 - Exception zones: the CRS rule moves Norway cells to native zone-31 tiles. Svalbard cells (3,508) have no native tile in a nearer zone; they keep a `cell_coverage` < 1 flag. Figures: `docs/figures/`.
 - Reference sensor: S2 keeps native pixels. Other sensors (Landsat, DEM, S1) are reprojected onto the cell grid and flagged, or keep their own window. To decide.
@@ -110,7 +110,7 @@ Non-goals:
 
 ### WS5 — `majortom.build`
 
-**Status (2026-10-22, updated after review; this section unreviewed):** five archives behind two backends, 33 products from 55 product-archive pairs, all building at the test cell 624U_29L (south Loch Lomond). Reports: `docs/reports/2026-10-06-majortom-build.md`, `docs/reports/2026-10-22-build-speed.md`; gallery: `docs/reports/2026-10-22-product-gallery.png`. Setup and products: `docs/ARCHIVES.md`.
+**Status (2026-10-22, updated after review; this section unreviewed):** five archives behind two backends, 33 products from 55 product-archive pairs, all building at the test cell 624U_29L (south Loch Lomond). Reports: [docs/reports/2026-10-06-majortom-build.md](reports/2026-10-06-majortom-build.md), [docs/reports/2026-10-22-build-speed.md](reports/2026-10-22-build-speed.md); gallery: `docs/reports/2026-10-22-product-gallery.png`. Setup and products: [docs/ARCHIVES.md](ARCHIVES.md).
 
 Flow:
 
