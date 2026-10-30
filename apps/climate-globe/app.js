@@ -17,8 +17,9 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
   'November', 'December']
 const $ = id => document.getElementById(id)
 
-const state = { layer: LAYERS[0], mode: 'preview', step: 6, field: null, version: 0, loading: 0 }
-const cache = new Map()                                  // "<layer>/<mode>/<step>" -> loaded field, last 8 kept
+const state = { layer: LAYERS[0], mode: 'preview', step: 6, field: null, version: 0, loading: 0, direction: 1 }
+const cache = new Map()                                  // "<layer>/<mode>/<step>/<level>" -> loaded field, last 8
+const pending = new Map()                                // same keys -> loads under way (shown or ahead)
 
 // ---- map ---------------------------------------------------------------------------------------------------
 
@@ -123,6 +124,7 @@ map.on('mousemove', e => {
 })
 window.globe = map                                         // for automated checks
 window.pickState = () => pick
+window.loadsUnderWay = () => pending.size
 
 /** Outline and describe the cell under the cursor (again after each load, so the value is never stale). */
 function describe() {
@@ -318,8 +320,12 @@ function steps() {
   return (b - a + 1) * 12
 }
 function when(step) {                                    // step -> {year, month}; year null for the climatology
-  if (state.mode === 'preview') return { year: null, month: step + 1 }
-  return { year: years()[0] + Math.floor(step / 12), month: (step % 12) + 1 }
+  return whenFor(state.layer, state.mode, step)
+}
+function whenFor(layer, mode, step) {
+  if (mode === 'preview') return { year: null, month: step + 1 }
+  const first = mode === 'zarr' ? layer.zarr.years[0] : layer.series[0]
+  return { year: first + Math.floor(step / 12), month: (step % 12) + 1 }
 }
 /** {year, month} -> step of the current layer and source; a climatology month goes to the last year. */
 function stepFor({ year, month }) {
@@ -337,6 +343,48 @@ function timeLabel(step) {
 /** Zarr level for the current zoom: the whole globe needs only the 4 x 4 block means. */
 const zarrLevel = () => (map.getZoom() < 3 ? 2 : map.getZoom() < 4.5 ? 1 : 0)
 
+/** Load one month of `layer` from a source (or join the load already under way, or take it from the cache).
+ *  onProgress(share, bytes, expected) only reaches a load this call starts. */
+function fetchField(layer, mode, step, level, onProgress = () => {}) {
+  const key = `${layer.id}/${mode}/${step}/${level}`
+  if (cache.has(key)) return Promise.resolve(cache.get(key))
+  if (pending.has(key)) return pending.get(key)
+  const scale = makeScale(layer.scale), { year, month } = whenFor(layer, mode, step)
+  const load = (async () => {
+    if (mode === 'preview') {
+      const p = await loadPreview(layer, month)
+      onProgress(1, p.stats.bytes, p.stats.bytes)
+      return { field: imageField(p.rgba, p.width, scale), stats: p.stats }
+    }
+    if (mode === 'zarr') {
+      const z = await loadZarrMonth(layer, step, level, onProgress)
+      return { field: gridField(z.values, scale, level), stats: z.stats }
+    }
+    const s = await loadSeries(layer, year, month, onProgress)
+    return { field: gridField(s.values, scale), stats: s.stats }
+  })().then(loaded => {
+    cache.set(key, loaded)
+    if (cache.size > 8) cache.delete(cache.keys().next().value)
+    return loaded
+  }).finally(() => pending.delete(key))
+  pending.set(key, load)
+  return load
+}
+
+/** After a month is shown: load its neighbours one after the other, the direction last stepped first. */
+async function loadAhead(layer, mode, step, level) {
+  const n = steps()
+  for (const d of [state.direction, -state.direction]) {
+    const next = (step + d + n) % n, key = `${layer.id}/${mode}/${next}/${level}`
+    if (cache.has(key) || pending.has(key)) continue
+    try {
+      const loaded = await fetchField(layer, mode, next, level)
+      loaded.ahead = true
+    } catch { /* shown later, if asked for, with its own error */ }
+    if (state.layer !== layer || state.mode !== mode) return                  // the user moved on
+  }
+}
+
 async function show() {
   const ticket = ++state.loading, { layer, mode, step } = state
   const level = mode === 'zarr' ? zarrLevel() : 0, key = `${layer.id}/${mode}/${step}/${level}`
@@ -344,26 +392,11 @@ async function show() {
   $('status').textContent = ''
   startLoader(`${layer.name}, ${layer.source.split(',')[0]} · ${timeLabel(step)}`)
   const scale = makeScale(layer.scale)
-  let loaded = cache.get(key), cached = Boolean(loaded)
+  const cached = cache.has(key), joined = !cached && pending.has(key)
+  let loaded
   try {
-    if (!loaded) {
-      const { year, month } = when(step)
-      if (mode === 'preview') {
-        const p = await loadPreview(layer, month)
-        loaderProgress(1, p.stats.bytes, p.stats.bytes)
-        loaded = { field: imageField(p.rgba, p.width, scale), stats: p.stats }
-      } else if (mode === 'zarr') {
-        const z = await loadZarrMonth(layer, step, level,
-          (share, bytes) => { if (ticket === state.loading) loaderProgress(share, bytes, 0) })
-        loaded = { field: gridField(z.values, scale, level), stats: z.stats }
-      } else {
-        const s = await loadSeries(layer, year, month,
-          (share, bytes, expected) => { if (ticket === state.loading) loaderProgress(share, bytes, expected) })
-        loaded = { field: gridField(s.values, scale), stats: s.stats }
-      }
-      cache.set(key, loaded)
-      if (cache.size > 8) cache.delete(cache.keys().next().value)
-    }
+    loaded = await fetchField(layer, mode, step, level,
+      (share, bytes, expected) => { if (ticket === state.loading) loaderProgress(share, bytes, expected) })
   } catch (error) {
     if (ticket === state.loading) { stopLoader(); $('status').textContent = `Could not load: ${error.message}` }
     return
@@ -379,16 +412,17 @@ async function show() {
   if (pick.cell) { if (pick.layer !== layer.id) pickLayer(); else drawPick() }
   map.once('idle', () => {
     if (ticket !== state.loading) return
-    readout(loaded.stats, cached ? null : performance.now() - t0, cached)
+    readout(loaded.stats, cached || loaded.ahead ? null : performance.now() - t0, cached || joined, loaded.ahead)
     stopLoader()
+    loadAhead(layer, mode, step, level)
   })
 }
 
-function readout(stats, drawMs, cached) {
+function readout(stats, drawMs, cached, ahead) {
   $('stat-source').textContent = state.mode === 'preview' ? 'preview image (PNG)'
     : state.mode === 'zarr' ? `Zarr, level ${stats.level ?? '–'}${stats.level ? ` (${2 ** stats.level}×${2 ** stats.level} means)` : ''}`
     : 'Parquet, read live'
-  $('stat-bytes').textContent = cached ? 'cached' : `${(stats.bytes / 1e6).toFixed(1)} MB in ${stats.requests} request${stats.requests > 1 ? 's' : ''}` +
+  $('stat-bytes').textContent = cached ? (ahead ? `loaded ahead (${(stats.bytes / 1e6).toFixed(1)} MB)` : 'cached') : `${(stats.bytes / 1e6).toFixed(1)} MB in ${stats.requests} request${stats.requests > 1 ? 's' : ''}` +
     (stats.firstOfDataset ? ' (with cell positions)' : '')
   $('stat-read').textContent = cached ? '–' : stats.network === undefined ? `${Math.round(stats.read)} ms`
     : `${Math.round(stats.read)} ms (network ${Math.round(stats.network)})`
@@ -446,6 +480,7 @@ function syncControls() {
 function move(delta) {
   const n = steps()
   state.step = (state.step + delta + n) % n
+  state.direction = Math.sign(delta) || 1
   $('time').value = String(state.step)
   show()
 }
