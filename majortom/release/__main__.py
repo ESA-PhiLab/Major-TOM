@@ -68,11 +68,11 @@ def _tables(a: argparse.Namespace) -> None:
     if a.layout == "overviews":
         from .tables import overviews
 
-        print(f"{overviews(a.src, a.out, a.level, a.workers):,} overview files written", flush=True)
+        print(f"{overviews(a.src, a.out, a.level, a.workers, a.columns):,} overview files written", flush=True)
         return
     from .tables import repack
 
-    print(f"{repack(a.src, a.out, a.workers):,} files written and checked", flush=True)
+    print(f"{repack(a.src, a.out, a.workers, drop=tuple(a.drop or ())):,} files written and checked", flush=True)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -109,12 +109,14 @@ def main(argv: list[str] | None = None) -> None:
     r.add_argument("--src", type=Path, required=True, help="a dataset folder (cells, series, climatology) or static table")
     r.add_argument("--out", type=Path, required=True)
     r.add_argument("--workers", type=int, default=None)
+    r.add_argument("--drop", nargs="+", help="columns left out, with their climatology _mean and _std (e.g. era5_ptype)")
     r.set_defaults(run=_tables)
     o = tsub.add_parser("overviews", help="monthly files -> block means for globe-wide maps")
     o.add_argument("--src", type=Path, required=True, help="a dataset folder with series/year=YYYY/MM.parquet")
     o.add_argument("--out", type=Path, required=True, help="dataset folder to write overviews/ into")
     o.add_argument("--level", type=int, default=2, help="blocks of 2^level x 2^level cells (default 2: 4 x 4)")
     o.add_argument("--workers", type=int, default=None)
+    o.add_argument("--columns", nargs="+", help="only these columns (default: every float column)")
     o.set_defaults(run=_tables)
     c = tsub.add_parser("by-cell", help="monthly files -> every cell's whole series together, by band")
     c.add_argument("--src", type=Path, required=True, help="a dataset folder (cells.parquet, series/)")
