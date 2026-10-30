@@ -113,25 +113,41 @@ function clearCursor() {
 map.getCanvas().addEventListener('mouseleave', clearCursor)
 
 // ---- loading indicator -------------------------------------------------------------------------------------
-// The Major TOM Climate flag: its bars light up in the logo colours as row groups arrive (never going back).
+// The Major TOM Climate flag animates while anything loads: column after column fills top to bottom, then empties
+// bottom to top, on a loop. Progress itself is in the text: Loading (MB of the expected total), then Drawing.
 
-const bars = [...document.querySelectorAll('#loader polygon')]
-let loaderTimer = null, lit = 0
+const bars = [...document.querySelectorAll('#loader polygon')]                  // 4 columns x 5, each top to bottom
+const still = matchMedia('(prefers-reduced-motion: reduce)').matches
+let loaderTimer = null, animation = null, tick = 0
+
+function animateFlag() {
+  const n = bars.length, k = tick++ % (2 * n)                  // first n ticks fill, next n empty
+  if (k < n) bars[k].classList.add('on')
+  else { const i = k - n, col = Math.floor(i / 5); bars[col * 5 + 4 - (i % 5)].classList.remove('on') }
+}
 
 function startLoader(text) {
-  lit = 0
   for (const b of bars) b.classList.remove('on')
+  tick = 0
+  $('loader-phase').textContent = 'Loading'
   $('loader-text').textContent = text
   $('loader-bytes').textContent = ''
-  clearTimeout(loaderTimer)
-  loaderTimer = setTimeout(() => { $('loader').hidden = false }, 150)          // fast and cached loads: no flash
+  clearTimeout(loaderTimer); clearInterval(animation)
+  loaderTimer = setTimeout(() => {                                               // fast and cached loads: no flash
+    $('loader').hidden = false
+    if (still) bars.slice(0, 10).forEach(b => b.classList.add('on'))
+    else animation = setInterval(animateFlag, 70)
+  }, 150)
 }
-function loaderProgress(share, bytes) {
-  for (const n = Math.max(lit, Math.round(share * bars.length)); lit < n; lit++) bars[lit].classList.add('on')
-  $('loader-bytes').textContent = `${(bytes / 1e6).toFixed(1)} MB`
+function loaderProgress(share, bytes, expected) {
+  $('loader-bytes').textContent = expected ? `${(bytes / 1e6).toFixed(1)} of ${(Math.max(expected, bytes) / 1e6).toFixed(1)} MB`
+    : `${(bytes / 1e6).toFixed(1)} MB`
+}
+function loaderDrawing() {
+  $('loader-phase').textContent = 'Drawing'
 }
 function stopLoader() {
-  clearTimeout(loaderTimer)
+  clearTimeout(loaderTimer); clearInterval(animation)
   $('loader').hidden = true
 }
 
@@ -172,11 +188,11 @@ async function show() {
       const { year, month } = when(step)
       if (mode === 'preview') {
         const p = await loadPreview(layer, month)
-        loaderProgress(1, p.stats.bytes)
+        loaderProgress(1, p.stats.bytes, p.stats.bytes)
         loaded = { field: imageField(p.rgba, p.width, scale), stats: p.stats }
       } else {
         const s = await loadSeries(layer, year, month,
-          (share, bytes) => { if (ticket === state.loading) loaderProgress(share, bytes) })
+          (share, bytes, expected) => { if (ticket === state.loading) loaderProgress(share, bytes, expected) })
         loaded = { field: gridField(s.values, scale), stats: s.stats }
       }
       cache.set(key, loaded)
@@ -188,6 +204,7 @@ async function show() {
   }
   if (ticket !== state.loading) return                  // a newer request replaced this one
   state.field = loaded.field
+  loaderDrawing()
   describe()
   const t0 = performance.now()
   map.getSource('field').setTiles([`mt://${++state.version}/{z}/{x}/{y}`])

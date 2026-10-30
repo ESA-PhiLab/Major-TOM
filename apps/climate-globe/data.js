@@ -52,6 +52,12 @@ async function readColumns(url, columns, stats, progress) {
   const file = await countedFile(url, stats)
   const metadata = await parquetMetadataAsync(file)
   progress.total += metadata.row_groups.length
+  for (const group of metadata.row_groups) {                                       // bytes the columns will take
+    for (const { meta_data: m } of group.columns) {
+      if (columns.some(([name]) => name === m.path_in_schema.join('.'))) progress.expected += Number(m.total_compressed_size)
+    }
+  }
+  progress.report()
   const n = Number(metadata.num_rows), out = Object.fromEntries(columns.map(([name, Type]) => [name, new Type(n)]))
   const queue = []
   for (let start = 0, g = 0; g < metadata.row_groups.length; g++) {
@@ -93,10 +99,11 @@ function cellPositions(dataset, stats, progress) {
 }
 
 /** One month of a layer's series, read live: values on the (row, column) array, NaN where missing.
- *  onProgress(share of row groups read, bytes so far) is called as row groups arrive. */
+ *  onProgress(share of row groups read, bytes so far, bytes expected) is called as row groups arrive. */
 export async function loadSeries(layer, year, month, onProgress = () => {}) {
   const stats = { bytes: 0, requests: 0, network: 0, active: 0, t0: performance.now() }
-  const progress = { total: 0, done: 0, report: () => onProgress(progress.done / Math.max(progress.total, 1), stats.bytes) }
+  const progress = { total: 0, done: 0, expected: 0,
+    report: () => onProgress(progress.done / Math.max(progress.total, 1), stats.bytes, progress.expected) }
   const url = `${SOURCE_COOP}/${layer.dataset}/series/year=${year}/${String(month).padStart(2, '0')}.parquet`
   stats.firstOfDataset = !positions.has(layer.dataset)
   const [index, cols] = await Promise.all([cellPositions(layer.dataset, stats, progress),

@@ -35,8 +35,9 @@
     background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 4px 16px rgba(17,24,39,.08); }
   #loader[hidden] { display: none; }
   #loader svg { width: 64px; height: 56px; margin-bottom: 4px; }
-  #loader polygon { fill: var(--line); transition: fill .2s; }
+  #loader polygon { fill: var(--line); transition: fill .12s; }
   #loader polygon.on { fill: var(--on); }
+  #loader-phase { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
   #loader-text { font-size: 14px; color: var(--ink); text-align: center; }
   #loader-bytes { font-family: var(--mono); font-size: 12px; color: var(--ink-3); min-height: 1em; }
   .bar nav { margin-left: auto; display: flex; gap: 16px; font-size: 14px; }
@@ -147,6 +148,7 @@
       <polygon style="--on:var(--mt-orange)" points="476.04 57.67 494.24 66.78 494.24 77.57 476.04 68.47"/>
       <polygon style="--on:var(--mt-orange)" points="476.04 72.07 494.24 81.17 494.24 92.6 476.04 83.04"/>
       </svg>
+      <div id="loader-phase"></div>
       <div id="loader-text"></div>
       <div id="loader-bytes"></div>
     </div>
