@@ -315,20 +315,23 @@ def _axes_style(ax, ylabel: str | None) -> None:
 
 
 def places(release: Path) -> None:
-    """Monthly precipitation (CPC gauges, IMERG satellites; ERA5 when published) and temperature at the three places."""
+    """Monthly precipitation (CPC gauges, IMERG satellites, ERA5 reanalysis) and temperature at the three places."""
     fig, axes = plt.subplots(2, 3, figsize=(WIDTH_PX / 100, 6.4), dpi=100, facecolor=PAGE, sharex=True, sharey="row",
                              gridspec_kw=dict(left=0.09, right=0.95, top=0.74, bottom=0.07, hspace=0.42, wspace=0.12))
     fig.text(0.02, 0.965, "Monthly precipitation and temperature: Loch Lomond, Corvara, Manaus", fontsize=13, fontweight="bold",
              color=INK, va="top")
-    fig.text(0.02, 0.915, "Monthly normals · precipitation: CPC rain gauges 1991–2020, IMERG satellites 1998–2024 · "
-             "temperature: CPC", fontsize=9, color=INK_2, va="top")
+    fig.text(0.02, 0.915, "Monthly normals of precipitation: CPC rain gauges 1991–2020, IMERG satellites 1998–2024, "
+             "ERA5 1991–2020", fontsize=9, color=INK_2, va="top")
     for j, (name, (row, col)) in enumerate(PLACES.items()):
         cpc = _cell_normals(release, "CPC-Monthly", ["cpc_precip_mean", "cpc_tmax_mean", "cpc_tmin_mean"], row, col)
         imerg = _cell_normals(release, "IMERG-Monthly", ["imerg_precip_mean"], row, col)
         rain = imerg.imerg_precip_mean.to_numpy() * imerg.month.map(HOURS_IN).to_numpy()
+        era5 = _cell_normals(release, "ERA5-Monthly", ["era5_tp_mean"], row, col)                 # m per day
+        era5_rain = era5.era5_tp_mean.to_numpy() * era5.month.map(HOURS_IN).to_numpy() / 24 * 1000
         top, bottom = axes[0, j], axes[1, j]
         top.plot(cpc.month, cpc.cpc_precip_mean, color=SERIES[0], linewidth=2, label="CPC (gauges)")
         top.plot(imerg.month, rain, color=SERIES[1], linewidth=2, label="IMERG (satellites)")
+        top.plot(era5.month, era5_rain, color=SERIES[2], linewidth=2, label="ERA5 (reanalysis)")
         code = f"{abs(row)}{'U' if row >= 0 else 'D'}_{abs(col)}{'R' if col >= 0 else 'L'}"
         top.set_title(f"{name}\n{code}", fontsize=10, color=INK, loc="left", fontweight="bold")
         bottom.fill_between(cpc.month, cpc.cpc_tmin_mean, cpc.cpc_tmax_mean, color=SERIES[0], alpha=0.18,
@@ -341,10 +344,11 @@ def places(release: Path) -> None:
     axes[1, 2].text(12.2, axes[1, 2].lines[0].get_ydata()[-1], "max", fontsize=8, color=INK_2, va="center")
     axes[1, 2].text(12.2, axes[1, 2].lines[1].get_ydata()[-1], "min", fontsize=8, color=INK_2, va="center")
     handles, labels = axes[0, 0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper left", bbox_to_anchor=(0.015, 0.875), ncol=2, frameon=False, fontsize=8,
+    fig.legend(handles, labels, loc="upper left", bbox_to_anchor=(0.015, 0.875), ncol=3, frameon=False, fontsize=8,
                labelcolor=INK_2, handlelength=1.6)
     y = axes[1, 0].get_position().y1
-    fig.text(0.09, y + 0.025, "Daily maximum (solid) and minimum (dashed), mean of the month", fontsize=8, color=INK_2)
+    fig.text(0.09, y + 0.025, "CPC daily maximum (solid) and minimum (dashed) temperature, mean of the month, 1991–2020",
+             fontsize=8, color=INK_2)
     _save_vector(fig, release / "figures" / "places.svg")
     plt.close(fig)
 
@@ -368,21 +372,23 @@ def air_quality_seasons(release: Path) -> None:
 
 
 def overview(release: Path) -> None:
-    """Six maps, one or two per dataset, for the top-level README."""
+    """Eight maps, one or two per dataset, for the top-level README."""
     tiles = [(cpc_precip, 0, "Annual precipitation (CPC-Monthly)", "", "mm per year"),
              (imerg_precip, 0, "Annual precipitation (IMERG-Monthly)", "", "mm per year"),
+             (era5_precip, 0, "Annual precipitation (ERA5-Monthly)", "", "mm per year"),
+             (era5_temperature, 1, "July 2 m temperature (ERA5-Monthly)", "", "°C"),
              (cpc_temperature, 1, "July daily maximum temperature (CPC-Monthly)", "", "°C"),
              (era5_height, 0, "Surface height (ERA5-Static)", "", "m"),
              (cams_aerosol, 0, "Aerosol optical depth at 550 nm (CAMS-Monthly)", "", "no unit"),
              (cams_pm25, 0, "Surface PM2.5 (CAMS-Monthly)", "", "µg/m³")]
     head, map_h, title_h, bar_h, gap = 0.95, 2.2, 0.32, 0.62, 0.15                      # inches
     row_h = title_h + map_h + bar_h + gap
-    height = head + row_h * 3
+    height = head + row_h * -(-len(tiles) // 2)
     width = WIDTH_PX / 100
     fig = plt.figure(figsize=(width, height), dpi=100, facecolor=PAGE)
     fig.text(0.02, 1 - 0.25 / height, "Major TOM Climate", fontsize=13, fontweight="bold", color=INK,
              va="top")
-    fig.text(0.02, 1 - 0.58 / height, "Normals per Major TOM cell: CPC 1991–2020, IMERG 1998–2024, CAMS 2003–2025. Sinusoidal projection.",
+    fig.text(0.02, 1 - 0.58 / height, "Normals per Major TOM cell: CPC and ERA5 1991–2020, IMERG 1998–2024, CAMS 2003–2025. Sinusoidal projection.",
              fontsize=9, color=INK_2, va="top")
     for i, (spec, panel, name, dataset, unit) in enumerate(tiles):
         (panels, cmap, norm, ticks, labels, *_), _ = spec(release)

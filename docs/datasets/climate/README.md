@@ -1,7 +1,7 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
 > **Review status:** by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of the top-level README for source.coop `major-tom/climate`.
-> Remove these two notes when publishing. Placeholders: `[ERA5…]` rows are added when those datasets are published.
+> Remove these two notes when publishing. ERA5-Monthly row and figures added 2026-10-30; ERA5-Land-Monthly is added when built. Sizes include by_cell/ and overviews/.
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 
@@ -11,14 +11,15 @@ Monthly climate records and climate normals for every cell of the [Major TOM](ht
 
 Each dataset is a separate folder with its own README.
 
-<img src="https://data.source.coop/major-tom/climate/figures/overview.png" alt="Annual precipitation (CPC, IMERG), July daily maximum temperature (CPC), surface height (ERA5), aerosol optical depth and surface PM2.5 (CAMS)" width="100%">
+<img src="https://data.source.coop/major-tom/climate/figures/overview.png" alt="Annual precipitation (CPC, IMERG, ERA5), July temperature (ERA5, CPC), surface height (ERA5), aerosol optical depth and surface PM2.5 (CAMS)" width="100%">
 
 | Dataset | What | Source | Record | Grid | Cells | Variables | Size |
 |---|---|---|---|---|---|---|---|
-| [CPC-Monthly](https://source.coop/major-tom/climate/CPC-Monthly) | rain-gauge precipitation, daily max and min temperature | NOAA CPC Global Unified | 1979–2025 | 0.5° | 1,657,095 (land) | 3 | 12 GB |
-| [IMERG-Monthly](https://source.coop/major-tom/climate/IMERG-Monthly) | satellite precipitation and its quality fields | NASA GPM IMERG V07 | 1998–2024 | 0.1° | 5,113,745 (globe) | 5 | 36 GB |
-| [CAMS-Monthly](https://source.coop/major-tom/climate/CAMS-Monthly) | air quality: trace gases, aerosols, particulate matter | Copernicus CAMS EAC4 | 2003–2025 | 0.75° | 5,113,745 (globe) | 19 | 58 GB |
+| [CPC-Monthly](https://source.coop/major-tom/climate/CPC-Monthly) | rain-gauge precipitation, daily max and min temperature, gauges nearby | NOAA CPC Global Unified | 1979–2025 | 0.5° | 1,657,095 (land) | 4 | 23 GB |
+| [IMERG-Monthly](https://source.coop/major-tom/climate/IMERG-Monthly) | satellite precipitation and its quality fields | NASA GPM IMERG V07 | 1998–2024 | 0.1° | 5,113,745 (globe) | 5 | 77 GB |
+| [CAMS-Monthly](https://source.coop/major-tom/climate/CAMS-Monthly) | air quality: trace gases, aerosols, particulate matter | Copernicus CAMS EAC4 | 2003–2025 | 0.75° | 5,113,745 (globe) | 19 | 117 GB |
 | [ERA5-Static](https://source.coop/major-tom/climate/ERA5-Static) | fixed surface fields: terrain, land and lake cover, soil and vegetation types | ECMWF ERA5 | — | 0.25° | 5,113,745 (globe) | 16 | 0.1 GB |
+| [ERA5-Monthly](https://source.coop/major-tom/climate/ERA5-Monthly) | weather and land surface: temperature, humidity, wind, pressure, precipitation, radiation, clouds, soil, snow, waves | ECMWF ERA5 | 1940–2025 | 0.25° | 5,113,745 (globe) | 201 | 2.8 TB |
 
 Files are at `https://data.source.coop/major-tom/climate/<dataset>/...`.
 
@@ -36,7 +37,7 @@ The sources were chosen so that the main quantities come from more than one type
 
 Monthly normals at the three cells of Major TOM's release test. Gauges and satellites agree on the timing of the Amazon's wet season and differ in amounts in Scotland and the Alps.
 
-<img src="https://data.source.coop/major-tom/climate/figures/places.svg" alt="Monthly precipitation (CPC, IMERG) and temperature at Loch Lomond, Corvara and Manaus" width="100%">
+<img src="https://data.source.coop/major-tom/climate/figures/places.svg" alt="Monthly precipitation (CPC, IMERG, ERA5) and temperature at Loch Lomond, Corvara and Manaus" width="100%">
 
 <img src="https://data.source.coop/major-tom/climate/figures/air-quality-seasons.svg" alt="Monthly aerosol optical depth at Loch Lomond, Corvara and Manaus" width="100%">
 
