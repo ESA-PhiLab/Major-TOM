@@ -7,7 +7,8 @@
 
 import * as maplibregl from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.mjs'
 import { feature } from 'https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/+esm'
-import { LAYERS, SOURCE_COOP, cellRow, loadCellClimatology, loadCellSeries, loadPreview, loadSeries } from './data.js'
+import { LAYERS, SOURCE_COOP, cellRow, loadCellClimatology, loadCellSeries, loadPreview, loadSeries, loadZarrCellSeries,
+  loadZarrMonth } from './data.js'
 import { lineChart } from './charts.js'
 import { drawBar, makeScale } from './scales.js'
 import { cellAt, gridField, imageField, renderTile } from './tiles.js'
@@ -53,6 +54,11 @@ map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom
 map.addControl(new maplibregl.AttributionControl({ compact: true,
   customAttribution: 'Coastlines: Natural Earth · Data: <a href="https://source.coop/major-tom/climate">major-tom/climate</a>' }))
 
+let shownLevel = null
+map.on('zoomend', () => {
+  if (state.mode !== 'zarr') return
+  if (zarrLevel() !== shownLevel) show()
+})
 map.on('load', async () => {
   const topo = await (await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-50m.json')).json()
   const land = feature(topo, topo.objects.land)
@@ -107,7 +113,8 @@ function describe() {
   $('cursor-cell').textContent = cell.name
   $('cursor-pos').textContent = `${lat.toFixed(2)}°, ${lng.toFixed(2)}°`
   $('cursor-value').textContent = v === undefined ? 'colours only (preview)'
-    : Number.isNaN(v) ? 'no value' : `${format(v)} ${state.layer.unit}`
+    : Number.isNaN(v) ? 'no value'
+    : `${format(v)} ${state.layer.unit}${state.field.level ? ` (${2 ** state.field.level}×${2 ** state.field.level} mean)` : ''}`
 }
 function clearCursor() {
   cursor = null
@@ -194,8 +201,11 @@ async function pickLayer() {
   $('chart-series').hidden = true
   $('series-stats').textContent = ''
   const months = (layer.series[1] - layer.series[0] + 1) * 12
-  $('series-load').textContent = `Load all ${months} months (reads one file per month)`
+  $('series-load').textContent = `Load all ${months} months from Parquet (one file per month)`
   $('series-load').hidden = false
+  $('series-zarr').hidden = !layer.zarr
+  $('series-zarr').textContent = `Load all ${months} months from Zarr (test store)`
+  $('series-zarr-stats').textContent = ''
   try {
     const c = await loadCellClimatology(layer, row, col)
     if (ticket !== pick.ticket) return
@@ -233,9 +243,27 @@ $('series-load').addEventListener('click', async () => {
   if (ticket !== pick.ticket || pick.job !== job) return
   pick.job = null
   $('series-load').hidden = true
-  $('series-stats').textContent = `${n} months · ${kb(st.bytes)} in ${st.requests} requests · ${secs(st.read)} ` +
+  $('series-stats').textContent = `Parquet: ${n} months · ${kb(st.bytes)} in ${st.requests} requests · ${secs(st.read)} ` +
     `(network ${secs(st.network)})`
   drawPick()
+})
+
+$('series-zarr').addEventListener('click', async () => {
+  const layer = state.layer, ticket = pick.ticket
+  $('series-zarr').disabled = true
+  $('series-zarr-stats').textContent = 'Reading the Zarr series…'
+  try {
+    const z = await loadZarrCellSeries(layer, pick.cell.row, pick.cell.col)
+    if (ticket !== pick.ticket) return
+    pick.series = z.values
+    $('chart-series').hidden = false
+    $('series-zarr-stats').textContent = `Zarr: ${z.values.length} months · ${kb(z.stats.bytes)} in ${z.stats.requests} requests · ${secs(z.stats.read)}`
+    drawPick()
+  } catch (error) {
+    if (ticket === pick.ticket) $('series-zarr-stats').textContent = `Zarr: could not load: ${error.message}`
+  } finally {
+    $('series-zarr').disabled = false
+  }
 })
 
 /** Draw both charts, the shown month marked. */
@@ -259,31 +287,38 @@ function drawPick() {
 
 // ---- time --------------------------------------------------------------------------------------------------
 
-/** Steps of the time slider: 12 climatology months, or every month of the layer's series. */
+/** First and last year the current source has: the series, or the Zarr test store's map months. */
+const years = () => (state.mode === 'zarr' ? state.layer.zarr.years : state.layer.series)
+
+/** Steps of the time slider: 12 climatology months, or every month of the source's years. */
 function steps() {
   if (state.mode === 'preview') return 12
-  const [a, b] = state.layer.series
+  const [a, b] = years()
   return (b - a + 1) * 12
 }
 function when(step) {                                    // step -> {year, month}; year null for the climatology
   if (state.mode === 'preview') return { year: null, month: step + 1 }
-  return { year: state.layer.series[0] + Math.floor(step / 12), month: (step % 12) + 1 }
+  return { year: years()[0] + Math.floor(step / 12), month: (step % 12) + 1 }
 }
-/** {year, month} -> step of the current layer and source; a climatology month goes to the series' last year. */
+/** {year, month} -> step of the current layer and source; a climatology month goes to the last year. */
 function stepFor({ year, month }) {
   if (state.mode === 'preview') return month - 1
-  const [a, b] = state.layer.series
+  const [a, b] = years()
   return (Math.min(Math.max(year ?? b, a), b) - a) * 12 + month - 1
 }
 function timeLabel(step) {
   const { year, month } = when(step)
-  return year === null ? `${MONTHS[month - 1]} · normal 1991–2020` : `${MONTHS[month - 1]} ${year}`
+  return year === null ? `${MONTHS[month - 1]} · normal ${state.layer.normal}` : `${MONTHS[month - 1]} ${year}`
 }
 
 // ---- load and draw -----------------------------------------------------------------------------------------
 
+/** Zarr level for the current zoom: the whole globe needs only the 4 x 4 block means. */
+const zarrLevel = () => (map.getZoom() < 3 ? 2 : map.getZoom() < 4.5 ? 1 : 0)
+
 async function show() {
-  const ticket = ++state.loading, { layer, mode, step } = state, key = `${layer.id}/${mode}/${step}`
+  const ticket = ++state.loading, { layer, mode, step } = state
+  const level = mode === 'zarr' ? zarrLevel() : 0, key = `${layer.id}/${mode}/${step}/${level}`
   $('time-label').textContent = timeLabel(step)
   $('status').textContent = ''
   startLoader(`${layer.name}, ${layer.source.split(',')[0]} · ${timeLabel(step)}`)
@@ -296,6 +331,10 @@ async function show() {
         const p = await loadPreview(layer, month)
         loaderProgress(1, p.stats.bytes, p.stats.bytes)
         loaded = { field: imageField(p.rgba, p.width, scale), stats: p.stats }
+      } else if (mode === 'zarr') {
+        const z = await loadZarrMonth(layer, step, level,
+          (share, bytes) => { if (ticket === state.loading) loaderProgress(share, bytes, 0) })
+        loaded = { field: gridField(z.values, scale, level), stats: z.stats }
       } else {
         const s = await loadSeries(layer, year, month,
           (share, bytes, expected) => { if (ticket === state.loading) loaderProgress(share, bytes, expected) })
@@ -310,6 +349,7 @@ async function show() {
   }
   if (ticket !== state.loading) return                  // a newer request replaced this one
   state.field = loaded.field
+  shownLevel = level
   loaderDrawing()
   describe()
   const t0 = performance.now()
@@ -324,14 +364,16 @@ async function show() {
 }
 
 function readout(stats, drawMs, cached) {
-  $('stat-source').textContent = state.mode === 'preview' ? 'preview image (PNG)' : 'Parquet, read live'
+  $('stat-source').textContent = state.mode === 'preview' ? 'preview image (PNG)'
+    : state.mode === 'zarr' ? `Zarr, level ${stats.level ?? '–'}${stats.level ? ` (${2 ** stats.level}×${2 ** stats.level} means)` : ''}`
+    : 'Parquet, read live'
   $('stat-bytes').textContent = cached ? 'cached' : `${(stats.bytes / 1e6).toFixed(1)} MB in ${stats.requests} request${stats.requests > 1 ? 's' : ''}` +
     (stats.firstOfDataset ? ' (with cell positions)' : '')
   $('stat-read').textContent = cached ? '–' : stats.network === undefined ? `${Math.round(stats.read)} ms`
     : `${Math.round(stats.read)} ms (network ${Math.round(stats.network)})`
   $('stat-draw').textContent = drawMs === null ? '–' : `${Math.round(drawMs)} ms`
   $('stat-cells').textContent = stats.cells ? stats.cells.toLocaleString('en') : '–'
-  document.body.dataset.loaded = `${state.layer.id}/${state.mode}/${state.step}`     // for automated checks
+  document.body.dataset.loaded = `${state.layer.id}/${state.mode}/${state.step}/${stats.level ?? 0}`     // for automated checks
 }
 
 function legend(scale) {
@@ -366,15 +408,16 @@ function buildLayerList() {
 
 /** Source and time controls follow the layer: a layer without preview images is read live. */
 function syncControls() {
-  const hasPreview = Boolean(state.layer.preview)
+  const hasPreview = Boolean(state.layer.preview), hasZarr = Boolean(state.layer.zarr)
   $('mode-preview').disabled = !hasPreview
-  if (!hasPreview) state.mode = 'live'
+  $('mode-zarr').disabled = !hasZarr
+  if ((!hasPreview && state.mode === 'preview') || (!hasZarr && state.mode === 'zarr')) state.mode = 'live'
   for (const b of document.querySelectorAll('[data-mode]')) b.setAttribute('aria-pressed', String(b.dataset.mode === state.mode))
   $('mode-note').textContent = hasPreview ? '' : 'No preview images for this layer yet: read live.'
   const n = steps()
   state.step = Math.min(state.step, n - 1)
   $('time').max = String(n - 1); $('time').value = String(state.step)
-  $('time-range').textContent = state.mode === 'preview' ? 'Jan – Dec' : `${state.layer.series[0]} – ${state.layer.series[1]}`
+  $('time-range').textContent = state.mode === 'preview' ? 'Jan – Dec' : `${years()[0]} – ${years()[1]}`
   $('dataset-link').href = `https://source.coop/major-tom/climate/${state.layer.dataset}`
   $('dataset-link').textContent = state.layer.dataset
 }

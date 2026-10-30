@@ -21,12 +21,14 @@ function rowCol(lon, lat) {
   return [row, col, n]
 }
 
-/** Index into the (row, column) array of the cell under (lon, lat); used for every pixel, so no objects. */
-function cellIndex(lon, lat) {
+/** Index of the cell under (lon, lat) in the (row, column) array, or at `level` in its 2^level-coarser block means
+ *  (a Zarr overview); used for every pixel, so no objects. */
+function cellIndex(lon, lat, level = 0) {
   const row = Math.min(Math.max(Math.floor(lat / DLAT), -ROWS / 2), ROWS / 2 - 1)
   const n = nCols(row)
   const col = Math.min(Math.max(Math.floor(lon / (360 / n)), -Math.floor(n / 2)), n - 1 - Math.floor(n / 2))
-  return (row + ROWS / 2) * COLS + col + COLS / 2
+  if (!level) return (row + ROWS / 2) * COLS + col + COLS / 2
+  return ((row + ROWS / 2) >> level) * Math.ceil(COLS / 2 ** level) + ((col + COLS / 2) >> level)
 }
 
 /** The cell under (lon, lat), for the cursor: row, column, name (as majortom.cells), index, bounds in degrees. */
@@ -40,13 +42,14 @@ export function cellAt(lon, lat) {
   }
 }
 
-/** A field of values, one per cell, on the (row, column) array; NaN where there is no cell or no value. */
-export function gridField(values, scale) {
+/** A field of values, one per cell, on the (row, column) array (or its block means at `level`); NaN where there
+ *  is no cell or no value. */
+export function gridField(values, scale, level = 0) {
   return {
-    values, scale,
-    valueAt: (lon, lat) => values[cellAt(lon, lat).index],
+    values, scale, level,
+    valueAt: (lon, lat) => values[cellIndex(((lon + 180) % 360 + 360) % 360 - 180, lat, level)],
     pixel(lon, lat, out, o) {
-      const v = values[cellIndex(lon, lat)]
+      const v = values[cellIndex(lon, lat, level)]
       if (Number.isNaN(v)) { out[o + 3] = 0; return }
       const i = Math.round(scale.position(v) * 255) * 3
       out[o] = scale.lut[i]; out[o + 1] = scale.lut[i + 1]; out[o + 2] = scale.lut[i + 2]; out[o + 3] = 255
