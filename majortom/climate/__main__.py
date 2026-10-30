@@ -4,6 +4,7 @@
     python -m majortom.climate monthly --source era5-monthly --years 1940 2025 --out <dir>
     python -m majortom.climate climatology --out <dir> --period 1991 2020
     python -m majortom.climate merge --root <Core-Weather> --sources era5 cams cpc s5p --out <dir>
+    python -m majortom.climate gauges --cpc <CPC-Monthly build> --raw <cache>/cpc/raw
 
     metadata files (paths or URLs; columns grid_cell, grid_row_u, grid_col_r, timestamp, and product_id if present)
       -> <out>/acquisitions.parquet: grid_cell, acquired, dataset, product_id   (links samples to table rows)
@@ -87,6 +88,10 @@ def main(argv: list[str] | None = None) -> int:
     join.add_argument("--root", type=Path, required=True, help="the folder holding one folder per source")
     join.add_argument("--sources", nargs="+", required=True, help="source folder names, e.g. era5 cams cpc s5p")
     join.add_argument("--out", type=Path, required=True)
+    gauge = sub.add_parser("gauges", help="add cpc_gauges (rain gauges near each cell) to a CPC monthly build")
+    gauge.add_argument("--cpc", type=Path, required=True, help="the CPC-Monthly build folder (cells.parquet, series/)")
+    gauge.add_argument("--raw", type=Path, required=True, help="CPC's raw daily files, one folder per year")
+    gauge.add_argument("--workers", type=int, default=None)
     get = sub.add_parser("fetch", help="download months of a queued source (CAMS) into the cache, several at a time")
     get.add_argument("--source", default="cams")
     get.add_argument("--months", nargs=2, required=True, metavar=("FIRST", "LAST"), help="YYYY-MM YYYY-MM")
@@ -112,6 +117,10 @@ def main(argv: list[str] | None = None) -> int:
 
         with ThreadPoolExecutor(args.parallel) as pool:
             list(pool.map(one, months))
+        return 0
+    if args.command == "gauges":
+        from .gauges import add_gauges
+        print(f"{add_gauges(args.cpc, args.raw, args.workers)} monthly files have cpc_gauges", flush=True)
         return 0
     if args.command == "merge":
         from .merge import merge
