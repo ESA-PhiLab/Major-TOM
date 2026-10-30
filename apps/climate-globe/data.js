@@ -48,9 +48,10 @@ const PARALLEL = 16             // requests open at once: each range request wai
 
 /** Columns of a remote Parquet file as typed arrays, null -> NaN. One read per row group, PARALLEL at a time:
  *  hyparquet reads the row groups of one call one after another, which spends the time waiting on requests. */
-async function readColumns(url, columns, stats) {
+async function readColumns(url, columns, stats, progress) {
   const file = await countedFile(url, stats)
   const metadata = await parquetMetadataAsync(file)
+  progress.total += metadata.row_groups.length
   const n = Number(metadata.num_rows), out = Object.fromEntries(columns.map(([name, Type]) => [name, new Type(n)]))
   const queue = []
   for (let start = 0, g = 0; g < metadata.row_groups.length; g++) {
@@ -70,6 +71,7 @@ async function readColumns(url, columns, stats) {
           }
         },
       })
+      progress.done += 1; progress.report()
     }
   }))
   return out
@@ -78,10 +80,10 @@ async function readColumns(url, columns, stats) {
 /** Every dataset file lists its cells in the order of its cells.parquet (the release layout, majortom/climate/
  *  layout.py), so positions are read once per dataset: index into the (row, column) array of each row. */
 const positions = new Map()
-function cellPositions(dataset, stats) {
+function cellPositions(dataset, stats, progress) {
   if (!positions.has(dataset)) {
     positions.set(dataset, readColumns(`${SOURCE_COOP}/${dataset}/cells.parquet`,
-      [['grid_row_u', Int16Array], ['grid_col_r', Int16Array]], stats).then(({ grid_row_u: r, grid_col_r: c }) => {
+      [['grid_row_u', Int16Array], ['grid_col_r', Int16Array]], stats, progress).then(({ grid_row_u: r, grid_col_r: c }) => {
       const index = new Int32Array(r.length)
       for (let i = 0; i < r.length; i++) index[i] = (r[i] + ROWS / 2) * COLS + c[i] + COLS / 2
       return index
@@ -90,13 +92,15 @@ function cellPositions(dataset, stats) {
   return positions.get(dataset)
 }
 
-/** One month of a layer's series, read live: values on the (row, column) array, NaN where missing. */
-export async function loadSeries(layer, year, month) {
+/** One month of a layer's series, read live: values on the (row, column) array, NaN where missing.
+ *  onProgress(share of row groups read, bytes so far) is called as row groups arrive. */
+export async function loadSeries(layer, year, month, onProgress = () => {}) {
   const stats = { bytes: 0, requests: 0, network: 0, active: 0, t0: performance.now() }
+  const progress = { total: 0, done: 0, report: () => onProgress(progress.done / Math.max(progress.total, 1), stats.bytes) }
   const url = `${SOURCE_COOP}/${layer.dataset}/series/year=${year}/${String(month).padStart(2, '0')}.parquet`
   stats.firstOfDataset = !positions.has(layer.dataset)
-  const [index, cols] = await Promise.all([cellPositions(layer.dataset, stats),
-    readColumns(url, [[layer.column, Float32Array]], stats)])
+  const [index, cols] = await Promise.all([cellPositions(layer.dataset, stats, progress),
+    readColumns(url, [[layer.column, Float32Array]], stats, progress)])
   stats.read = performance.now() - stats.t0
   const v = cols[layer.column]
   if (v.length !== index.length) throw new Error(`${url}: ${v.length} rows, cells.parquet has ${index.length}`)

@@ -79,8 +79,18 @@ function coastLines(land) {
   return { type: 'Feature', geometry: { type: 'MultiLineString', coordinates: lines } }
 }
 
-let cursor = null                                         // last position under the mouse
-map.on('mousemove', e => { cursor = e.lngLat; describe() })
+let cursor = null                                         // last position under the mouse, on the globe
+
+/** Whether a screen point lies on the globe (not the space around it). MapLibre's own test where available;
+ *  otherwise off the globe the map returns a point on the horizon, which projects back somewhere else. */
+function onGlobe(point, lngLat) {
+  if (typeof map.transform?.isPointOnMapSurface === 'function') return map.transform.isPointOnMapSurface(point)
+  const back = map.project(lngLat)
+  return Math.hypot(back.x - point.x, back.y - point.y) < 2
+}
+map.on('mousemove', e => {
+  if (onGlobe(e.point, e.lngLat)) { cursor = e.lngLat; describe() } else clearCursor()
+})
 window.globe = map                                         // for automated checks
 
 /** Outline and describe the cell under the cursor (again after each load, so the value is never stale). */
@@ -95,10 +105,35 @@ function describe() {
   $('cursor-value').textContent = v === undefined ? 'colours only (preview)'
     : Number.isNaN(v) ? 'no value' : `${format(v)} ${state.layer.unit}`
 }
-map.getCanvas().addEventListener('mouseleave', () => {
+function clearCursor() {
   cursor = null
   map.getSource('cell').setData({ type: 'FeatureCollection', features: [] })
-})
+  for (const id of ['cursor-cell', 'cursor-pos', 'cursor-value']) $(id).textContent = '–'
+}
+map.getCanvas().addEventListener('mouseleave', clearCursor)
+
+// ---- loading indicator -------------------------------------------------------------------------------------
+// The Major TOM Climate flag: its bars light up in the logo colours as row groups arrive (never going back).
+
+const bars = [...document.querySelectorAll('#loader polygon')]
+let loaderTimer = null, lit = 0
+
+function startLoader(text) {
+  lit = 0
+  for (const b of bars) b.classList.remove('on')
+  $('loader-text').textContent = text
+  $('loader-bytes').textContent = ''
+  clearTimeout(loaderTimer)
+  loaderTimer = setTimeout(() => { $('loader').hidden = false }, 150)          // fast and cached loads: no flash
+}
+function loaderProgress(share, bytes) {
+  for (const n = Math.max(lit, Math.round(share * bars.length)); lit < n; lit++) bars[lit].classList.add('on')
+  $('loader-bytes').textContent = `${(bytes / 1e6).toFixed(1)} MB`
+}
+function stopLoader() {
+  clearTimeout(loaderTimer)
+  $('loader').hidden = true
+}
 
 // ---- time --------------------------------------------------------------------------------------------------
 
@@ -128,7 +163,8 @@ function timeLabel(step) {
 async function show() {
   const ticket = ++state.loading, { layer, mode, step } = state, key = `${layer.id}/${mode}/${step}`
   $('time-label').textContent = timeLabel(step)
-  $('status').textContent = 'Loading…'
+  $('status').textContent = ''
+  startLoader(`${layer.name}, ${layer.source.split(',')[0]} · ${timeLabel(step)}`)
   const scale = makeScale(layer.scale)
   let loaded = cache.get(key), cached = Boolean(loaded)
   try {
@@ -136,16 +172,18 @@ async function show() {
       const { year, month } = when(step)
       if (mode === 'preview') {
         const p = await loadPreview(layer, month)
+        loaderProgress(1, p.stats.bytes)
         loaded = { field: imageField(p.rgba, p.width, scale), stats: p.stats }
       } else {
-        const s = await loadSeries(layer, year, month)
+        const s = await loadSeries(layer, year, month,
+          (share, bytes) => { if (ticket === state.loading) loaderProgress(share, bytes) })
         loaded = { field: gridField(s.values, scale), stats: s.stats }
       }
       cache.set(key, loaded)
       if (cache.size > 8) cache.delete(cache.keys().next().value)
     }
   } catch (error) {
-    if (ticket === state.loading) $('status').textContent = `Could not load: ${error.message}`
+    if (ticket === state.loading) { stopLoader(); $('status').textContent = `Could not load: ${error.message}` }
     return
   }
   if (ticket !== state.loading) return                  // a newer request replaced this one
@@ -157,7 +195,7 @@ async function show() {
   map.once('idle', () => {
     if (ticket !== state.loading) return
     readout(loaded.stats, cached ? null : performance.now() - t0, cached)
-    $('status').textContent = ''
+    stopLoader()
   })
 }
 

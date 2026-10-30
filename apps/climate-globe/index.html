@@ -30,6 +30,15 @@
   .crumbs .org { color: var(--ink-3); }
   .crumbs b { font-weight: 500; }
   .pill { font-size: 12px; color: var(--ink-2); border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; white-space: nowrap; }
+  #loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 3; display: flex;
+    flex-direction: column; align-items: center; gap: 6px; min-width: 220px; padding: 18px 22px 14px;
+    background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 4px 16px rgba(17,24,39,.08); }
+  #loader[hidden] { display: none; }
+  #loader svg { width: 64px; height: 56px; margin-bottom: 4px; }
+  #loader polygon { fill: var(--line); transition: fill .2s; }
+  #loader polygon.on { fill: var(--on); }
+  #loader-text { font-size: 14px; color: var(--ink); text-align: center; }
+  #loader-bytes { font-family: var(--mono); font-size: 12px; color: var(--ink-3); min-height: 1em; }
   .bar nav { margin-left: auto; display: flex; gap: 16px; font-size: 14px; }
   .bar nav a { color: var(--ink-2); text-decoration: none; white-space: nowrap; }
   .bar nav a:hover { color: var(--mt-blue); }
@@ -111,7 +120,37 @@
 </header>
 
 <main>
-  <div id="map-wrap"><div id="map"></div><div id="status"></div></div>
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div id="status"></div>
+    <div id="loader" role="status" aria-live="polite" hidden>
+      <!-- the Major TOM Climate flag (mt-climate-icon.svg): its 20 bars light up as the data arrives -->
+      <svg viewBox="398 10 100 86" aria-hidden="true">
+      <polygon style="--on:var(--mt-navy)" points="420.45 14.5 402.24 23.6 402.24 34.39 420.45 25.29"/>
+      <polygon style="--on:var(--mt-navy)" points="420.45 28.89 402.24 37.99 402.24 48.79 420.45 39.69"/>
+      <polygon style="--on:var(--mt-navy)" points="420.45 43.28 402.24 52.38 402.24 63.18 420.45 54.08"/>
+      <polygon style="--on:var(--mt-navy)" points="420.45 57.67 402.24 66.78 402.24 77.57 420.45 68.47"/>
+      <polygon style="--on:var(--mt-navy)" points="420.45 72.07 402.24 81.17 402.24 92.6 420.45 83.04"/>
+      <polygon style="--on:var(--mt-blue)" points="424.04 14.26 446.45 22.88 446.45 33.67 424.04 25.05"/>
+      <polygon style="--on:var(--mt-blue)" points="424.04 28.65 446.45 37.26 446.45 48.06 424.04 39.45"/>
+      <polygon style="--on:var(--mt-blue)" points="424.04 43.04 446.45 51.66 446.45 62.46 424.04 53.84"/>
+      <polygon style="--on:var(--mt-blue)" points="424.04 57.43 446.45 66.05 446.45 76.85 424.04 68.23"/>
+      <polygon style="--on:var(--mt-blue)" points="424.04 71.83 446.45 80.45 446.45 91.84 424.04 82.79"/>
+      <polygon style="--on:var(--mt-green)" points="450.04 22.91 472.45 14.29 472.45 25.08 450.04 33.7"/>
+      <polygon style="--on:var(--mt-green)" points="450.04 37.3 472.45 28.68 472.45 39.48 450.04 48.1"/>
+      <polygon style="--on:var(--mt-green)" points="450.04 51.69 472.45 43.07 472.45 53.87 450.04 62.49"/>
+      <polygon style="--on:var(--mt-green)" points="450.04 66.08 472.45 57.47 472.45 68.27 450.04 76.88"/>
+      <polygon style="--on:var(--mt-green)" points="450.04 80.48 472.45 71.86 472.45 82.82 450.04 91.88"/>
+      <polygon style="--on:var(--mt-orange)" points="476.04 14.5 494.24 23.6 494.24 34.39 476.04 25.29"/>
+      <polygon style="--on:var(--mt-orange)" points="476.04 28.89 494.24 37.99 494.24 48.79 476.04 39.69"/>
+      <polygon style="--on:var(--mt-orange)" points="476.04 43.28 494.24 52.38 494.24 63.18 476.04 54.08"/>
+      <polygon style="--on:var(--mt-orange)" points="476.04 57.67 494.24 66.78 494.24 77.57 476.04 68.47"/>
+      <polygon style="--on:var(--mt-orange)" points="476.04 72.07 494.24 81.17 494.24 92.6 476.04 83.04"/>
+      </svg>
+      <div id="loader-text"></div>
+      <div id="loader-bytes"></div>
+    </div>
+  </div>
 
   <aside>
     <section>
