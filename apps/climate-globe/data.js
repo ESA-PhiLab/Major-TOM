@@ -284,7 +284,7 @@ export async function loadZarrCellSeries(layer, row, col) {
 export async function loadPreview(layer, month) {
   const stats = { bytes: 0, requests: 1, t0: performance.now() }
   // revalidated with the server: a cached image from an earlier build (another layout) is never used
-  const blob = await (await fetch(layer.preview.replace('{MM}', String(month).padStart(2, '0')), { cache: 'no-cache' })).blob()
+  const blob = await (await fetch(layer.preview.replace('{MM}', String(month).padStart(2, '0')) + location.search, { cache: 'no-cache' })).blob()
   stats.bytes = blob.size
   const bitmap = await createImageBitmap(blob, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' })  // colours as stored
   if (bitmap.width !== COLS || bitmap.height !== ROWS) {

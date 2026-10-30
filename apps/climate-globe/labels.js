@@ -7,7 +7,7 @@ const MARK = { capital: '■', city: '●', peak: '▲', low: '▼', pass: '⌇'
 
 export function placeLabels(map, layer) {
   let rows = [], on = true, frame = 0
-  fetch('places.json').then(r => r.json()).then(d => { rows = d.rows; draw() })
+  fetch('places.json' + location.search).then(r => r.json()).then(d => { rows = d.rows; draw() })
 
   /** Whether a place is on the visible side of the globe (MapLibre's own test where available). */
   const visible = (lon, lat) => {

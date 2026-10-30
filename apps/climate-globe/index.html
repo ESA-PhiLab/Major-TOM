@@ -264,6 +264,22 @@
   </aside>
 </main>
 
-<script type="module" src="app.js"></script>
+<script>
+  // A private Space is shown in huggingface.co's frame through a signed link (?__sign=...), and only requests that
+  // carry the signature are let through there: modules imported by other modules would not. So every file of the app
+  // is asked for with it (an import map, then app.js). With no signature (public Space, local) nothing changes.
+  {
+    const sign = location.search, files = ['app.js', 'data.js', 'tiles.js', 'scales.js', 'charts.js', 'labels.js']
+    const url = file => new URL(file, location.href).href.split('?')[0]
+    const map = document.createElement('script')
+    map.type = 'importmap'
+    map.textContent = JSON.stringify({ imports: Object.fromEntries(files.map(f => [url(f), url(f) + sign])) })
+    document.head.append(map)
+    const app = document.createElement('script')
+    app.type = 'module'
+    app.src = 'app.js' + sign
+    document.body.append(app)
+  }
+</script>
 </body>
 </html>
