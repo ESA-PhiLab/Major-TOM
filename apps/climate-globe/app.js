@@ -1,0 +1,246 @@
+// The page: a MapLibre globe whose data layer is drawn in the browser, a panel to pick layer, source and month.
+//
+//   panel (layer, source, month) -> load: preview image or live Parquet (data.js), cached per month
+//     -> field (tiles.js) -> new tile URL version -> MapLibre requests tiles -> renderTile -> globe
+//   cursor -> cell under it -> outline on the globe + name, position and value in the panel
+//   every load -> bytes, requests, read and draw time in the panel (the test this version is for)
+
+import * as maplibregl from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.mjs'
+import { feature } from 'https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/+esm'
+import { LAYERS, SOURCE_COOP, loadPreview, loadSeries } from './data.js'
+import { drawBar, makeScale } from './scales.js'
+import { cellAt, gridField, imageField, renderTile } from './tiles.js'
+
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October',
+  'November', 'December']
+const $ = id => document.getElementById(id)
+
+const state = { layer: LAYERS[0], mode: 'preview', step: 6, field: null, version: 0, loading: 0 }
+const cache = new Map()                                  // "<layer>/<mode>/<step>" -> loaded field, last 8 kept
+
+// ---- map ---------------------------------------------------------------------------------------------------
+
+const EMPTY = { pixel: (lon, lat, out, o) => { out[o + 3] = 0 } }       // before the first layer has loaded
+maplibregl.addProtocol('mt', async params => {
+  const [z, x, y] = params.url.split('/').slice(-3).map(Number)
+  return { data: await renderTile(state.field ?? EMPTY, z, x, y) }
+})
+
+const map = new maplibregl.Map({
+  container: 'map', center: [12, 22], zoom: innerWidth < 820 ? 1.3 : 2.25, attributionControl: false, maxZoom: 9,
+  style: {
+    version: 8, projection: { type: 'globe' },
+    sky: { 'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 0.6, 4, 0.3, 7, 0] },
+    sources: {
+      field: { type: 'raster', tiles: ['mt://0/{z}/{x}/{y}'], tileSize: 256, maxzoom: 7 },
+      land: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
+      coast: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
+      cell: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
+    },
+    layers: [
+      { id: 'ocean', type: 'background', paint: { 'background-color': '#2a2d33' } },
+      { id: 'land', type: 'fill', source: 'land', paint: { 'fill-color': '#3b3f47', 'fill-antialias': false } },
+      { id: 'field', type: 'raster', source: 'field', paint: { 'raster-resampling': 'nearest', 'raster-fade-duration': 0 } },
+      { id: 'coast', type: 'line', source: 'coast', paint: { 'line-color': 'rgba(20,20,24,0.55)', 'line-width': 0.6 } },
+      { id: 'cell', type: 'line', source: 'cell', paint: { 'line-color': '#f15a24', 'line-width': 2 } },
+    ],
+  },
+})
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right')
+map.addControl(new maplibregl.AttributionControl({ compact: true,
+  customAttribution: 'Coastlines: Natural Earth · Data: <a href="https://source.coop/major-tom/climate">major-tom/climate</a>' }))
+
+map.on('load', async () => {
+  const topo = await (await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-50m.json')).json()
+  const land = feature(topo, topo.objects.land)
+  map.getSource('land').setData(land)
+  map.getSource('coast').setData(coastLines(land))
+  show()
+})
+
+/** Coastlines from the land polygons, without the edges that are not coast: those closing Antarctica along the
+ *  date line and the pole, and steps across the date line (Fiji, Chukotka), which a map draws the long way round,
+ *  as a line along that latitude across the globe. */
+function coastLines(land) {
+  const artificial = ([x1, y1], [x2, y2]) => (Math.abs(x1) >= 179.99 && Math.abs(x2) >= 179.99) ||
+    (y1 <= -89.99 && y2 <= -89.99) || Math.abs(x2 - x1) > 180
+  const lines = []
+  for (const f of land.features) {
+    const polygons = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates
+    for (const ring of polygons.flat()) {
+      let line = [ring[0]]
+      for (let i = 1; i < ring.length; i++) {
+        if (artificial(ring[i - 1], ring[i])) { if (line.length > 1) lines.push(line); line = [ring[i]] }
+        else line.push(ring[i])
+      }
+      if (line.length > 1) lines.push(line)
+    }
+  }
+  return { type: 'Feature', geometry: { type: 'MultiLineString', coordinates: lines } }
+}
+
+let cursor = null                                         // last position under the mouse
+map.on('mousemove', e => { cursor = e.lngLat; describe() })
+window.globe = map                                         // for automated checks
+
+/** Outline and describe the cell under the cursor (again after each load, so the value is never stale). */
+function describe() {
+  if (!cursor) return
+  const { lng, lat } = cursor, cell = cellAt(lng, lat), [w, s, east, n] = cell.bounds
+  map.getSource('cell').setData({ type: 'Feature', geometry: { type: 'Polygon',
+    coordinates: [[[w, s], [east, s], [east, n], [w, n], [w, s]]] } })
+  const v = state.field?.valueAt(lng, lat)
+  $('cursor-cell').textContent = cell.name
+  $('cursor-pos').textContent = `${lat.toFixed(2)}°, ${lng.toFixed(2)}°`
+  $('cursor-value').textContent = v === undefined ? 'colours only (preview)'
+    : Number.isNaN(v) ? 'no value' : `${format(v)} ${state.layer.unit}`
+}
+map.getCanvas().addEventListener('mouseleave', () => {
+  cursor = null
+  map.getSource('cell').setData({ type: 'FeatureCollection', features: [] })
+})
+
+// ---- time --------------------------------------------------------------------------------------------------
+
+/** Steps of the time slider: 12 climatology months, or every month of the layer's series. */
+function steps() {
+  if (state.mode === 'preview') return 12
+  const [a, b] = state.layer.series
+  return (b - a + 1) * 12
+}
+function when(step) {                                    // step -> {year, month}; year null for the climatology
+  if (state.mode === 'preview') return { year: null, month: step + 1 }
+  return { year: state.layer.series[0] + Math.floor(step / 12), month: (step % 12) + 1 }
+}
+/** {year, month} -> step of the current layer and source; a climatology month goes to the series' last year. */
+function stepFor({ year, month }) {
+  if (state.mode === 'preview') return month - 1
+  const [a, b] = state.layer.series
+  return (Math.min(Math.max(year ?? b, a), b) - a) * 12 + month - 1
+}
+function timeLabel(step) {
+  const { year, month } = when(step)
+  return year === null ? `${MONTHS[month - 1]} · normal 1991–2020` : `${MONTHS[month - 1]} ${year}`
+}
+
+// ---- load and draw -----------------------------------------------------------------------------------------
+
+async function show() {
+  const ticket = ++state.loading, { layer, mode, step } = state, key = `${layer.id}/${mode}/${step}`
+  $('time-label').textContent = timeLabel(step)
+  $('status').textContent = 'Loading…'
+  const scale = makeScale(layer.scale)
+  let loaded = cache.get(key), cached = Boolean(loaded)
+  try {
+    if (!loaded) {
+      const { year, month } = when(step)
+      if (mode === 'preview') {
+        const p = await loadPreview(layer, month)
+        loaded = { field: imageField(p.rgba, p.width, scale), stats: p.stats }
+      } else {
+        const s = await loadSeries(layer, year, month)
+        loaded = { field: gridField(s.values, scale), stats: s.stats }
+      }
+      cache.set(key, loaded)
+      if (cache.size > 8) cache.delete(cache.keys().next().value)
+    }
+  } catch (error) {
+    if (ticket === state.loading) $('status').textContent = `Could not load: ${error.message}`
+    return
+  }
+  if (ticket !== state.loading) return                  // a newer request replaced this one
+  state.field = loaded.field
+  describe()
+  const t0 = performance.now()
+  map.getSource('field').setTiles([`mt://${++state.version}/{z}/{x}/{y}`])
+  legend(scale)
+  map.once('idle', () => {
+    if (ticket !== state.loading) return
+    readout(loaded.stats, cached ? null : performance.now() - t0, cached)
+    $('status').textContent = ''
+  })
+}
+
+function readout(stats, drawMs, cached) {
+  $('stat-source').textContent = state.mode === 'preview' ? 'preview image (PNG)' : 'Parquet, read live'
+  $('stat-bytes').textContent = cached ? 'cached' : `${(stats.bytes / 1e6).toFixed(1)} MB in ${stats.requests} request${stats.requests > 1 ? 's' : ''}` +
+    (stats.firstOfDataset ? ' (with cell positions)' : '')
+  $('stat-read').textContent = cached ? '–' : stats.network === undefined ? `${Math.round(stats.read)} ms`
+    : `${Math.round(stats.read)} ms (network ${Math.round(stats.network)})`
+  $('stat-draw').textContent = drawMs === null ? '–' : `${Math.round(drawMs)} ms`
+  $('stat-cells').textContent = stats.cells ? stats.cells.toLocaleString('en') : '–'
+  document.body.dataset.loaded = `${state.layer.id}/${state.mode}/${state.step}`     // for automated checks
+}
+
+function legend(scale) {
+  drawBar($('legend-bar'), scale)
+  $('legend-ticks').replaceChildren(...scale.ticks.map(t => {
+    const span = document.createElement('span')
+    span.textContent = scale.type === 'centred' && t > 0 ? `+${t}` : `${t}`
+    span.style.left = `${scale.position(t) * 100}%`
+    return span
+  }))
+  $('legend-unit').textContent = `${state.layer.unit}${scale.type === 'log' ? ' · log scale' : ''}`
+}
+
+const format = v => (Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 1 ? v.toFixed(1) : v.toPrecision(2))
+
+// ---- panel -------------------------------------------------------------------------------------------------
+
+function buildLayerList() {
+  $('layers').replaceChildren(...LAYERS.map(layer => {
+    const label = document.createElement('label')
+    label.className = 'option'
+    label.innerHTML = `<input type="radio" name="layer" value="${layer.id}"><span><b>${layer.name}</b>` +
+      `<small>${layer.source}</small></span>`
+    label.querySelector('input').checked = layer === state.layer
+    label.querySelector('input').addEventListener('change', () => {
+      const t = when(state.step)                       // keep the month (and year, where the new layer has it)
+      state.layer = layer; syncControls(); state.step = stepFor(t); syncControls(); show()
+    })
+    return label
+  }))
+}
+
+/** Source and time controls follow the layer: a layer without preview images is read live. */
+function syncControls() {
+  const hasPreview = Boolean(state.layer.preview)
+  $('mode-preview').disabled = !hasPreview
+  if (!hasPreview) state.mode = 'live'
+  for (const b of document.querySelectorAll('[data-mode]')) b.setAttribute('aria-pressed', String(b.dataset.mode === state.mode))
+  $('mode-note').textContent = hasPreview ? '' : 'No preview images for this layer yet: read live.'
+  const n = steps()
+  state.step = Math.min(state.step, n - 1)
+  $('time').max = String(n - 1); $('time').value = String(state.step)
+  $('time-range').textContent = state.mode === 'preview' ? 'Jan – Dec' : `${state.layer.series[0]} – ${state.layer.series[1]}`
+  $('dataset-link').href = `https://source.coop/major-tom/climate/${state.layer.dataset}`
+  $('dataset-link').textContent = state.layer.dataset
+}
+
+function move(delta) {
+  const n = steps()
+  state.step = (state.step + delta + n) % n
+  $('time').value = String(state.step)
+  show()
+}
+
+for (const b of document.querySelectorAll('[data-mode]')) {
+  b.addEventListener('click', () => {
+    if (b.disabled) return
+    const t = when(state.step)
+    state.mode = b.dataset.mode; state.step = stepFor(t); syncControls(); show()
+  })
+}
+$('time').addEventListener('input', e => { state.step = Number(e.target.value); $('time-label').textContent = timeLabel(state.step) })
+$('time').addEventListener('change', () => show())
+$('prev').addEventListener('click', () => move(-1))
+$('next').addEventListener('click', () => move(1))
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input[type=range]') || !['ArrowLeft', 'ArrowRight'].includes(e.key)) return
+  e.preventDefault()                                     // on a layer button, ← → would otherwise switch layers
+  move(e.key === 'ArrowLeft' ? -1 : 1)
+})
+$('source-base').textContent = SOURCE_COOP.replace('https://', '')
+
+buildLayerList()
+syncControls()

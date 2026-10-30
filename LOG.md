@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-30 Climate globe first version (apps/climate-globe): MapLibre globe, tiles drawn in the browser from preview images or Parquet read live from source.coop; per-month cost CPC 4.6 MB/2 s, IMERG 26 MB/7 s, CAMS 9.8 MB/6 s (request-latency bound)
 - 2026-10-30 Climate globe: build_images.py renders climatology as lon/lat images (CPC precipitation, 12 months; cell colours checked at 3 places); uv.lock updated, CI green again
 - 2026-10-29 GitHub Action uploads each changed apps/<name> folder to its HF Space (.github/workflows/apps-spaces.yml; token in environment hf-space)
 - 2026-10-29 ARCO-ERA5 reads fail after a 2 min stall and are retried by gcsfs (it sent timeout=None, i.e. no limit; tests/test_climate_zarr.py); applies to ERA5 groups 7-8
