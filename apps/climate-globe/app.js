@@ -290,11 +290,14 @@ $('time').addEventListener('input', e => { state.step = Number(e.target.value); 
 $('time').addEventListener('change', () => show())
 $('prev').addEventListener('click', () => move(-1))
 $('next').addEventListener('click', () => move(1))
+// ← → change the month and nothing else: handled before the map (which would pan) and the layer buttons (which
+// would switch layer) see them. With Shift, Alt, Ctrl or Meta they stay the map's (rotation).
 document.addEventListener('keydown', e => {
   if (e.target.closest('input[type=range]') || !['ArrowLeft', 'ArrowRight'].includes(e.key)) return
-  e.preventDefault()                                     // on a layer button, ← → would otherwise switch layers
+  if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return
+  e.preventDefault(); e.stopPropagation()
   move(e.key === 'ArrowLeft' ? -1 : 1)
-})
+}, { capture: true })
 $('source-base').textContent = SOURCE_COOP.replace('https://', '')
 
 buildLayerList()
