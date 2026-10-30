@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-30 Climate globe read experiments: cell series, Zarr, loading ahead, row groups -> [report](docs/reports/2026-10-30-climate-globe-read-experiments.md)
 - 2026-10-30 Climate globe loads neighbouring months in the background: a step after they arrive draws in 0.15 s (Parquet was 2-2.5 s); stepping fast joins the load under way
 - 2026-10-30 Zarr test (CPC precip, _experiments on source.coop): globe month 0.4 MB/5 requests/0.5-1.6 s from 4x4 overview; one cell 564 months 767 KB/6 requests/0.7 s vs Parquet 153 MB/1,144 requests/10.7 s, identical values
 - 2026-10-30 Climate globe: click a cell for its normals (1 band file, 738 KB, 1-2 s) and full series read live (CPC 564 months: 153 MB in 1,142 requests, 10 s); values checked against the files
