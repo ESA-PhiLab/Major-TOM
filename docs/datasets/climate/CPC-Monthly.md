@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of `major-tom/climate/CPC-Monthly/README.md`. Remove these notes
+> **Review status:** cpc_gauges added, by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of `major-tom/climate/CPC-Monthly/README.md`. Remove these notes
 > when publishing. Licence and citations checked 2026-10-28 (NOAA PSL catalogue, datasets 48 and 49).
 > Artifact counts from docs/evidence/monthly_artifacts.py (2026-10-28).
 
@@ -21,7 +21,7 @@ Monthly precipitation and daily temperature extremes from rain gauges, for every
 | Product | NOAA CPC Global Unified Gauge-Based Analysis of Daily Precipitation; CPC Global Unified Temperature |
 | Provider | NOAA Physical Sciences Laboratory (PSL), https://psl.noaa.gov |
 | Kind | analysis of rain-gauge and weather-station reports, interpolated to a 0.5° grid |
-| Accessed | yearly daily files from https://downloads.psl.noaa.gov/Datasets (2026-10-24) |
+| Accessed | yearly daily files from https://downloads.psl.noaa.gov/Datasets (2026-10-24); gauge counts from CPC's daily files, https://ftp.cpc.ncep.noaa.gov/precip/CPC_UNI_PRCP/GAUGE_GLB (2026-10-29) |
 | Licence | no usage restrictions (NOAA PSL catalogue); acknowledgement of NOAA PSL requested |
 
 ## Coverage
@@ -39,6 +39,7 @@ Monthly precipitation and daily temperature extremes from rain gauges, for every
 | `cpc_precip` | total precipitation in the month (sum of daily totals) | mm |
 | `cpc_tmax` | mean of the daily maximum temperature | °C |
 | `cpc_tmin` | mean of the daily minimum temperature | °C |
+| `cpc_gauges` | rain gauges near the cell: CPC's daily gauge count in the 3 × 3 source pixels around it (1.5° × 1.5°), averaged over the month's days | gauges |
 | `cpc_valid` | share of the cell covered by source pixels with data | 0–1 |
 
 ## Files
@@ -70,7 +71,7 @@ The band of a cell is (row + 1002) × 20 // 2004, with row the number in its nam
 
 ## Notes
 
-- **Gauge density.** Quality follows gauge density: highest in Europe, North America and East Asia, lowest over tropical Africa, deserts and Antarctica. In the climatology, `n_years` is below 30 where a cell had no data in some years, and 0 where it had none in 1991–2020.
+- **Gauge density.** Quality follows gauge density: highest in Europe, North America and East Asia, lowest over tropical Africa, deserts and Antarctica. `cpc_gauges` gives it per cell and month (from CPC's own daily files, which carry the count; NOAA PSL's copy does not): with 0 gauges within 1.5°, a value comes from gauges further away and is least reliable. In the climatology, `n_years` is below 30 where a cell had no data in some years, and 0 where it had none in 1991–2020.
 - **The gauge network changes in 2006.** CPC's retrospective version (1979–2005) uses about 30,000 gauges, the real-time version (2006 onwards) about 17,000 (CPC's README), so values before and after 2006 come from different networks. Trends across 2006 should be treated with caution.
 - **End of the CPC day.** Each country reports its daily total for its own observation day, so a CPC day ends at a different UTC hour per region. Monthly totals are unaffected except at month boundaries.
 - **Known source artifacts.** Six months in the record have cells above 4,000 mm, at places and in seasons where such totals do not occur: February 1991 in central Mexico (up to 9,578 mm), January 1991 in Yucatán (5,195 mm), September 1999 in São Paulo state (6,375 mm), November and December 1993 and October 2001 in western Amazonas (4,505–6,011 mm); 437 cell-months in all. In these months the daily analysis carries large values on most days. They come from the source: we checked them against NOAA's daily files (equal to 0.1 mm) and kept them unchanged. Users who need clean totals can mask them by month and place.
