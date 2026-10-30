@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-30 Evening: CPC gauges published; ERA5-Monthly repacked, validated, figures, upload started; Core-Weather sources checked and trial-merged -> [report](docs/reports/2026-10-30-climate-evening.md)
 - 2026-10-30 Climate globe browser tests in the repo (apps/climate-globe/tests, 5 tests) and on GitHub (apps-tests.yml); tests/ not uploaded to the Space
 - 2026-10-30 ERA5-Monthly README drafted (201 variables, accumulations per day, ptype left out, no by_cell); cpc_gauges added to the CPC build; ERA5-Monthly repack submitted
 - 2026-10-30 Climate READMEs: by_cell/ and overviews/ described; code examples fixed (plain https URLs got 403 via urllib; filter on grid_row_u/grid_col_r, not grid_cell: 0.9 s vs 342 s; IMERG band=09)
