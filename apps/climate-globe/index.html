@@ -86,6 +86,24 @@
   #legend-ticks span:last-child { transform: translateX(-100%); }
   #legend-unit { font-size: 13px; color: var(--ink-3); margin-top: 2px; }
 
+  .pick-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .pick-head h2 { margin-bottom: 4px; }
+  .link { font: inherit; font-size: 13px; color: var(--mt-blue); background: none; border: 0; padding: 0; cursor: pointer; }
+  .pick-name { display: flex; justify-content: space-between; gap: 8px; font-family: var(--mono); font-size: 13px; margin-bottom: 10px; }
+  .pick-name b { font-weight: 500; }
+  .pick-name span { color: var(--ink-3); }
+  .chart-title { font-size: 13px; color: var(--ink-2); margin: 6px 0 2px; }
+  .chart { width: 100%; height: auto; display: block; }
+  .chart .grid { stroke: var(--line); stroke-width: 1; }
+  .chart .tick { font: 10px var(--mono); fill: var(--ink-3); }
+  .chart .line { fill: none; stroke: var(--mt-blue); stroke-width: 1.5; stroke-linejoin: round; }
+  .chart .band { fill: var(--mt-blue); fill-opacity: .14; }
+  .chart .marker { fill: var(--mt-orange); stroke: var(--surface); stroke-width: 1.5; }
+  .chart .empty { font: 12px var(--sans); fill: var(--ink-3); text-anchor: middle; }
+  .tiny { font: 11px/1.4 var(--mono); color: var(--ink-3); min-height: 1em; }
+  .action { font: inherit; font-size: 13px; width: 100%; margin: 6px 0 4px; padding: 6px 10px; border: 1px solid var(--line);
+    border-radius: 8px; background: var(--surface); color: var(--ink); cursor: pointer; text-align: left; }
+  .action:hover { border-color: var(--mt-blue); color: var(--mt-blue); }
   dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; margin: 0; font-size: 14px; }
   dt { color: var(--ink-3); }
   dd { margin: 0; font-family: var(--mono); font-size: 13px; text-align: right; overflow-wrap: anywhere; }
@@ -185,6 +203,18 @@
       <canvas id="legend-bar" width="300" height="12"></canvas>
       <div id="legend-ticks"></div>
       <div id="legend-unit"></div>
+    </section>
+
+    <section id="pick" hidden>
+      <div class="pick-head"><h2>Selected cell</h2><button id="pick-clear" class="link">Clear</button></div>
+      <div class="pick-name"><b id="pick-cell"></b><span id="pick-pos"></span></div>
+      <div class="chart-title" id="clim-title"></div>
+      <svg id="chart-clim" class="chart" role="img" aria-label="Monthly normals of the selected cell"></svg>
+      <div class="tiny" id="clim-stats"></div>
+      <div class="chart-title" id="series-title"></div>
+      <svg id="chart-series" class="chart" role="img" aria-label="Every month of the selected cell" hidden></svg>
+      <button id="series-load" class="action"></button>
+      <div class="tiny" id="series-stats"></div>
     </section>
 
     <section>

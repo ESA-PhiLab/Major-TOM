@@ -7,7 +7,8 @@
 
 import * as maplibregl from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.mjs'
 import { feature } from 'https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/+esm'
-import { LAYERS, SOURCE_COOP, loadPreview, loadSeries } from './data.js'
+import { LAYERS, SOURCE_COOP, cellRow, loadCellClimatology, loadCellSeries, loadPreview, loadSeries } from './data.js'
+import { lineChart } from './charts.js'
 import { drawBar, makeScale } from './scales.js'
 import { cellAt, gridField, imageField, renderTile } from './tiles.js'
 
@@ -36,13 +37,15 @@ const map = new maplibregl.Map({
       land: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
       coast: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
       cell: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
+      selected: { type: 'geojson', data: { type: 'FeatureCollection', features: [] } },
     },
     layers: [
       { id: 'ocean', type: 'background', paint: { 'background-color': '#2a2d33' } },
       { id: 'land', type: 'fill', source: 'land', paint: { 'fill-color': '#3b3f47', 'fill-antialias': false } },
       { id: 'field', type: 'raster', source: 'field', paint: { 'raster-resampling': 'nearest', 'raster-fade-duration': 0 } },
       { id: 'coast', type: 'line', source: 'coast', paint: { 'line-color': 'rgba(20,20,24,0.55)', 'line-width': 0.6 } },
-      { id: 'cell', type: 'line', source: 'cell', paint: { 'line-color': '#f15a24', 'line-width': 2 } },
+      { id: 'cell', type: 'line', source: 'cell', paint: { 'line-color': '#f15a24', 'line-width': 1.25, 'line-opacity': 0.8 } },
+      { id: 'selected', type: 'line', source: 'selected', paint: { 'line-color': '#f15a24', 'line-width': 2.5 } },
     ],
   },
 })
@@ -92,6 +95,7 @@ map.on('mousemove', e => {
   if (onGlobe(e.point, e.lngLat)) { cursor = e.lngLat; describe() } else clearCursor()
 })
 window.globe = map                                         // for automated checks
+window.pickState = () => pick
 
 /** Outline and describe the cell under the cursor (again after each load, so the value is never stale). */
 function describe() {
@@ -149,6 +153,108 @@ function loaderDrawing() {
 function stopLoader() {
   clearTimeout(loaderTimer); clearInterval(animation)
   $('loader').hidden = true
+}
+
+// ---- selected cell ----------------------------------------------------------------------------------------
+//   click on the globe -> cell -> outline + "Selected cell" section
+//     climatology: one band file, the row groups whose statistics contain the cell -> 12 normals (mean ± std)
+//     series (on request): every monthly file, footer + the chunk holding the cell -> chart fills in as they arrive
+
+const INITIALS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
+const pick = { cell: null, layer: null, clim: null, series: null, job: null, ticket: 0 }
+
+const outline = ([w, s, e, n]) => ({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [[[w, s], [e, s], [e, n], [w, n], [w, s]]] } })
+const kb = bytes => (bytes >= 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.round(bytes / 1e3)} KB`)
+const secs = ms => `${(ms / 1000).toFixed(1)} s`
+
+map.on('click', e => {
+  if (!onGlobe(e.point, e.lngLat)) return
+  pick.cell = { ...cellAt(e.lngLat.lng, e.lngLat.lat), lng: e.lngLat.lng, lat: e.lngLat.lat }
+  map.getSource('selected').setData(outline(pick.cell.bounds))
+  $('pick').hidden = false
+  $('pick-cell').textContent = pick.cell.name
+  $('pick-pos').textContent = `${pick.cell.lat.toFixed(2)}°, ${pick.cell.lng.toFixed(2)}°`
+  $('pick').scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  pickLayer()
+})
+$('pick-clear').addEventListener('click', () => {
+  stopSeries(); pick.cell = null; $('pick').hidden = true
+  map.getSource('selected').setData({ type: 'FeatureCollection', features: [] })
+})
+
+/** The selected cell, for the current layer: its normals now, its series on request. */
+async function pickLayer() {
+  const layer = state.layer, { row, col } = pick.cell, ticket = ++pick.ticket
+  stopSeries()
+  pick.layer = layer.id; pick.clim = null; pick.series = null
+  $('clim-title').textContent = `${layer.name} (${layer.source.split(',')[0]}), normal ${layer.normal}: mean ± 1 std, ${layer.unit}`
+  $('clim-stats').textContent = 'Loading…'
+  $('chart-clim').replaceChildren()
+  $('series-title').textContent = `Every month, ${layer.series[0]}–${layer.series[1]}`
+  $('chart-series').hidden = true
+  $('series-stats').textContent = ''
+  const months = (layer.series[1] - layer.series[0] + 1) * 12
+  $('series-load').textContent = `Load all ${months} months (reads one file per month)`
+  $('series-load').hidden = false
+  try {
+    const c = await loadCellClimatology(layer, row, col)
+    if (ticket !== pick.ticket) return
+    pick.clim = c
+    $('clim-stats').textContent = `${c.stats.rowGroups} row group${c.stats.rowGroups === 1 ? "" : "s"} · ${kb(c.stats.bytes)} in ${c.stats.requests} requests · ${secs(c.stats.read)}`
+  } catch (error) {
+    if (ticket === pick.ticket) $('clim-stats').textContent = `Could not load: ${error.message}`
+  }
+  drawPick()
+}
+
+function stopSeries() {
+  pick.job?.stop(); pick.job = null
+}
+
+$('series-load').addEventListener('click', async () => {
+  if (pick.job) { stopSeries(); $('series-load').textContent = 'Stopped. Load again'; return }
+  const layer = state.layer, ticket = pick.ticket, [a, b] = layer.series, n = (b - a + 1) * 12
+  $('series-load').textContent = 'Stop'
+  $('series-stats').textContent = 'Finding the cell…'
+  const rowIndex = await cellRow(layer.dataset, pick.cell.row, pick.cell.col)
+  if (ticket !== pick.ticket) return
+  if (rowIndex < 0) { $('series-stats').textContent = `This cell is not in ${layer.dataset}.`; $('series-load').hidden = true; return }
+  pick.series = new Array(n).fill(NaN)
+  $('chart-series').hidden = false
+  let arrived = 0, frame = 0
+  const job = loadCellSeries(layer, rowIndex, (k, v, st) => {
+    if (ticket !== pick.ticket) return
+    pick.series[k] = v; arrived++
+    $('series-stats').textContent = `${arrived} of ${n} months · ${kb(st.bytes)} in ${st.requests} requests · ${secs(performance.now() - st.t0)}`
+    if (!frame) frame = requestAnimationFrame(() => { frame = 0; drawPick() })
+  })
+  pick.job = job
+  const st = await job.done
+  if (ticket !== pick.ticket || pick.job !== job) return
+  pick.job = null
+  $('series-load').hidden = true
+  $('series-stats').textContent = `${n} months · ${kb(st.bytes)} in ${st.requests} requests · ${secs(st.read)} ` +
+    `(network ${secs(st.network)})`
+  drawPick()
+})
+
+/** Draw both charts, the shown month marked. */
+function drawPick() {
+  if (!pick.cell) return
+  const layer = LAYERS.find(l => l.id === pick.layer), { year, month } = when(state.step)
+  if (pick.clim) {
+    const { mean, std } = pick.clim, floor = layer.scale.type === 'log' ? 0 : -Infinity     // no negative rain
+    lineChart($('chart-clim'), {
+      x: mean.map((_, i) => i + 1), y: mean, lo: mean.map((m, i) => Math.max(floor, m - std[i])),
+      hi: mean.map((m, i) => m + std[i]), xRange: [0.5, 12.5], xTicks: INITIALS.map((t, i) => [i + 1, t]), marker: month - 1 })
+  }
+  if (pick.series) {
+    const [a, b] = layer.series, decades = []
+    for (let y = Math.ceil(a / 10) * 10; y <= b; y += 10) decades.push([y, String(y)])
+    lineChart($('chart-series'), {
+      x: pick.series.map((_, k) => a + (k + 0.5) / 12), y: pick.series, xRange: [a, b + 1], xTicks: decades,
+      marker: year === null ? -1 : (year - a) * 12 + month - 1 })
+  }
 }
 
 // ---- time --------------------------------------------------------------------------------------------------
@@ -209,6 +315,7 @@ async function show() {
   const t0 = performance.now()
   map.getSource('field').setTiles([`mt://${++state.version}/{z}/{x}/{y}`])
   legend(scale)
+  if (pick.cell) { if (pick.layer !== layer.id) pickLayer(); else drawPick() }
   map.once('idle', () => {
     if (ticket !== state.loading) return
     readout(loaded.stats, cached ? null : performance.now() - t0, cached)

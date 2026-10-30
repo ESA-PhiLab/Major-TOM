@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-30 Climate globe: click a cell for its normals (1 band file, 738 KB, 1-2 s) and full series read live (CPC 564 months: 153 MB in 1,142 requests, 10 s); values checked against the files
 - 2026-10-30 Climate globe first version (apps/climate-globe): MapLibre globe, tiles drawn in the browser from preview images or Parquet read live from source.coop; per-month cost CPC 4.6 MB/2 s, IMERG 26 MB/7 s, CAMS 9.8 MB/6 s (request-latency bound)
 - 2026-10-30 Climate globe: build_images.py renders climatology as lon/lat images (CPC precipitation, 12 months; cell colours checked at 3 places); uv.lock updated, CI green again
 - 2026-10-29 GitHub Action uploads each changed apps/<name> folder to its HF Space (.github/workflows/apps-spaces.yml; token in environment hf-space)
