@@ -52,7 +52,7 @@ def cpc(root: Path) -> pd.DataFrame:
 def cpc_totals(root: Path) -> pd.DataFrame:
     """CPC-Monthly months with any cell above BIG_MM: cells, largest total, median place."""
     from majortom.cells import cell_from_name
-    from majortom.climate.layout import centroids
+    from majortom.release.tables.layout import centroids
 
     rows = []
     for f in sorted((root / "CPC-Monthly/series").glob("year=*/*.parquet")):

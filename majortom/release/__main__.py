@@ -7,6 +7,8 @@
         upload partitions + TACOCAT (resumable; files already there are skipped); --dry-run lists the plan
     python -m majortom.release to-cog --dataset <folder, .zip or URL> --out <folder> [--where "<SQL condition>"]
         rumi files of the selected samples -> one COG per sample and file, with the Major TOM profile
+    python -m majortom.release tables repack --src <dataset folder> --out <folder> [--workers N]
+        tables keyed by grid_cell (cells, series, climatology, or a static table) -> rows along a Hilbert curve
 """
 from __future__ import annotations
 
@@ -53,6 +55,12 @@ def _publish(a: argparse.Namespace) -> None:
         print(f"  {'would upload' if a.dry_run else 'uploaded'} {rel}")
 
 
+def _tables(a: argparse.Namespace) -> None:
+    from .tables import repack
+
+    print(f"{repack(a.src, a.out, a.workers):,} files written and checked", flush=True)
+
+
 def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(prog="python -m majortom.release", description=__doc__.splitlines()[0])
     sub = p.add_subparsers(dest="command", required=True)
@@ -81,6 +89,13 @@ def main(argv: list[str] | None = None) -> None:
     c.add_argument("--out", required=True)
     c.add_argument("--where", help='SQL condition on the dataset table, e.g. "\\"majortom:code\\" = \'MT10km_0624U_0029L\'"')
     c.set_defaults(run=_to_cog)
+    t = sub.add_parser("tables", help="publishing layouts for tables keyed by grid_cell (climate datasets)")
+    tsub = t.add_subparsers(dest="layout", required=True)
+    r = tsub.add_parser("repack", help="rows along a Hilbert curve, small row groups, checked against the source")
+    r.add_argument("--src", type=Path, required=True, help="a dataset folder (cells, series, climatology) or static table")
+    r.add_argument("--out", type=Path, required=True)
+    r.add_argument("--workers", type=int, default=None)
+    r.set_defaults(run=_tables)
     a = p.parse_args(argv)
     a.run(a)
 

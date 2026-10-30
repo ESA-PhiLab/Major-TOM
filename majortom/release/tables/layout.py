@@ -11,7 +11,7 @@
     Nearby cells sit in the same row groups, so a point or region query reads one small row group per file
     instead of a whole column (~16x less for a point time series of CPC-Monthly). Values are not changed.
 
-    python -m majortom.climate repack --src /data/Major-TOM/CPC-Monthly --out /data/Major-TOM/climate-release/CPC-Monthly
+    python -m majortom.release tables repack --src /data/Major-TOM/CPC-Monthly --out /data/Major-TOM/climate-release/CPC-Monthly
 """
 from __future__ import annotations
 
@@ -25,8 +25,8 @@ import pyarrow as pa
 import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
-from ..cells import R_KM, n_rows
-from ..release.order import hilbert
+from ...cells import R_KM, n_rows
+from ..order import hilbert
 
 ROW_GROUP = 65_536
 
@@ -89,7 +89,7 @@ def repack(src: Path | str, dst: Path | str, workers: int | None = None, row_gro
         cells = pd.read_parquet(src / "cells.parquet")
     else:                                                          # a static table: its own rows are the cells
         cells = pd.read_parquet(src / "static.parquet", columns=["grid_cell"])
-        from ..cells import cell_from_name
+        from ...cells import cell_from_name
         rc = np.array([(c.row, c.col) for c in map(cell_from_name, cells["grid_cell"])])
         cells = cells.assign(grid_row_u=rc[:, 0], grid_col_r=rc[:, 1])
     rank = curve_rank(cells)
