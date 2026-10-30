@@ -61,9 +61,8 @@ map.on('zoomend', () => {
 })
 map.on('load', async () => {
   const topo = await (await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-50m.json')).json()
-  const land = continuousRings(feature(topo, topo.objects.land))
-  map.getSource('land').setData(land)
-  map.getSource('coast').setData(coastLines(land))
+  map.getSource('coast').setData(coastLines(feature(topo, topo.objects.land)))     // from the rings as stored
+  map.getSource('land').setData(continuousRings(feature(topo, topo.objects.land)))  // made continuous: fill only
   show()
 })
 
