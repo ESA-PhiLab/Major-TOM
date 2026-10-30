@@ -265,6 +265,28 @@ def era5_height(release: Path) -> tuple:
                empty_label="sea")
 
 
+def era5_precip(release: Path) -> tuple:
+    """ERA5's monthly means of precipitation are per day (m day⁻¹): x days in the month x 1000 -> mm."""
+    a = annual(release, "ERA5-Monthly", "era5_tp_mean", per_month={m: h / 24 * 1000 for m, h in HOURS_IN.items()})
+    cmap, norm, ticks, labels = precipitation_scale()
+    return _spec([(_image(a, "era5_tp_mean"), None)], cmap, norm, ticks, labels,
+               "Annual precipitation, ERA5 (reanalysis), 1991–2020",
+               "ECMWF ERA5, normal 1991–2020 · ERA5-Monthly · 5,113,745 cells, land and sea",
+               "mm per year (log scale)", release / "ERA5-Monthly" / "figures" / "annual-precipitation.png")
+
+
+def era5_temperature(release: Path) -> tuple:
+    t = normals(release, "ERA5-Monthly", ["era5_t2m_mean"])
+    t["era5_t2m_mean"] -= 273.15                                          # K -> °C, for the scale shared with CPC
+    norm = TwoSlopeNorm(vmin=-40, vcenter=0, vmax=40)
+    ticks = [-40, -20, -10, 0, 10, 20, 30, 40]
+    panels = [(_image(t[t.month == m], "era5_t2m_mean"), name) for m, name in ((1, "January"), (7, "July"))]
+    return _spec(panels, COLD_HOT, norm, ticks, [f"{v:+d}".replace("+0", "0") for v in ticks],
+               "2 m temperature, ERA5, 1991–2020",
+               "ECMWF ERA5, normal 1991–2020 · ERA5-Monthly · monthly mean of the 2 m air temperature",
+               "°C (grey: 0 °C, freezing)", release / "ERA5-Monthly" / "figures" / "temperature.png")
+
+
 def _save_vector(fig, out: Path) -> None:
     """Line charts as SVG: sharp at any display size; text as outlines, so no font is needed to view them."""
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -383,7 +405,8 @@ def _draw(spec):
 
 FIGURES = {"cpc-precip": _draw(cpc_precip), "imerg-precip": _draw(imerg_precip),
            "cpc-temperature": _draw(cpc_temperature), "cams-aerosol": _draw(cams_aerosol),
-           "cams-pm25": _draw(cams_pm25), "era5-height": _draw(era5_height), "overview": overview,
+           "cams-pm25": _draw(cams_pm25), "era5-height": _draw(era5_height), "era5-precip": _draw(era5_precip),
+           "era5-temperature": _draw(era5_temperature), "overview": overview,
            "places": places, "air-quality": air_quality_seasons}
 
 if __name__ == "__main__":
