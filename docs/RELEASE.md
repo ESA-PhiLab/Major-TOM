@@ -234,7 +234,11 @@ majortom/release/
   order.py       Hilbert writing order; taco-eo's partition_size makes the partitions (section 7)
   taco.py        release(): contract, samples, partitions, TACOCAT via taco-eo (implemented)
   publish.py     source.coop and Hugging Face upload, resumable (implemented)
-  __main__.py    python -m majortom.release build | publish | to-cog (implemented)
+  tables/        tables keyed by grid_cell, one file per month (majortom.climate's datasets; moved here 2026-10-30):
+    layout.py      rows along the Hilbert curve, small row groups (implemented; was majortom/climate/layout.py)
+    overviews.py   4 x 4 block means per month, for globe-wide maps (implemented 2026-10-30)
+    bycell.py      every cell's whole series together, by band (implemented 2026-10-30)
+  __main__.py    python -m majortom.release build | publish | to-cog | tables repack|overviews|by-cell
 ```
 
 Dependencies (`[release]`): `taco-eo[writer]`, `rumi-eo` (GPL-3.0), `geozl` (BSD-3-Clause), `huggingface_hub`, an S3 client for source.coop, and GDAL >= 3.11 for tile-interleaved COGs (rasterio 1.5 wheels, which need Python >= 3.12, or a conda GDAL). rumi and GeoZL need Python 3.11 or newer; the package moved to 3.11 on 2026-10-25.
