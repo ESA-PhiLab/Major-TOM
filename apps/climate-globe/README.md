@@ -5,7 +5,7 @@ colorFrom: blue
 colorTo: green
 sdk: static
 pinned: false
-short_description: Major TOM Climate datasets on a 3D globe, read from source.coop
+short_description: Major TOM Climate datasets on a 3D globe, from source.coop
 ---
 
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
