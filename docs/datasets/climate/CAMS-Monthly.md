@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** unreviewed draft (2026-10-28) of `major-tom/climate/CAMS-Monthly/README.md`. Remove these notes
+> **Review status:** by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of `major-tom/climate/CAMS-Monthly/README.md`. Remove these notes
 > when publishing. Licence and citations checked 2026-10-28 (Atmosphere Data Store catalogue: CC-BY-4.0; DataCite
 > and Crossref records of both DOIs). The credit line is ECMWF's recommended wording, not a licence requirement.
 
@@ -52,14 +52,24 @@ PM1 is not in the monthly product.
 | `cells.parquet` | `grid_cell`, `grid_row_u`, `grid_col_r` |
 | `series/year=YYYY/MM.parquet` | one row per cell, along the Hilbert curve: `grid_cell`, `grid_row_u`, `grid_col_r`, `year`, `month`, the columns above |
 | `climatology/band=NN.parquet` | one row per cell and calendar month over 2003–2025: `grid_cell`, `grid_row_u`, `grid_col_r`, `month`, `<column>_mean`, `<column>_std`, `n_years` |
+| `by_cell/band=NN.parquet` | every month of each cell together: rows by cell (along the Hilbert curve), then `year`, `month`; the same columns as `series/`; a row group holds whole cells (237 cells × 276 months) |
+| `overviews/year=YYYY/MM.parquet` | one row per block of 4 × 4 cells with a value, for maps of the whole globe: `block_row` = (`grid_row_u` + 1002) // 4, `block_col` = (`grid_col_r` + 2004) // 4, `n_cells` (cells with a value), each column's mean |
+
+Which files to read: `series/` for one month over many cells (maps, monthly analyses); `by_cell/` for one place over time or training on series (a cell's whole record is in one row group, found from its band and the row-group statistics on `grid_row_u` and `grid_col_r`); `overviews/` for a view of the whole globe from one small file. `series/` and `by_cell/` hold the same values.
 
 Series values are CAMS's monthly means of each variable. The climatology gives, per cell and calendar month over 2003–2025, the mean (`_mean`) and the year-to-year sample standard deviation (`_std`) of each column, and `n_years`, the years with data (23 everywhere, as CAMS has no gaps).
 
 ```python
+import fsspec
 import pandas as pd
+
+https = fsspec.filesystem("https")      # reads only the parts of a file a query needs
 url = "https://data.source.coop/major-tom/climate/CAMS-Monthly"
-sep = pd.read_parquet(f"{url}/series/year=2024/09.parquet", columns=["grid_cell", "cams_aod550", "cams_pm2p5"])
+sep = pd.read_parquet(f"{url}/series/year=2024/09.parquet", filesystem=https, columns=["grid_cell", "cams_aod550", "cams_pm2p5"])
+history = pd.read_parquet(f"{url}/by_cell/band=16.parquet", filesystem=https, filters=[("grid_row_u", "=", 624), ("grid_col_r", "=", -29)])   # 276 months
 ```
+
+The band of a cell is (row + 1002) × 20 // 2004, with row the signed number in its name (`624U_29L`: 624, band 16). Filter on `grid_row_u` and `grid_col_r`, the numbers in a cell's name (U and R positive, D and L negative): the row-group statistics then let a reader skip the rest of the file (a cell's series from `by_cell/`: under a second). A filter on `grid_cell` reads the whole file.
 
 ## Notes
 
@@ -70,7 +80,7 @@ sep = pd.read_parquet(f"{url}/series/year=2024/09.parquet", columns=["grid_cell"
 
 ## Validation
 
-Every month from 2003-01 to 2025-12 is present; every file has one row per cell; no missing values; the climatology has one row per cell and calendar month.
+Every month from 2003-01 to 2025-12 is present; every file has one row per cell; no missing values; the climatology has one row per cell and calendar month. `by_cell/` equals `series/` for 50 random cells per band in three months; the overviews are means of `series/` (checked for one month).
 
 ## Licence and citation
 

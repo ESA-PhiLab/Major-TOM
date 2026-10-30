@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** unreviewed draft (2026-10-28) of `major-tom/climate/IMERG-Monthly/README.md`. Remove these notes
+> **Review status:** by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of `major-tom/climate/IMERG-Monthly/README.md`. Remove these notes
 > when publishing. Licence and citation checked 2026-10-28 (DataCite record of the DOI; NASA Earthdata data use
 > guidance). Artifact counts from docs/evidence/monthly_artifacts.py (2026-10-28).
 
@@ -48,17 +48,25 @@ Monthly satellite precipitation for every cell of the Major TOM grid, 1998–202
 | `cells.parquet` | `grid_cell`, `grid_row_u`, `grid_col_r` |
 | `series/year=YYYY/MM.parquet` | one row per cell, along the Hilbert curve: `grid_cell`, `grid_row_u`, `grid_col_r`, `year`, `month`, the columns above |
 | `climatology/band=NN.parquet` | one row per cell and calendar month over 1998–2024: `grid_cell`, `grid_row_u`, `grid_col_r`, `month`, `<column>_mean`, `<column>_std` for each column above, `n_years` |
+| `by_cell/band=NN.parquet` | every month of each cell together: rows by cell (along the Hilbert curve), then `year`, `month`; the same columns as `series/`; a row group holds whole cells (202 cells × 324 months) |
+| `overviews/year=YYYY/MM.parquet` | one row per block of 4 × 4 cells with a value, for maps of the whole globe: `block_row` = (`grid_row_u` + 1002) // 4, `block_col` = (`grid_col_r` + 2004) // 4, `n_cells` (cells with a value), each column's mean |
+
+Which files to read: `series/` for one month over many cells (maps, monthly analyses); `by_cell/` for one place over time or training on series (a cell's whole record is in one row group, found from its band and the row-group statistics on `grid_row_u` and `grid_col_r`); `overviews/` for a view of the whole globe from one small file. `series/` and `by_cell/` hold the same values.
 
 Series values are the monthly values defined in Variables: `imerg_precip` is the month's mean precipitation rate (mm/h). The climatology gives, per cell and calendar month over 1998–2024, the mean (`_mean`) and the year-to-year sample standard deviation (`_std`), and `n_years`, the years with data.
 
 ```python
+import fsspec
 import pandas as pd
+
+https = fsspec.filesystem("https")      # reads only the parts of a file a query needs
 url = "https://data.source.coop/major-tom/climate/IMERG-Monthly"
-jan = pd.read_parquet(f"{url}/series/year=2024/01.parquet")
-normals = pd.read_parquet(f"{url}/climatology/band=9.parquet", filters=[("grid_cell", "=", "35D_667L")])   # near Manaus
+jan = pd.read_parquet(f"{url}/series/year=2024/01.parquet", filesystem=https)
+normals = pd.read_parquet(f"{url}/climatology/band=09.parquet", filesystem=https, filters=[("grid_row_u", "=", -35), ("grid_col_r", "=", -667)])   # near Manaus
+history = pd.read_parquet(f"{url}/by_cell/band=09.parquet", filesystem=https, filters=[("grid_row_u", "=", -35), ("grid_col_r", "=", -667)])   # 324 months
 ```
 
-The band of a cell is (row + 1002) × 20 // 2004, with row the signed number in its name (`35D_667L`: −35, band 9).
+The band of a cell is (row + 1002) × 20 // 2004, with row the signed number in its name (`35D_667L`: −35, band 09). Filter on `grid_row_u` and `grid_col_r`, the numbers in a cell's name (U and R positive, D and L negative): the row-group statistics then let a reader skip the rest of the file (a cell's series from `by_cell/`: under a second). A filter on `grid_cell` reads the whole file.
 
 ## Notes
 
@@ -73,7 +81,7 @@ The band of a cell is (row + 1002) × 20 // 2004, with row the signed number in 
 
 ## Validation
 
-Every month from 1998-01 to 2024-12 is present; every file has one row per cell; `imerg_valid` lies in [0, 1]; the climatology has one row per cell and calendar month.
+Every month from 1998-01 to 2024-12 is present; every file has one row per cell; `imerg_valid` lies in [0, 1]; the climatology has one row per cell and calendar month. `by_cell/` equals `series/` for 50 random cells per band in three months; the overviews are means of `series/` (checked for one month).
 
 ## Citation
 

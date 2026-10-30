@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** unreviewed draft (2026-10-28) of the top-level README for source.coop `major-tom/climate`.
+> **Review status:** by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of the top-level README for source.coop `major-tom/climate`.
 > Remove these two notes when publishing. Placeholders: `[ERA5…]` rows are added when those datasets are published.
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
@@ -42,19 +42,28 @@ Monthly normals at the three cells of Major TOM's release test. Gauges and satel
 
 ## Layout
 
-Every monthly dataset has the same three parts:
+Every monthly dataset has the same parts:
 
 | Path | One row per | Columns |
 |---|---|---|
 | `cells.parquet` | cell | `grid_cell`, `grid_row_u`, `grid_col_r`: the cells with data, in the order every file uses |
 | `series/year=YYYY/MM.parquet` | cell and month | `grid_cell`, `grid_row_u`, `grid_col_r`, `year`, `month`, `<source>_<variable>`, `<source>_valid` (share of the cell with data) |
 | `climatology/band=NN.parquet` | cell and calendar month | `grid_cell`, `grid_row_u`, `grid_col_r`, `month`, `<variable>_mean`, `<variable>_std` (spread across years), `n_years` |
+| `by_cell/band=NN.parquet` | cell and month | as `series/`, but each cell's months together: rows by cell, then `year`, `month` (CPC, IMERG, CAMS) |
+| `overviews/year=YYYY/MM.parquet` | block of 4 × 4 cells and month | `block_row`, `block_col`, `n_cells`, each variable's mean: a whole-globe map from one small file (CPC, IMERG, CAMS) |
 
 Rows are ordered along a Hilbert curve over the globe (the order used in Major TOM's TACO releases), so neighbouring cells are stored together. Files use row groups of 65,536 rows with statistics on `grid_row_u` and `grid_col_r`. A filter on these two columns reads only the row groups that cover the area. Reading one cell's 47-year CPC series takes 0.35 GB instead of 6.9 GB.
 
 ### Series
 
 One row per cell and month, for every month of the record. Each column holds the dataset's monthly value for that cell, as defined in the dataset's README: a monthly mean for most variables (CAMS concentrations, IMERG's mean precipitation rate in mm/h), the month's total for CPC precipitation, the mean of the month's daily maxima and minima for CPC temperature. `<source>_valid` is the share of the cell's area covered by source pixels with data (1 = fully covered).
+
+### By cell and overviews
+
+`series/` and `by_cell/` hold the same values, ordered for different questions. A month over many cells reads one
+`series/` file; one place over time reads one row group of `by_cell/` (under a second for a cell's whole record,
+against one request per month from `series/`). `overviews/` holds 4 × 4-cell means (~40 km), for maps of the whole
+globe. ERA5-Monthly has no `by_cell/` copy (it would add about 1.8 TB to its 2.5 TB); read its series from `series/`.
 
 ### Climatology
 
@@ -66,19 +75,20 @@ One row per cell and calendar month (12 rows per cell), computed from the series
 
 The anomaly of a month is its series value minus the climatology `_mean` of the same cell and calendar month; dividing by `_std` gives a standardised anomaly.
 
-Climatology files are split into 20 bands of grid rows, so a cell's 12 months are in one file: band = (row + 1002) × 20 // 2004, where row is `grid_row_u` (`624U_29L`: row 624, band 16; `35D_667L`: row −35, band 9).
+Climatology files are split into 20 bands of grid rows, so a cell's 12 months are in one file: band = (row + 1002) × 20 // 2004, where row is `grid_row_u` (`624U_29L`: row 624, band 16; `35D_667L`: row −35, band 9, file `band=09.parquet`). `by_cell/` uses the same bands.
 
 ## Reading
 
 ```python
+import fsspec
 import pandas as pd
 
+https = fsspec.filesystem("https")                                                   # reads only the parts needed
 url = "https://data.source.coop/major-tom/climate"
-july = pd.read_parquet(f"{url}/CPC-Monthly/series/year=2020/07.parquet")          # one month, every cell
-here = [("grid_row_u", "=", 624), ("grid_col_r", "=", -29)]                        # Loch Lomond, 624U_29L
-normals = pd.read_parquet(f"{url}/CPC-Monthly/climatology/band=16.parquet", filters=here)   # 12 months
-series = pd.concat(pd.read_parquet(f"{url}/CPC-Monthly/series/year={y}/{m:02d}.parquet", filters=here)
-                   for y in range(2015, 2025) for m in range(1, 13))                 # 10 years, one cell
+july = pd.read_parquet(f"{url}/CPC-Monthly/series/year=2020/07.parquet", filesystem=https)       # one month, every cell
+here = [("grid_row_u", "=", 624), ("grid_col_r", "=", -29)]                                       # Loch Lomond, 624U_29L
+normals = pd.read_parquet(f"{url}/CPC-Monthly/climatology/band=16.parquet", filesystem=https, filters=here)  # 12 months
+series = pd.read_parquet(f"{url}/CPC-Monthly/by_cell/band=16.parquet", filesystem=https, filters=here)      # 564 months
 ```
 
 ```sql

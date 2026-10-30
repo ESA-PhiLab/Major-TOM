@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** unreviewed draft (2026-10-28) of `major-tom/climate/ERA5-Static/README.md`. Remove these notes
+> **Review status:** by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of `major-tom/climate/ERA5-Static/README.md`. Remove these notes
 > when publishing. Licence and citations checked 2026-10-28 (Climate Data Store catalogue: CC-BY-4.0; DataCite and
 > Crossref records; ARCO-ERA5's "How to cite"). The credit line is ECMWF's recommended wording, not a licence requirement.
 
@@ -50,8 +50,10 @@ The fixed surface fields of ERA5 for every cell of the Major TOM grid: terrain a
 `static.parquet`: one row per cell along the Hilbert curve (see the [top-level README](https://source.coop/major-tom/climate)), `grid_cell`, `grid_row_u`, `grid_col_r` and the columns above.
 
 ```python
+import fsspec
 import pandas as pd
-static = pd.read_parquet("https://data.source.coop/major-tom/climate/ERA5-Static/static.parquet")
+
+static = pd.read_parquet("https://data.source.coop/major-tom/climate/ERA5-Static/static.parquet", filesystem=fsspec.filesystem("https"))
 height = static.set_index("grid_cell").era5_z / 9.80665
 ```
 

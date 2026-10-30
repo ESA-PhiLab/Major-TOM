@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** unreviewed draft (2026-10-28) of `major-tom/climate/CPC-Monthly/README.md`. Remove these notes
+> **Review status:** by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of `major-tom/climate/CPC-Monthly/README.md`. Remove these notes
 > when publishing. Licence and citations checked 2026-10-28 (NOAA PSL catalogue, datasets 48 and 49).
 > Artifact counts from docs/evidence/monthly_artifacts.py (2026-10-28).
 
@@ -48,17 +48,25 @@ Monthly precipitation and daily temperature extremes from rain gauges, for every
 | `cells.parquet` | `grid_cell`, `grid_row_u`, `grid_col_r` |
 | `series/year=YYYY/MM.parquet` | one row per cell, along the Hilbert curve: `grid_cell`, `grid_row_u`, `grid_col_r`, `year`, `month`, the columns above |
 | `climatology/band=NN.parquet` | one row per cell and calendar month, 1991–2020: `grid_cell`, `grid_row_u`, `grid_col_r`, `month`, `<column>_mean`, `<column>_std`, `n_years` |
+| `by_cell/band=NN.parquet` | every month of each cell together: rows by cell (along the Hilbert curve), then `year`, `month`; the same columns as `series/`; a row group holds whole cells (116 cells × 564 months) |
+| `overviews/year=YYYY/MM.parquet` | one row per block of 4 × 4 cells with a value, for maps of the whole globe: `block_row` = (`grid_row_u` + 1002) // 4, `block_col` = (`grid_col_r` + 2004) // 4, `n_cells` (cells with a value), each column's mean |
+
+Which files to read: `series/` for one month over many cells (maps, monthly analyses); `by_cell/` for one place over time or training on series (a cell's whole record is in one row group, found from its band and the row-group statistics on `grid_row_u` and `grid_col_r`); `overviews/` for a view of the whole globe from one small file. `series/` and `by_cell/` hold the same values.
 
 Series values are the monthly values defined in Variables: `cpc_precip` is the total of the month's daily values, `cpc_tmax` and `cpc_tmin` the means of the month's daily maxima and minima. The climatology gives, per cell and calendar month over 1991–2020, the mean (`_mean`) and the year-to-year sample standard deviation (`_std`) of each column, and `n_years`, the years with data, counted on `cpc_precip`; temperature can have fewer years where precipitation has data and temperature does not.
 
 ```python
+import fsspec
 import pandas as pd
+
+https = fsspec.filesystem("https")      # reads only the parts of a file a query needs
 url = "https://data.source.coop/major-tom/climate/CPC-Monthly"
-feb = pd.read_parquet(f"{url}/series/year=2021/02.parquet")
-normals = pd.read_parquet(f"{url}/climatology/band=16.parquet", filters=[("grid_cell", "=", "624U_29L")])
+feb = pd.read_parquet(f"{url}/series/year=2021/02.parquet", filesystem=https)
+normals = pd.read_parquet(f"{url}/climatology/band=16.parquet", filesystem=https, filters=[("grid_row_u", "=", 624), ("grid_col_r", "=", -29)])
+history = pd.read_parquet(f"{url}/by_cell/band=16.parquet", filesystem=https, filters=[("grid_row_u", "=", 624), ("grid_col_r", "=", -29)])   # 564 months
 ```
 
-The band of a cell is (row + 1002) × 20 // 2004, with row the number in its name (`624U_29L`: 624, band 16).
+The band of a cell is (row + 1002) × 20 // 2004, with row the number in its name (`624U_29L`: 624, band 16). Filter on `grid_row_u` and `grid_col_r`, the numbers in a cell's name (U and R positive, D and L negative): the row-group statistics then let a reader skip the rest of the file (a cell's series from `by_cell/`: under a second). A filter on `grid_cell` reads the whole file.
 
 ## Notes
 
@@ -70,7 +78,7 @@ The band of a cell is (row + 1002) × 20 // 2004, with row the number in its nam
 
 ## Validation
 
-Every month from 1979-01 to 2025-12 is present; every file has one row per cell; `cpc_valid` lies in [0, 1]; the climatology has one row per cell and calendar month. Monthly totals equal the sum of NOAA's daily values (checked to 0.1 mm on the largest values).
+Every month from 1979-01 to 2025-12 is present; every file has one row per cell; `cpc_valid` lies in [0, 1]; the climatology has one row per cell and calendar month. Monthly totals equal the sum of NOAA's daily values (checked to 0.1 mm on the largest values). `by_cell/` equals `series/` for 50 random cells per band in three months; the overviews are means of `series/` (checked for one month).
 
 ## Acknowledgement and citation
 

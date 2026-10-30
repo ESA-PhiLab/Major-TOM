@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-30 Climate READMEs: by_cell/ and overviews/ described; code examples fixed (plain https URLs got 403 via urllib; filter on grid_row_u/grid_col_r, not grid_cell: 0.9 s vs 342 s; IMERG band=09)
 - 2026-10-30 Zarr test dropped: app source removed, major-tom/climate/_experiments deleted (11.9 GB), local copies to /RUBBISH
 - 2026-10-30 Climate globe finished locally: previews for all four layers, place names (Natural Earth) from zoom 5; Space Major-TOM/MajorTOM-Climate-Globe created (private, static), in the sync workflow
 - 2026-10-30 Table layouts moved to majortom.release.tables (repack, overviews, by-cell); CPC by-cell 3.6 min / 20.5 GB peak / 8.4 GB, overviews 933 MB; READMEs for build, release, climate, climate-globe
