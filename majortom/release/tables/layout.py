@@ -12,6 +12,7 @@
     instead of a whole column (~16x less for a point time series of CPC-Monthly). Values are not changed.
 
     python -m majortom.release tables repack --src /data/Major-TOM/CPC-Monthly --out /data/Major-TOM/climate-release/CPC-Monthly
+    --drop <column> leaves a column out (and its climatology <column>_mean, <column>_std), e.g. era5_ptype
 """
 from __future__ import annotations
 
@@ -62,9 +63,15 @@ def _nan_as_null(table: pa.Table) -> pa.Table:
     return table
 
 
-def _one(src: Path, dst: Path, rank: pd.Series, where: pd.DataFrame, row_group: int) -> int:
-    """Reorder one file along the curve, write it, read it back and check it against the source."""
-    table = _nan_as_null(pq.read_table(src))
+def _dropped(names: list[str], drop: tuple[str, ...]) -> list[str]:
+    """Columns of `names` left out: each of `drop`, and its climatology statistics."""
+    return [n for n in names if any(n in (d, f"{d}_mean", f"{d}_std") for d in drop)]
+
+
+def _one(src: Path, dst: Path, rank: pd.Series, where: pd.DataFrame, row_group: int, drop: tuple[str, ...] = ()) -> int:
+    """Reorder one file along the curve, write it, read it back and check it against the source (less `drop`)."""
+    table = pq.read_table(src)
+    table = _nan_as_null(table.drop_columns(_dropped(table.column_names, drop)))
     names = table.column("grid_cell").to_numpy(zero_copy_only=False)
     key = rank.reindex(names).to_numpy()
     if np.isnan(key).any():
@@ -82,8 +89,9 @@ def _one(src: Path, dst: Path, rank: pd.Series, where: pd.DataFrame, row_group: 
     return out.num_rows
 
 
-def repack(src: Path | str, dst: Path | str, workers: int | None = None, row_group: int = ROW_GROUP) -> int:
-    """Write the publishing layout of `src` into `dst`; returns the number of files written."""
+def repack(src: Path | str, dst: Path | str, workers: int | None = None, row_group: int = ROW_GROUP,
+           drop: tuple[str, ...] = ()) -> int:
+    """Write the publishing layout of `src` into `dst`, without the columns in `drop`; returns the files written."""
     src, dst = Path(src), Path(dst)
     if (src / "cells.parquet").exists():
         cells = pd.read_parquet(src / "cells.parquet")
@@ -103,7 +111,7 @@ def repack(src: Path | str, dst: Path | str, workers: int | None = None, row_gro
                        row_group_size=row_group, compression="zstd")
     workers = workers or min(len(files), len(os.sched_getaffinity(0)))
     with ProcessPoolExecutor(workers) as pool:
-        jobs = [pool.submit(_one, f, dst / f.relative_to(src), rank, where, row_group) for f in files]
+        jobs = [pool.submit(_one, f, dst / f.relative_to(src), rank, where, row_group, tuple(drop)) for f in files]
         for i, job in enumerate(jobs, 1):
             job.result()
             if i % 100 == 0 or i == len(jobs):

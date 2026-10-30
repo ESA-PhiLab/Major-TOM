@@ -9,6 +9,7 @@
     Level 2 (4 x 4 cells, ~40 km) suits a globe-wide map: CPC ~1.6 MB a month for three variables.
 
     python -m majortom.release tables overviews --src <dataset folder> --out <dataset folder> [--level 2]
+    --columns <names> limits them to some columns (ERA5-Monthly: the common surface variables, not all 202)
 """
 from __future__ import annotations
 
@@ -25,14 +26,15 @@ ROWS, COLS = 2004, 4008                                    # the (row, column) a
 POSITION = {"grid_cell", "grid_row_u", "grid_col_r", "year", "month"}
 
 
-def block_means(table: pa.Table, level: int) -> pa.Table:
+def block_means(table: pa.Table, level: int, columns: list[str] | None = None) -> pa.Table:
     """One file's rows -> one row per block with a value: block_row, block_col, n_cells, each float column's mean."""
     w = -(-COLS // 2 ** level)
     r = table.column("grid_row_u").to_numpy().astype(np.int64) + ROWS // 2
     c = table.column("grid_col_r").to_numpy().astype(np.int64) + COLS // 2
     block = (r >> level) * w + (c >> level)
     size = (-(-ROWS // 2 ** level)) * w
-    names = [f.name for f in table.schema if f.name not in POSITION and pa.types.is_floating(f.type)]
+    names = [f.name for f in table.schema if f.name not in POSITION and pa.types.is_floating(f.type)
+             and (columns is None or f.name in columns)]
     any_value = np.zeros(len(block), bool)
     means = {}
     for name in names:
@@ -51,22 +53,25 @@ def block_means(table: pa.Table, level: int) -> pa.Table:
                      **{n: pa.array(means[n][keep], from_pandas=True) for n in names}})  # NaN -> null
 
 
-def _one(src: Path, dst: Path, level: int) -> int:
-    out = block_means(pq.read_table(src), level)
+def _one(src: Path, dst: Path, level: int, columns: list[str] | None = None) -> int:
+    read = None if columns is None else ["grid_row_u", "grid_col_r", *columns]
+    out = block_means(pq.ParquetFile(src).read(columns=read), level, columns)        # no columns from folder names
     dst.parent.mkdir(parents=True, exist_ok=True)
     pq.write_table(out, dst, compression="zstd", write_statistics=True)
     return out.num_rows
 
 
-def overviews(src: Path | str, dst: Path | str, level: int = 2, workers: int | None = None) -> int:
-    """Write the overview of every monthly file of `src` into `dst`/overviews; returns the number of files."""
+def overviews(src: Path | str, dst: Path | str, level: int = 2, workers: int | None = None,
+              columns: list[str] | None = None) -> int:
+    """Write the overview of every monthly file of `src` (all float columns, or `columns`) into `dst`/overviews;
+    returns the number of files."""
     src, dst = Path(src), Path(dst)
     files = sorted(src.glob("series/year=*/*.parquet"))
     if not files:
         raise FileNotFoundError(f"no monthly files (series/year=*/*.parquet) in {src}")
     workers = workers or min(len(files), len(os.sched_getaffinity(0)))
     with ProcessPoolExecutor(workers) as pool:
-        jobs = [pool.submit(_one, f, dst / "overviews" / f.relative_to(src / "series"), level) for f in files]
+        jobs = [pool.submit(_one, f, dst / "overviews" / f.relative_to(src / "series"), level, columns) for f in files]
         for i, job in enumerate(jobs, 1):
             job.result()
             if i % 100 == 0 or i == len(jobs):
