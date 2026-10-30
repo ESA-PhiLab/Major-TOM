@@ -61,12 +61,41 @@ A step then draws in 0.15 s (was 2-2.5 s for Parquet). Stepping faster than load
 
 Map months get 2-6x faster; a cell's series 3-7x more bytes.
 
+## 5. Parquet in two more layouts, instead of Zarr
+
+`docs/evidence/climate_bycell_test.py`, CPC, all four columns:
+
+- `by_cell/band=NN.parquet`: rows by Hilbert curve, then year and month; row groups of 116 cells x 564 months.
+  8.4 GB, against 11.6 GB for the monthly files (a cell's months compress better side by side).
+- `overviews/level=1|2/year=YYYY/MM.parquet`: 2 x 2 and 4 x 4 block means, 5.2 and 1.6 MB a month.
+
+Checked against the monthly files (sampled cells and months; one month of block means). In the app:
+
+| Read | Monthly Parquet | Parquet test layouts | Zarr |
+|---|---|---|---|
+| Globe month (4 x 4) | 4.2 MB, 26 requests, 2-2.5 s | 0.7 MB, 2 requests, 0.3-1.7 s | 0.4 MB, 5 requests, 0.5-1.6 s |
+| Month at 2 x 2 | – | 2.1 MB, 2 requests, 1.3 s | 1.2 MB, 11 requests, 0.5 s |
+| One cell, 564 months | 153 MB, 1,140 requests, 10.2 s | 1.5 MB, 4 requests, 0.7 s | 767 KB, 6 requests, 0.6 s |
+
+Training-style reads (`docs/evidence/climate_bycell_bench.py`; pyarrow over HTTP, 16 at a time):
+
+| 1,000 cells, all months, precipitation | Time | Read | Cells/s |
+|---|---|---|---|
+| By cell, neighbouring | 1.8 s | 3.1 MB | 570 |
+| By cell, random | 98 s | 362 MB | 10 |
+| Monthly files, random | 240 s | 2,323 MB | 4 |
+
+A random cell costs its whole row group (116 cells). Loaders should shuffle row groups, then cells within a
+buffer, or download the band files first (8.4 GB for CPC).
+
 ## Findings
 
 - Monthly Parquet files suit map months and SQL over months; they are poor for one place over time.
 - A Zarr copy with overviews and long time chunks is faster for both uses in a browser, by 5x (globe month) and
   ~200x in bytes (cell series).
 - Larger Parquet row groups help maps only, and cost point reads; with a Zarr copy for the app they are not needed.
+- Parquet by cell plus overview tables matches Zarr for the app (within 2x in bytes, same time), keeps one
+  format, the `grid_cell` key and streaming into Hugging Face `datasets`; it also serves time-series training.
 
 ## Decisions
 

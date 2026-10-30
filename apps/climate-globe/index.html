@@ -68,6 +68,9 @@
   .segmented button small { display: block; font-size: 12px; color: var(--ink-3); }
   .segmented button[aria-pressed=true] { background: var(--tint); color: var(--mt-blue); font-weight: 600; }
   .segmented button:disabled { cursor: not-allowed; opacity: .45; }
+  .test-kind { font: inherit; font-size: 13px; width: 100%; margin-top: 8px; padding: 5px 8px; border: 1px solid var(--line);
+    border-radius: 8px; background: var(--surface); color: var(--ink); }
+  .test-kind[hidden] { display: none; }
   .note { font-size: 13px; color: var(--ink-3); margin: 8px 0 0; }
   .note:empty { display: none; }
 
@@ -183,8 +186,12 @@
       <div class="segmented">
         <button id="mode-preview" data-mode="preview">Climatology<small>preview images</small></button>
         <button data-mode="live">Series<small>Parquet, read live</small></button>
-        <button id="mode-zarr" data-mode="zarr">Test<small>Zarr, read live</small></button>
+        <button id="mode-test" data-mode="test">Test<small>other layouts</small></button>
       </div>
+      <select id="test-kind" class="test-kind" aria-label="Test layout" hidden>
+        <option value="zarr">Test: Zarr store (overviews, then full cells)</option>
+        <option value="overview">Test: Parquet overview tables (then monthly files)</option>
+      </select>
       <p class="note" id="mode-note"></p>
     </section>
 
@@ -218,6 +225,8 @@
       <div class="tiny" id="series-stats"></div>
       <button id="series-zarr" class="action" hidden></button>
       <div class="tiny" id="series-zarr-stats"></div>
+      <button id="series-bycell" class="action" hidden></button>
+      <div class="tiny" id="series-bycell-stats"></div>
     </section>
 
     <section>

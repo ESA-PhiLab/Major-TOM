@@ -16,7 +16,8 @@ export const LAYERS = [
   { id: 'cpc-precip', name: 'Precipitation', source: 'CPC, rain gauges', dataset: 'CPC-Monthly', column: 'cpc_precip',
     unit: 'mm per month', scale: { type: 'log', min: 4, max: 400, ramp: 'dryWet', ticks: [4, 10, 25, 50, 100, 200, 400] },
     preview: 'images/CPC-Monthly/precip/{MM}.png', series: [1979, 2025], normal: '1991–2020',
-    zarr: { path: '_experiments/cpc-precip.zarr', years: [2024, 2025] } },               // test store, Zarr comparison
+    zarr: { path: '_experiments/cpc-precip.zarr', years: [2024, 2025] },                 // test store, Zarr comparison
+    bycell: { path: '_experiments/cpc-bycell', years: [2024, 2025] } },                  // test layouts, Parquet
   { id: 'imerg-precip', name: 'Precipitation', source: 'IMERG, satellites', dataset: 'IMERG-Monthly', column: 'imerg_precip',
     unit: 'mm per month', perMonth: m => HOURS[m - 1],                            // stored as mm/h
     scale: { type: 'log', min: 4, max: 400, ramp: 'dryWet', ticks: [4, 10, 25, 50, 100, 200, 400] }, series: [1998, 2024], normal: '1998–2024' },
@@ -144,16 +145,13 @@ function bounds(group, name) {
   return lo === undefined || hi === undefined ? [-Infinity, Infinity] : [Number(lo), Number(hi)]
 }
 
-/** One cell's monthly normals: {mean[12], std[12], stats}, from its band file. Rows run along the Hilbert curve, so
- *  a row group covers a compact area; its statistics on grid_row_u and grid_col_r show which row groups can hold
- *  the cell (usually one), and only those are read. */
-export async function loadCellClimatology(layer, row, col) {
-  const stats = newStats()
-  const band = String(Math.floor(((row + ROWS / 2) * 20) / ROWS)).padStart(2, '0')        // as majortom.climate
-  const file = await countedFile(`${SOURCE_COOP}/${layer.dataset}/climatology/band=${band}.parquet`, stats)
+/** The rows of one cell in a file whose rows run along the Hilbert curve: a row group covers a compact area, so
+ *  its statistics on grid_row_u and grid_col_r show which row groups can hold the cell (usually one), and only
+ *  those are read. Rows come back as arrays of `columns`, which must start with grid_row_u, grid_col_r. */
+async function cellRows(url, row, col, columns, stats) {
+  const file = await countedFile(url, stats)
   const metadata = await parquetMetadataAsync(file, { initialFetchSize: TAIL })
-  const columns = ['grid_row_u', 'grid_col_r', 'month', `${layer.column}_mean`, `${layer.column}_std`]
-  const mean = new Array(12).fill(NaN), std = new Array(12).fill(NaN), reads = []
+  const reads = [], found = []
   for (let start = 0, g = 0; g < metadata.row_groups.length; g++) {
     const group = metadata.row_groups[g], end = start + Number(group.num_rows)
     const [r0, r1] = bounds(group, 'grid_row_u'), [c0, c1] = bounds(group, 'grid_col_r')
@@ -162,16 +160,49 @@ export async function loadCellClimatology(layer, row, col) {
   }
   await Promise.all(reads.map(([rowStart, rowEnd]) => parquetRead({
     file, metadata, compressors, columns, rowStart, rowEnd,
-    onComplete(rows) {
-      for (const [r, c, m, mu, sd] of rows) {
-        if (Number(r) !== row || Number(c) !== col) continue
-        const f = factor(layer, Number(m))
-        mean[m - 1] = mu === null ? NaN : mu * f; std[m - 1] = sd === null ? NaN : sd * f
-      }
-    },
+    onComplete(rows) { for (const r of rows) if (Number(r[0]) === row && Number(r[1]) === col) found.push(r) },
   })))
-  stats.read = performance.now() - stats.t0; stats.rowGroups = reads.length
+  stats.rowGroups = reads.length
+  return found
+}
+
+const bandOf = row => String(Math.floor(((row + ROWS / 2) * 20) / ROWS)).padStart(2, '0')      // as majortom.climate
+
+/** One cell's monthly normals: {mean[12], std[12], stats}, from its climatology band file. */
+export async function loadCellClimatology(layer, row, col) {
+  const stats = newStats(), mean = new Array(12).fill(NaN), std = new Array(12).fill(NaN)
+  const rows = await cellRows(`${SOURCE_COOP}/${layer.dataset}/climatology/band=${bandOf(row)}.parquet`, row, col,
+    ['grid_row_u', 'grid_col_r', 'month', `${layer.column}_mean`, `${layer.column}_std`], stats)
+  for (const [, , m, mu, sd] of rows) {
+    const f = factor(layer, Number(m))
+    mean[m - 1] = mu === null ? NaN : mu * f; std[m - 1] = sd === null ? NaN : sd * f
+  }
+  stats.read = performance.now() - stats.t0
   return { mean, std, stats }
+}
+
+/** One cell's every month from the by-cell test layout: its band file, the row group holding its series. */
+export async function loadByCellSeries(layer, row, col) {
+  const stats = newStats(), [a, b] = layer.series, values = new Array((b - a + 1) * 12).fill(NaN)
+  const rows = await cellRows(`${SOURCE_COOP}/${layer.bycell.path}/by_cell/band=${bandOf(row)}.parquet`, row, col,
+    ['grid_row_u', 'grid_col_r', 'year', 'month', layer.column], stats)
+  for (const [, , y, m, v] of rows) if (v !== null) values[(y - a) * 12 + m - 1] = v * factor(layer, Number(m))
+  stats.read = performance.now() - stats.t0
+  return { values, stats }
+}
+
+/** One month of the overview tables at `level` (2^level x 2^level block means): values on the block array. */
+export async function loadOverviewMonth(layer, year, month, level, onProgress = () => {}) {
+  const stats = newStats()
+  const url = `${SOURCE_COOP}/${layer.bycell.path}/overviews/level=${level}/year=${year}/${String(month).padStart(2, '0')}.parquet`
+  const file = await countedFile(url, stats)
+  const w = Math.ceil(COLS / 2 ** level), values = new Float32Array(Math.ceil(ROWS / 2 ** level) * w).fill(NaN)
+  const f = factor(layer, month)
+  await parquetRead({ file, compressors, initialFetchSize: TAIL, columns: ['block_row', 'block_col', layer.column],
+    onComplete(rows) { for (const [r, c, v] of rows) if (v !== null) values[r * w + c] = v * f } })
+  onProgress(1, stats.bytes, stats.bytes)
+  stats.read = performance.now() - stats.t0; stats.level = level
+  return { values, stats }
 }
 
 /** The row of a cell in every file of a dataset (the files share cells.parquet's order), or -1. */
