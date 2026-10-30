@@ -9,6 +9,8 @@
         rumi files of the selected samples -> one COG per sample and file, with the Major TOM profile
     python -m majortom.release tables repack --src <dataset folder> --out <folder> [--workers N]
         tables keyed by grid_cell (cells, series, climatology, or a static table) -> rows along a Hilbert curve
+    python -m majortom.release tables overviews --src <dataset folder> --out <dataset folder> [--level 2]
+        monthly files -> overviews/year=YYYY/MM.parquet: block means for globe-wide maps
 """
 from __future__ import annotations
 
@@ -56,6 +58,11 @@ def _publish(a: argparse.Namespace) -> None:
 
 
 def _tables(a: argparse.Namespace) -> None:
+    if a.layout == "overviews":
+        from .tables import overviews
+
+        print(f"{overviews(a.src, a.out, a.level, a.workers):,} overview files written", flush=True)
+        return
     from .tables import repack
 
     print(f"{repack(a.src, a.out, a.workers):,} files written and checked", flush=True)
@@ -96,6 +103,12 @@ def main(argv: list[str] | None = None) -> None:
     r.add_argument("--out", type=Path, required=True)
     r.add_argument("--workers", type=int, default=None)
     r.set_defaults(run=_tables)
+    o = tsub.add_parser("overviews", help="monthly files -> block means for globe-wide maps")
+    o.add_argument("--src", type=Path, required=True, help="a dataset folder with series/year=YYYY/MM.parquet")
+    o.add_argument("--out", type=Path, required=True, help="dataset folder to write overviews/ into")
+    o.add_argument("--level", type=int, default=2, help="blocks of 2^level x 2^level cells (default 2: 4 x 4)")
+    o.add_argument("--workers", type=int, default=None)
+    o.set_defaults(run=_tables)
     a = p.parse_args(argv)
     a.run(a)
 
