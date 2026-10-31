@@ -1,7 +1,7 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
 > **Review status:** by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of the top-level README for source.coop `major-tom/climate`.
-> Remove these two notes when publishing. ERA5-Monthly row and figures added 2026-10-30; ERA5-Land-Monthly is added when built. Sizes include by_cell/ and overviews/.
+> Remove these two notes when publishing. By cell and overviews section rewritten 2026-10-31 (measurements from docs/reports/2026-10-30-climate-globe-read-experiments.md). ERA5-Monthly row and figures added 2026-10-30; ERA5-Land-Monthly is added when built. Sizes include by_cell/ and overviews/.
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 
@@ -61,10 +61,33 @@ One row per cell and month, for every month of the record. Each column holds the
 
 ### By cell and overviews
 
-`series/` and `by_cell/` hold the same values, ordered for different questions. A month over many cells reads one
-`series/` file; one place over time reads one row group of `by_cell/` (under a second for a cell's whole record,
-against one request per month from `series/`). `overviews/` holds 4 × 4-cell means (~40 km), for maps of the whole
-globe. ERA5-Monthly has no `by_cell/` copy (it would add about 1.8 TB to its 2.5 TB); read its series from `series/`.
+`series/` and `by_cell/` hold the same values in two orders, each suited to one question. A month over many cells
+is one `series/` file. One place over time is the question `series/` answers worst: every monthly file has to be
+opened. `by_cell/` stores each cell's whole record together, so it is one row group of one file. Measured for Loch
+Lomond's CPC record (564 months), read from source.coop:
+
+| Read | From `series/` | From `by_cell/` |
+|---|---|---|
+| One cell, every month (in a browser) | 1,140 requests, 153 MB, ~10 s | 4 requests, 1.5 MB, 0.7 s |
+| One cell, every month (pandas, the example below) | one request per file, 564 files | 0.9 s |
+| 1,000 cells chosen at random, every month (pyarrow, 16 reads at once) | 240 s, 2.3 GB | 98 s, 0.4 GB |
+| 1,000 neighbouring cells, every month | | 1.8 s, 3 MB |
+
+For training on series, read `by_cell/` a row group at a time (each holds whole series of neighbouring cells) and
+shuffle row groups, or download a dataset's `by_cell/` folder first.
+
+`overviews/` holds means over blocks of 4 × 4 cells, one small file per month, for maps of the whole globe. The
+blocks follow the grid's numbering: rows 4i to 4i + 3 (`grid_row_u` + 1002) and, in each of those rows, columns 4j
+to 4j + 3 (`grid_col_r` + 2004). Major TOM numbers each row's cells from the prime meridian and every cell is about
+10 km wide, so a block is a square of about 40 × 40 km in distance north–south and east–west of the prime meridian:
+the sinusoidal projection the figures above use, in which the grid is regular. In longitude and latitude, blocks far
+from the prime meridian are sheared, as the cells are. `n_cells` counts a block's cells with a value (coasts and
+the edges of the grid have fewer than 16). The Major TOM Climate Globe app reads these files when the whole globe
+is in view and the monthly files when zoomed in.
+
+ERA5-Monthly has no full `by_cell/` copy (it would add about 1.8 TB to its 2.5 TB). Read a place over time from
+`series/`, selecting columns; each monthly file's footer is 1.7 MB (207 columns), so one cell's record of one variable
+costs about 2 GB in 2,064 requests.
 
 ### Climatology
 
@@ -118,7 +141,7 @@ Each dataset keeps its source's terms; see its README for the exact acknowledgem
 
 ## Author and citation
 
-Mikolaj Czerkawski, Asterisk Labs.
+Built by Mikolaj Czerkawski, Asterisk Labs.
 
 To cite this dataset, cite the Major TOM paper below and the sources listed in each dataset's README. A Major TOM v2 paper will replace this reference when it is published.
 
