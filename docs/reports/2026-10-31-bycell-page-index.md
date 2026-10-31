@@ -108,7 +108,12 @@ cells, t2m 216-317 K) and Loch Lomond's normals (277.1 K in January, 287.5 K in 
 - Push refactor/v1 (redeploys the climate globe Space with the ERA5 layer), then the release-test README.
 - READMEs (top level, CPC, IMERG, CAMS, ERA5-Monthly): review, then publish.
 - Climatology files have the same footer and dictionary costs as the old by_cell; same treatment possible.
-- `era5_viten` reaches ±1.1e10 in the normals: still to check against ERA5's units.
+
+## era5_viten
+
+Checked: vertical integral of northward total energy flux, W m⁻¹. c_p·T (~2.5e5 J kg⁻¹) x v (~10 m s⁻¹) x column
+mass (~1e4 kg m⁻²) ~ 2.5e10, so ±1.1e10 fits. Eastward total flux ±7.9e10 and northward heat flux ±8.5e9 agree.
+Not a units error.
 
 ## Look at first
 
