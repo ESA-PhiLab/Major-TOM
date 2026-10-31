@@ -4,6 +4,6 @@ datasets): rows along a Hilbert curve (layout), block means for globe-wide maps 
 """
 from .bycell import by_cell
 from .layout import centroids, curve_rank, repack
-from .overviews import block_means, overviews
+from .overviews import block_means, climatology_overviews, overviews
 
-__all__ = ["block_means", "by_cell", "centroids", "curve_rank", "overviews", "repack"]
+__all__ = ["block_means", "by_cell", "centroids", "climatology_overviews", "curve_rank", "overviews", "repack"]

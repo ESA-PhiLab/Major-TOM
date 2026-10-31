@@ -10,6 +10,11 @@
 
     python -m majortom.release tables overviews --src <dataset folder> --out <dataset folder> [--level 2]
     --columns <names> limits them to some columns (ERA5-Monthly: the common surface variables, not all 202)
+
+    <src>/climatology/band=NN.parquet (one row per cell and calendar month)
+      -> per calendar month: every band read in batches, that month's rows, the <variable>_mean columns
+      -> the same block means -> <dst>/climatology_overviews/MM.parquet: each variable's normal per block
+    python -m majortom.release tables overviews --climatology --src <dataset folder> --out <dataset folder>
 """
 from __future__ import annotations
 
@@ -20,6 +25,7 @@ from pathlib import Path
 
 import numpy as np
 import pyarrow as pa
+import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
 ROWS, COLS = 2004, 4008                                    # the (row, column) array of 10 km cells
@@ -77,3 +83,32 @@ def overviews(src: Path | str, dst: Path | str, level: int = 2, workers: int | N
             if i % 100 == 0 or i == len(jobs):
                 print(f"{i}/{len(jobs)} files", flush=True)
     return len(files)
+
+
+def _climatology_month(src: Path, dst: Path, month: int, level: int) -> int:
+    parts = []
+    for band in sorted(src.glob("climatology/band=*.parquet")):
+        f = pq.ParquetFile(band)
+        means = [n for n in f.schema_arrow.names if n.endswith("_mean")]
+        for batch in f.iter_batches(batch_size=262_144, columns=["grid_row_u", "grid_col_r", "month", *means]):
+            t = pa.Table.from_batches([batch])
+            parts.append(t.filter(pc.equal(t.column("month"), month)))
+    out = block_means(pa.concat_tables(parts), level)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    pq.write_table(out, dst, compression="zstd", write_statistics=True)
+    return out.num_rows
+
+
+def climatology_overviews(src: Path | str, dst: Path | str, level: int = 2, workers: int | None = None) -> int:
+    """Write `dst`/climatology_overviews/MM.parquet: block means of every _mean column of `src`'s climatology, one
+    file per calendar month; returns the number of files."""
+    src, dst = Path(src), Path(dst)
+    if not any(src.glob("climatology/band=*.parquet")):
+        raise FileNotFoundError(f"no climatology files (climatology/band=NN.parquet) in {src}")
+    workers = workers or min(12, len(os.sched_getaffinity(0)))
+    with ProcessPoolExecutor(workers) as pool:
+        jobs = {m: pool.submit(_climatology_month, src, dst / "climatology_overviews" / f"{m:02d}.parquet", m, level)
+                for m in range(1, 13)}
+        for m, job in jobs.items():
+            print(f"month {m:02d}: {job.result():,} blocks", flush=True)
+    return len(jobs)

@@ -11,6 +11,7 @@
         tables keyed by grid_cell (cells, series, climatology, or a static table) -> rows along a Hilbert curve
     python -m majortom.release tables overviews --src <dataset folder> --out <dataset folder> [--level 2]
         monthly files -> overviews/year=YYYY/MM.parquet: block means for globe-wide maps
+        --climatology: climatology files -> climatology_overviews/MM.parquet: block means of the normals
     python -m majortom.release tables by-cell --src <dataset folder> --out <dataset folder> [--workers 4]
         monthly files -> by_cell/band=NN.parquet: every cell's whole series together
 """
@@ -64,6 +65,11 @@ def _tables(a: argparse.Namespace) -> None:
         from .tables import by_cell
 
         print(f"{by_cell(a.src, a.out, a.workers):,} cells written and checked", flush=True)
+        return
+    if a.layout == "overviews" and a.climatology:
+        from .tables import climatology_overviews
+
+        print(f"{climatology_overviews(a.src, a.out, a.level, a.workers):,} climatology overview files written", flush=True)
         return
     if a.layout == "overviews":
         from .tables import overviews
@@ -119,6 +125,7 @@ def main(argv: list[str] | None = None) -> None:
     o.add_argument("--level", type=int, default=2, help="blocks of 2^level x 2^level cells (default 2: 4 x 4)")
     o.add_argument("--workers", type=int, default=None)
     o.add_argument("--columns", nargs="+", help="only these columns (default: every float column)")
+    o.add_argument("--climatology", action="store_true", help="the climatology's normals instead of the monthly files")
     o.set_defaults(run=_tables)
     c = tsub.add_parser("by-cell", help="monthly files -> every cell's whole series together, by band")
     c.add_argument("--src", type=Path, required=True, help="a dataset folder (cells.parquet, series/)")

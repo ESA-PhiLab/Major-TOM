@@ -32,3 +32,29 @@ def test_block_means_match_a_direct_computation(tmp_path):
     for c in ("x_t2m", "x_tp"):
         assert np.allclose(merged[c], merged[f"{c}_got"], equal_nan=True, rtol=1e-6)
     assert got[["block_row", "block_col"]].apply(tuple, axis=1).is_monotonic_increasing      # rows in block order
+
+
+def test_climatology_overviews_match_a_direct_computation(tmp_path):
+    from majortom.release.tables.overviews import climatology_overviews
+
+    rng = np.random.default_rng(1)
+    rows, cols = rng.integers(-1002, 1002, 300), rng.integers(-2004, 2004, 300)
+    t = pd.DataFrame({"grid_cell": np.repeat([f"c{i}" for i in range(300)], 12),
+                      "grid_row_u": np.repeat(rows, 12).astype(np.int16), "grid_col_r": np.repeat(cols, 12).astype(np.int16),
+                      "month": np.tile(np.arange(1, 13), 300).astype(np.int8),
+                      "x_t2m_mean": rng.normal(size=3600).astype(np.float32), "x_t2m_std": rng.random(3600).astype(np.float32),
+                      "n_years": np.int16(30)})
+    band = (t.grid_row_u.astype(int) + 1002) * 20 // 2004
+    for b, part in t.groupby(band):
+        path = tmp_path / "src" / "climatology" / f"band={b:02d}.parquet"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        part.to_parquet(path, index=False)
+    assert climatology_overviews(tmp_path / "src", tmp_path / "dst", level=2, workers=2) == 12
+    got = pq.read_table(tmp_path / "dst" / "climatology_overviews" / "07.parquet").to_pandas()
+    july = t[t.month == 7].copy()
+    july["block_row"], july["block_col"] = (july.grid_row_u.astype(int) + 1002) // 4, (july.grid_col_r.astype(int) + 2004) // 4
+    want = july.groupby(["block_row", "block_col"]).x_t2m_mean.mean().reset_index()
+    assert list(got.columns) == ["block_row", "block_col", "n_cells", "x_t2m_mean"]      # normals only
+    merged = want.merge(got, on=["block_row", "block_col"], suffixes=("", "_got"))
+    assert len(merged) == len(want) == len(got)
+    assert np.allclose(merged.x_t2m_mean, merged.x_t2m_mean_got, rtol=1e-6)
