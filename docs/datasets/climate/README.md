@@ -1,7 +1,7 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
 > **Review status:** by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of the top-level README for source.coop `major-tom/climate`.
-> Remove these two notes when publishing. By cell and overviews section rewritten 2026-10-31 (measurements from docs/reports/2026-10-30-climate-globe-read-experiments.md). ERA5-Monthly row and figures added 2026-10-30; ERA5-Land-Monthly is added when built. Sizes include by_cell/ and overviews/.
+> Remove these two notes when publishing. How by_cell/ files are written: added 2026-10-31, not yet reviewed or published; CPC browser numbers to re-measure on the new by_cell/ files. By cell and overviews section rewritten 2026-10-31 (measurements from docs/reports/2026-10-30-climate-globe-read-experiments.md). ERA5-Monthly row and figures added 2026-10-30; ERA5-Land-Monthly is added when built. Sizes include by_cell/ and overviews/.
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 
@@ -52,8 +52,9 @@ Every monthly dataset has the same parts:
 | `climatology/band=NN.parquet` | cell and calendar month | `grid_cell`, `grid_row_u`, `grid_col_r`, `month`, `<variable>_mean`, `<variable>_std` (spread across years), `n_years` |
 | `by_cell/band=NN.parquet` | cell and month | as `series/`, but each cell's months together: rows by cell, then `year`, `month` (CPC, IMERG, CAMS) |
 | `overviews/year=YYYY/MM.parquet` | block of 4 × 4 cells and month | `block_row`, `block_col`, `n_cells`, each variable's mean: a whole-globe map from one small file (CPC, IMERG, CAMS) |
+| `climatology_overviews/MM.parquet` | block of 4 × 4 cells and calendar month | `block_row`, `block_col`, `n_cells`, each variable's normal (block mean of `<variable>_mean`): a whole-globe map of a month's normal from one small file |
 
-Rows are ordered along a Hilbert curve over the globe (the order used in Major TOM's TACO releases), so neighbouring cells are stored together. Files use row groups of 65,536 rows with statistics on `grid_row_u` and `grid_col_r`. A filter on these two columns reads only the row groups that cover the area. Reading one cell's 47-year CPC series takes 0.35 GB instead of 6.9 GB.
+Rows are ordered along a Hilbert curve over the globe (the order used in Major TOM's TACO releases), so neighbouring cells are stored together. `series/` and `climatology/` files use row groups of 65,536 rows (`by_cell/`: below) with statistics on `grid_row_u` and `grid_col_r`. A filter on these two columns reads only the row groups that cover the area. Reading one cell's 47-year CPC series takes 0.35 GB instead of 6.9 GB.
 
 ### Series
 
@@ -72,6 +73,40 @@ Lomond's CPC record (564 months), read from source.coop:
 | One cell, every month (pandas, the example below) | one request per file, 564 files | 0.9 s |
 | 1,000 cells chosen at random, every month (pyarrow, 16 reads at once) | 240 s, 2.3 GB | 98 s, 0.4 GB |
 | 1,000 neighbouring cells, every month | | 1.8 s, 3 MB |
+
+How `by_cell/` files are written, so that a reader that knows a cell's rows fetches only that cell's data:
+
+- Cells in the order of `cells.parquet`. A band file holds the cells of `cells.parquet` that fall in the band, in
+  the same order, each followed by all its months. A cell's rows are `rank × months` to `(rank + 1) × months`, with
+  `rank` its place among the band's cells.
+- Row groups of 1,024 cells. Few row groups keep the footer, which a reader fetches first, small: about 9 MB for
+  ERA5's largest band, against about 130 MB with row groups of 65,536 rows (63 ERA5 cells).
+- A page index, with pages of about one cell's series of one variable. A reader fetches a column's page index and
+  then only the pages that hold the cell.
+- Values without dictionaries: byte-stream-split encoding and zstd. A column's dictionary is read whole before any of
+  its pages (about 0.9 MB per ERA5 column and row group), which would make one cell's 201 ERA5 variables cost about
+  110 MB. `grid_cell` and the position columns keep dictionaries.
+
+Measured on ERA5's band 00 (31,712 cells, 201 variables, 1,032 months), one cell read with hyparquet over HTTP range
+requests:
+
+| Layout | File | Footer | One variable | All 201 variables |
+|---|---|---|---|---|
+| Row groups of 65,536 rows (63 cells) | 18.5 GB | 10.4 MB | 11.4 MB | 119 MB |
+| Row groups of 1,024 cells | 14.2 GB | 0.7 MB | 16.4 MB | 1.8 GB |
+| Row groups of 1,024 cells, page index | 14.7 GB | 0.8 MB | 1.8 MB | 109 MB |
+| Row groups of 1,024 cells, page index, no value dictionaries (used) | 12.8 GB | 0.7 MB | 0.8 MB | 3.3 MB |
+
+pandas and pyarrow, with a filter on `grid_row_u` and `grid_col_r` as in the dataset READMEs, read the whole row
+group holding the cell (1,024 cells); readers that use the page index, such as hyparquet with `useOffsetIndex`, read
+only the cell's pages:
+
+```js
+// hyparquet; rank and count from cells.parquet (the band's cells, in order)
+const months = Number(metadata.num_rows) / count, first = rank * months
+await parquetRead({ file, metadata, compressors, useOffsetIndex: true, rowStart: first, rowEnd: first + months,
+                    columns: ['year', 'month', 'cpc_precip'], onComplete: rows => console.log(rows) })
+```
 
 For training on series, read `by_cell/` a row group at a time (each holds whole series of neighbouring cells) and
 shuffle row groups, or download a dataset's `by_cell/` folder first.

@@ -1,7 +1,7 @@
-"""Training-style reads of CPC precipitation series from source.coop: by-cell test layout vs the monthly files.
+"""Training-style reads of CPC precipitation series from source.coop: by_cell/ vs the monthly files.
 
     cells.parquet (local release copy) -> 1,000 random cells, and 1,000 neighbouring cells (consecutive on the curve)
-      by cell:  each cell's band file (_experiments/cpc-bycell) -> the row groups holding the cells (116 cells each)
+      by cell:  each cell's band file (CPC-Monthly/by_cell) -> the row groups holding the cells (1,024 cells each)
       monthly:  every series/year=YYYY/MM.parquet (the release) -> cpc_precip of every row group holding a cell
     pyarrow over HTTP (fsspec), 16 reads at a time, as a data loader would. Prints time, MB (compressed column
     chunks read, from the files' metadata) and cells per second, and checks both layouts give the same values.
@@ -20,9 +20,9 @@ import numpy as np
 import pyarrow.parquet as pq
 
 BASE = "https://data.source.coop/major-tom/climate"
-BYCELL = f"{BASE}/_experiments/cpc-bycell/by_cell"
+BYCELL = f"{BASE}/CPC-Monthly/by_cell"
 MONTHLY = f"{BASE}/CPC-Monthly/series"
-ROWS, BANDS, CELLS_PER_GROUP, PARALLEL = 2004, 20, 116, 16
+ROWS, BANDS, CELLS_PER_GROUP, PARALLEL = 2004, 20, 1024, 16
 fs = fsspec.filesystem("https")
 
 

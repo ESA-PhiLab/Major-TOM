@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** cpc_gauges added, by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of `major-tom/climate/CPC-Monthly/README.md`. Remove these notes
+> **Review status:** by_cell/ layout (1,024-cell row groups, page index) and climatology_overviews/ noted 2026-10-31, not yet published. cpc_gauges added, by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of `major-tom/climate/CPC-Monthly/README.md`. Remove these notes
 > when publishing. Licence and citations checked 2026-10-28 (NOAA PSL catalogue, datasets 48 and 49).
 > Artifact counts from docs/evidence/monthly_artifacts.py (2026-10-28).
 
@@ -49,10 +49,11 @@ Monthly precipitation and daily temperature extremes from rain gauges, for every
 | `cells.parquet` | `grid_cell`, `grid_row_u`, `grid_col_r` |
 | `series/year=YYYY/MM.parquet` | one row per cell, along the Hilbert curve: `grid_cell`, `grid_row_u`, `grid_col_r`, `year`, `month`, the columns above |
 | `climatology/band=NN.parquet` | one row per cell and calendar month, 1991–2020: `grid_cell`, `grid_row_u`, `grid_col_r`, `month`, `<column>_mean`, `<column>_std`, `n_years` |
-| `by_cell/band=NN.parquet` | every month of each cell together: rows by cell (along the Hilbert curve), then `year`, `month`; the same columns as `series/`; a row group holds whole cells (116 cells × 564 months) |
+| `by_cell/band=NN.parquet` | every month of each cell together: rows by cell (along the Hilbert curve), then `year`, `month`; the same columns as `series/`; row groups of 1,024 cells × 564 months, with a page index (a cell's rows can be read alone: [layout](README.md#by-cell-and-overviews)) |
 | `overviews/year=YYYY/MM.parquet` | one row per block of 4 × 4 cells with a value, for maps of the whole globe: `block_row` = (`grid_row_u` + 1002) // 4, `block_col` = (`grid_col_r` + 2004) // 4, `n_cells` (cells with a value), each column's mean |
+| `climatology_overviews/MM.parquet` | one row per block of 4 × 4 cells with a value and calendar month MM: `block_row`, `block_col`, `n_cells`, and the block mean of each `<column>_mean` of the climatology (the normals; `_std` and `n_years` left out) |
 
-Which files to read: `series/` for one month over many cells (maps, monthly analyses); `by_cell/` for one place over time or training on series (a cell's whole record is in one row group, found from its band and the row-group statistics on `grid_row_u` and `grid_col_r`); `overviews/` for a view of the whole globe from one small file. `series/` and `by_cell/` hold the same values.
+Which files to read: `series/` for one month over many cells (maps, monthly analyses); `by_cell/` for one place over time or training on series (a cell's whole record is in one row group, found from its band and the row-group statistics on `grid_row_u` and `grid_col_r`, or read alone through the page index); `overviews/` for a view of the whole globe from one small file. `series/` and `by_cell/` hold the same values.
 
 Series values are the monthly values defined in Variables: `cpc_precip` is the total of the month's daily values, `cpc_tmax` and `cpc_tmin` the means of the month's daily maxima and minima. The climatology gives, per cell and calendar month over 1991–2020, the mean (`_mean`) and the year-to-year sample standard deviation (`_std`) of each column, and `n_years`, the years with data, counted on `cpc_precip`; temperature can have fewer years where precipitation has data and temperature does not.
 
