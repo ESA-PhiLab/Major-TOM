@@ -87,6 +87,12 @@ Climatology mode reads `climatology_overviews/`; live mode reads `overviews/` at
 that have them, `series/` otherwise. Selected cell: normals from `climatology/`; no series button (no ERA5 by_cell).
 Test `test_era5_variables_and_normals`; 6/6 app tests pass on the published data.
 
+## ERA5-Monthly upload
+
+Job 2106 finished: 2,085 files uploaded, verified. README example run as written: 74 s, July 2024 (5,113,745
+cells, t2m 216-317 K) and Loch Lomond's normals (277.1 K in January, 287.5 K in July). App, live month of
+`era5_swvl1` from `series/` (no overviews): 15.3 MB in 160 requests, 12 s with ERA5's cell positions.
+
 ## Decisions
 
 - 1,024-cell row groups over 63-cell: footer of the largest ERA5 band ~9 MB, not ~130 MB.
