@@ -1,5 +1,6 @@
 # Log
 
+- 2026-10-31 by_cell with 1,024-cell row groups, page index, no value dictionaries (CPC, IMERG, CAMS replaced, values equal); climatology overviews (4 datasets); ERA5 layer in the climate globe -> [report](docs/reports/2026-10-31-bycell-page-index.md)
 - 2026-10-31 Climate READMEs reviewed (Miko) and published with figures: top level, CPC, IMERG, CAMS, ERA5-Static, ERA5-Monthly
 - 2026-10-30 Evening: CPC gauges published; ERA5-Monthly repacked, validated, figures, upload started; Core-Weather sources checked and trial-merged -> [report](docs/reports/2026-10-30-climate-evening.md)
 - 2026-10-30 Climate globe browser tests in the repo (apps/climate-globe/tests, 5 tests) and on GitHub (apps-tests.yml); tests/ not uploaded to the Space
