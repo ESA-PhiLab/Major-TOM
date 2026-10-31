@@ -106,3 +106,20 @@ cells = _table([cell_at(-4.62, 56.08)])                         # Loch Lomond
 download(cells, "sentinel-2-l2a", datetime="2023-05-01/2023-06-30", archive="planetary-computer",
          outdir="loch-lomond")                                   # samples as .npz with a JSON sidecar each
 ```
+
+## Author and citation
+
+Built by [Mikolaj Czerkawski](https://github.com/mikonvergence), Asterisk Labs.
+
+To cite this dataset, cite the Major TOM paper below and the sources listed above. A Major TOM v2 paper will replace this reference when it is published.
+
+```bibtex
+@inproceedings{Francis2024MajorTOM,
+  author={Francis, Alistair and Czerkawski, Mikolaj},
+  booktitle={IGARSS 2024 - 2024 IEEE International Geoscience and Remote Sensing Symposium},
+  title={Major TOM: Expandable Datasets for Earth Observation},
+  year={2024},
+  pages={2935-2940},
+  doi={10.1109/IGARSS53475.2024.10640760}
+}
+```

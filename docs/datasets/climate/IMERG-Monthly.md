@@ -89,7 +89,7 @@ Huffman, G.J., E.F. Stocker, D.T. Bolvin, E.J. Nelkin, J. Tan (2023), GPM IMERG 
 
 ## Author and citation
 
-Mikolaj Czerkawski, Asterisk Labs.
+Built by [Mikolaj Czerkawski](https://github.com/mikonvergence), Asterisk Labs.
 
 To cite this dataset, cite the Major TOM paper below and the source data as listed above. A Major TOM v2 paper will replace this reference when it is published.
 

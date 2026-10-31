@@ -73,3 +73,20 @@ source, and on every day all sources have the same number of rows (the merge joi
 step, so no row is left without a partner). Columns that are empty for a whole day are expected: cloud base height
 and convective inhibition without cloud or convection, ocean-only variables on days with land acquisitions only (and
 the reverse), lake variables where there is no lake, Sentinel-5P before 2018-06-28.
+
+## Author and citation
+
+Built by [Mikolaj Czerkawski](https://github.com/mikonvergence), Asterisk Labs.
+
+To cite this dataset, cite the Major TOM paper below and the sources listed above. A Major TOM v2 paper will replace this reference when it is published.
+
+```bibtex
+@inproceedings{Francis2024MajorTOM,
+  author={Francis, Alistair and Czerkawski, Mikolaj},
+  booktitle={IGARSS 2024 - 2024 IEEE International Geoscience and Remote Sensing Symposium},
+  title={Major TOM: Expandable Datasets for Earth Observation},
+  year={2024},
+  pages={2935-2940},
+  doi={10.1109/IGARSS53475.2024.10640760}
+}
+```

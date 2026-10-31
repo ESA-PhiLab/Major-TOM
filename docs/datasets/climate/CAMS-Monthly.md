@@ -91,7 +91,7 @@ Licensed CC BY 4.0. Contains modified Copernicus Atmosphere Monitoring Service i
 
 ## Author and citation
 
-Mikolaj Czerkawski, Asterisk Labs.
+Built by [Mikolaj Czerkawski](https://github.com/mikonvergence), Asterisk Labs.
 
 To cite this dataset, cite the Major TOM paper below and the source data as listed above. A Major TOM v2 paper will replace this reference when it is published.
 

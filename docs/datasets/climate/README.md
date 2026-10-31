@@ -141,7 +141,7 @@ Each dataset keeps its source's terms; see its README for the exact acknowledgem
 
 ## Author and citation
 
-Built by Mikolaj Czerkawski, Asterisk Labs.
+Built by [Mikolaj Czerkawski](https://github.com/mikonvergence), Asterisk Labs.
 
 To cite this dataset, cite the Major TOM paper below and the sources listed in each dataset's README. A Major TOM v2 paper will replace this reference when it is published.
 
