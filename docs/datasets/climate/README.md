@@ -1,7 +1,7 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
 > **Review status:** by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of the top-level README for source.coop `major-tom/climate`.
-> Remove these two notes when publishing. How by_cell/ files are written: added 2026-10-31, not yet reviewed or published; CPC browser numbers to re-measure on the new by_cell/ files. By cell and overviews section rewritten 2026-10-31 (measurements from docs/reports/2026-10-30-climate-globe-read-experiments.md). ERA5-Monthly row and figures added 2026-10-30; ERA5-Land-Monthly is added when built. Sizes include by_cell/ and overviews/.
+> Remove these two notes when publishing. How by_cell/ files are written: added 2026-10-31, not yet reviewed or published; read table re-measured on the new by_cell/ files 2026-10-31 (docs/evidence/climate_bycell_bench.py, the app). By cell and overviews section rewritten 2026-10-31 (measurements from docs/reports/2026-10-30-climate-globe-read-experiments.md). ERA5-Monthly row and figures added 2026-10-30; ERA5-Land-Monthly is added when built. Sizes include by_cell/ and overviews/.
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 
@@ -64,15 +64,15 @@ One row per cell and month, for every month of the record. Each column holds the
 
 `series/` and `by_cell/` hold the same values in two orders, each suited to one question. A month over many cells
 is one `series/` file. One place over time is the question `series/` answers worst: every monthly file has to be
-opened. `by_cell/` stores each cell's whole record together, so it is one row group of one file. Measured for Loch
+opened. `by_cell/` stores each cell's whole record together, in one row group of one file. Measured for Loch
 Lomond's CPC record (564 months), read from source.coop:
 
 | Read | From `series/` | From `by_cell/` |
 |---|---|---|
-| One cell, every month (in a browser) | 1,140 requests, 153 MB, ~10 s | 4 requests, 1.5 MB, 0.7 s |
-| One cell, every month (pandas, the example below) | one request per file, 564 files | 0.9 s |
-| 1,000 cells chosen at random, every month (pyarrow, 16 reads at once) | 240 s, 2.3 GB | 98 s, 0.4 GB |
-| 1,000 neighbouring cells, every month | | 1.8 s, 3 MB |
+| One cell, every month (in a browser, through the page index) | 1,140 requests, 153 MB, ~10 s | 10 requests, 0.18 MB, 0.8 s |
+| One cell, every month (pandas, the example below: the cell's row group) | one request per file, 564 files | 1.5 s |
+| 1,000 cells chosen at random, every month (pyarrow, 16 reads at once, whole row groups) | 261 s, 2.3 GB | 60 s, 1.1 GB |
+| 1,000 neighbouring cells, every month | | 1.1 s, 2.3 MB |
 
 How `by_cell/` files are written, so that a reader that knows a cell's rows fetches only that cell's data:
 
