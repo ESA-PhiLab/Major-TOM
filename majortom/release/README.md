@@ -24,7 +24,10 @@ tables keyed by grid_cell, one file per month (majortom.climate)
 ```
 
 The monthly files suit one month over the globe; `by_cell` suits one place over time (an app's chart, training on
-series); `overviews` suit a map of the whole globe from one small file. See
+series); `overviews` suit a map of the whole globe from one small file. `by_cell` files have row groups of 1,024
+cells, a page index with pages of about one cell's series, and no dictionaries on value columns, so a reader that
+knows a cell's rows (its place among the band's cells in `cells.parquet`) fetches only its pages; the band is built
+in slices of 4,096 cells, so memory does not grow with the band. See
 [the read experiments report](../../docs/reports/2026-10-30-climate-globe-read-experiments.md) for the measurements behind these layouts.
 
 ## Modules
