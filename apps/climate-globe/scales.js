@@ -6,6 +6,9 @@ export const RAMPS = {
   dryWet: ['#f2e3b6', '#cfdc8f', '#8fc77d', '#47ad93', '#2f8fc9', '#4a6ad6'],
   coldHot: ['#2c66c8', '#5b8ee0', '#9dbbea', '#dddbd5', '#eeaa9f', '#e0675a', '#c8372f'],
   haze: ['#f6e6c8', '#f2c784', '#eba04f', '#d9742c', '#b9521f'],
+  // ERA5's scales (scales.json, build_scales.py): signed values around 0, and magnitudes
+  diverging: ['#3a5fb0', '#7d9bd6', '#c4cde0', '#dddbd5', '#e3c79a', '#d39a4c', '#b8702a'],
+  magnitude: ['#f3efe0', '#d9e2c3', '#a9cfa8', '#6fb3a3', '#3f8f9f', '#2c6a92', '#26467f'],
 }
 
 const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16))

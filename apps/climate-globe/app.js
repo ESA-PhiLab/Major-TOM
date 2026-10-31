@@ -7,8 +7,8 @@
 
 import * as maplibregl from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.mjs'
 import { feature } from 'https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/+esm'
-import { LAYERS, SOURCE_COOP, cellRow, loadByCellSeries, loadCellClimatology, loadCellSeries, loadOverviewMonth,
-  loadPreview, loadSeries } from './data.js'
+import { LAYERS, SOURCE_COOP, cellRow, era5Layer, loadByCellSeries, loadCellClimatology, loadCellSeries,
+  loadEra5Variables, loadNormalsOverview, loadOverviewMonth, loadPreview, loadSeries } from './data.js'
 import { lineChart } from './charts.js'
 import { placeLabels } from './labels.js'
 import { drawBar, makeScale } from './scales.js'
@@ -18,7 +18,8 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
   'November', 'December']
 const $ = id => document.getElementById(id)
 
-const state = { layer: LAYERS[0], mode: 'preview', step: 6, field: null, version: 0, loading: 0, direction: 1 }
+const state = { layer: LAYERS[0], mode: 'preview', step: 6, field: null, version: 0, loading: 0, direction: 1,
+  era5: null, era5Column: 'era5_t2m' }                   // ERA5's variables (scales.json) and the one picked
 const cache = new Map()                                  // "<layer>/<mode>/<step>/<level>" -> loaded field, last 8
 const pending = new Map()                                // same keys -> loads under way (shown or ahead)
 
@@ -217,7 +218,7 @@ $('pick-clear').addEventListener('click', () => {
 async function pickLayer() {
   const layer = state.layer, { row, col } = pick.cell, ticket = ++pick.ticket
   stopSeries()
-  pick.layer = layer.id; pick.clim = null; pick.series = null
+  pick.layer = layer.id; pick.layerObj = layer; pick.clim = null; pick.series = null
   $('clim-title').textContent = `${layer.name} (${layer.source.split(',')[0]}), normal ${layer.normal}: mean ± 1 std, ${layer.unit}`
   $('clim-stats').textContent = 'Loading…'
   $('chart-clim').replaceChildren()
@@ -226,10 +227,11 @@ async function pickLayer() {
   $('series-stats').textContent = ''
   const months = (layer.series[1] - layer.series[0] + 1) * 12
   $('series-load').textContent = `Load all ${months} months`
-  $('series-load').hidden = false
+  $('series-load').hidden = Boolean(layer.noSeries)
   $('series-monthly').hidden = !layer.tables                    // the same series the slow way, to compare
   $('series-monthly').textContent = `Compare: read them from the ${months} monthly files`
   $('series-monthly-stats').textContent = ''
+  if (layer.noSeries) $('series-stats').textContent = layer.noSeries
   try {
     const c = await loadCellClimatology(layer, row, col)
     if (ticket !== pick.ticket) return
@@ -297,7 +299,7 @@ async function monthlySeries(button, out) {
 /** Draw both charts, the shown month marked. */
 function drawPick() {
   if (!pick.cell) return
-  const layer = LAYERS.find(l => l.id === pick.layer), { year, month } = when(state.step)
+  const layer = pick.layerObj, { year, month } = when(state.step)
   if (pick.clim) {
     const { mean, std } = pick.clim, floor = layer.scale.type === 'log' ? 0 : -Infinity     // no negative rain
     lineChart($('chart-clim'), {
@@ -347,7 +349,8 @@ function timeLabel(step) {
 // ---- load and draw -----------------------------------------------------------------------------------------
 
 /** Level a month is read at: a dataset's overviews (4 x 4 means) at globe scale, its monthly files zoomed in. */
-const levelFor = (layer, mode) => (mode === 'live' && layer.tables && map.getZoom() < 3.5 ? 2 : 0)
+const levelFor = (layer, mode) => (mode === 'preview' ? (layer.normals ? 2 : 0)
+  : (layer.tables || layer.overview) && map.getZoom() < 3.5 ? 2 : 0)
 
 /** Load one month of `layer` from a source (or join the load already under way, or take it from the cache).
  *  onProgress(share, bytes, expected) only reaches a load this call starts. */
@@ -357,6 +360,10 @@ function fetchField(layer, mode, step, level, onProgress = () => {}) {
   if (pending.has(key)) return pending.get(key)
   const scale = makeScale(layer.scale), { year, month } = whenFor(layer, mode, step)
   const load = (async () => {
+    if (mode === 'preview' && layer.normals) {
+      const o = await loadNormalsOverview(layer, month, onProgress)
+      return { field: gridField(o.values, scale, level), stats: o.stats }
+    }
     if (mode === 'preview') {
       const p = await loadPreview(layer, month)
       onProgress(1, p.stats.bytes, p.stats.bytes)
@@ -425,7 +432,8 @@ async function show() {
 }
 
 function readout(stats, drawMs, cached, ahead) {
-  $('stat-source').textContent = state.mode === 'preview' ? 'preview image (PNG)'
+  $('stat-source').textContent = state.mode === 'preview' && state.layer.normals ? 'Parquet climatology overview (4×4 means), read live'
+    : state.mode === 'preview' ? 'preview image (PNG)'
     : stats.level ? 'Parquet overview (4×4 means), read live' : 'Parquet, read live'
   $('stat-bytes').textContent = cached ? (ahead ? `loaded ahead (${(stats.bytes / 1e6).toFixed(1)} MB)` : 'cached') : `${(stats.bytes / 1e6).toFixed(1)} MB in ${stats.requests} request${stats.requests > 1 ? 's' : ''}` +
     (stats.firstOfDataset ? ' (with cell positions)' : '')
@@ -440,14 +448,17 @@ function legend(scale) {
   drawBar($('legend-bar'), scale)
   $('legend-ticks').replaceChildren(...scale.ticks.map(t => {
     const span = document.createElement('span')
-    span.textContent = scale.type === 'centred' && t > 0 ? `+${t}` : `${t}`
+    span.textContent = scale.type === 'centred' && scale.centre === 0 && t > 0 ? `+${tickText(t)}` : tickText(t)
     span.style.left = `${scale.position(t) * 100}%`
     return span
   }))
   $('legend-unit').textContent = `${state.layer.unit}${scale.type === 'log' ? ' · log scale' : ''}`
 }
 
-const format = v => (Math.abs(v) >= 100 ? v.toFixed(0) : Math.abs(v) >= 1 ? v.toFixed(1) : v.toPrecision(2))
+const format = v => (Math.abs(v) >= 1e6 ? v.toExponential(2) : Math.abs(v) >= 100 ? v.toFixed(0)
+  : Math.abs(v) >= 1 ? v.toFixed(1) : v.toPrecision(2))
+/** A tick: as written below 10^5, else in powers of ten (ERA5's energies and fluxes reach 10^10). */
+const tickText = t => (t !== 0 && (Math.abs(t) >= 1e5 || Math.abs(t) < 1e-3) ? t.toExponential(0).replace('e+', 'e') : `${t}`)
 
 // ---- panel -------------------------------------------------------------------------------------------------
 
@@ -457,18 +468,44 @@ function buildLayerList() {
     label.className = 'option'
     label.innerHTML = `<input type="radio" name="layer" value="${layer.id}"><span><b>${layer.name}</b>` +
       `<small>${layer.source}</small></span>`
-    label.querySelector('input').checked = layer === state.layer
-    label.querySelector('input').addEventListener('change', () => {
-      const t = when(state.step)                       // keep the month (and year, where the new layer has it)
-      state.layer = layer; syncControls(); state.step = stepFor(t); syncControls(); show()
+    label.querySelector('input').checked = layer.id === state.layer.id.split(':')[0]
+    label.querySelector('input').addEventListener('change', async () => {
+      if (layer.variables && !state.era5) state.era5 = await loadEra5Variables()
+      setLayer(layer.variables ? era5Layer(state.era5, state.era5Column) : layer)
     })
     return label
   }))
 }
 
+/** Show another layer, keeping the month (and year, where the new layer has it). */
+function setLayer(layer) {
+  const t = when(state.step)
+  state.layer = layer; syncControls(); state.step = stepFor(t); syncControls(); show()
+}
+
+/** The ERA5 variables, in the README's order, as the dropdown's options ("name (unit)"). */
+function buildVariableList() {
+  $('variable').replaceChildren(...Object.entries(state.era5.variables).map(([column, v]) => {
+    const option = document.createElement('option')
+    option.value = column
+    option.textContent = v.unit ? `${v.name} (${v.unit})` : v.name
+    return option
+  }))
+}
+$('variable').addEventListener('change', e => {
+  state.era5Column = e.target.value
+  setLayer(era5Layer(state.era5, state.era5Column))
+})
+
 /** Source and time controls follow the layer: a layer without preview images is read live. */
 function syncControls() {
-  const hasPreview = Boolean(state.layer.preview)
+  const hasPreview = Boolean(state.layer.preview || state.layer.normals)
+  $('variable-row').hidden = !state.layer.variables
+  if (state.layer.variables) {
+    if (!$('variable').options.length) buildVariableList()
+    $('variable').value = state.layer.column
+  }
+  $('mode-preview').querySelector('small').textContent = state.layer.normals ? 'normals, Parquet' : 'preview images'
   $('mode-preview').disabled = !hasPreview
   if (!hasPreview && state.mode === 'preview') state.mode = 'live'
   for (const b of document.querySelectorAll('[data-mode]')) b.setAttribute('aria-pressed', String(b.dataset.mode === state.mode))

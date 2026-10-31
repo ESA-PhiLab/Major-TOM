@@ -5,6 +5,7 @@
       -> a click at Loch Lomond (624U_29L): CPC normals and the whole by_cell/ series, against values in the files
       -> keys (left/right change the month, not the map), cursor off the globe, place names from zoom 5
       -> previews of the four layers (skipped where images/ is absent: the images are not in git)
+      -> ERA5: the variable list (scales.json), July normals from climatology_overviews/, another variable
 
     cd apps/climate-globe && pytest -m network        (needs `pip install pytest playwright && playwright install chromium`)
 """
@@ -131,3 +132,17 @@ def test_previews_of_every_layer(page):
         page.click(f"text={label}")
         loaded(page, f"{layer}/preview")
         assert page.text_content("#status") == ""
+
+
+def test_era5_variables_and_normals(page):
+    page.click("text=ERA5, reanalysis")
+    loaded(page, "era5:era5_t2m/preview")                                          # July normals, 4 x 4 blocks
+    assert page.text_content("#stat-source").startswith("Parquet climatology overview")
+    assert page.eval_on_selector_all("#variable option", "o => o.length") == 201
+    page.mouse.move(*at(page, 12, 22))                                             # Sahara in July
+    page.wait_for_timeout(300)
+    kelvin = float(page.text_content("#cursor-value").split()[0])
+    assert 295 < kelvin < 320
+    page.select_option("#variable", "era5_tp")
+    loaded(page, "era5:era5_tp/preview")
+    assert page.text_content("#status") == ""

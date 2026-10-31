@@ -68,6 +68,9 @@
     border-radius: 8px; margin-bottom: 6px; cursor: pointer; }
   .option:has(input:checked) { border-color: var(--mt-blue); background: var(--tint); }
   .option input { margin: 4px 0 0; accent-color: var(--mt-blue); }
+  .variable { display: block; margin-top: 8px; font-size: 13px; color: var(--ink-2); }
+  .variable select { display: block; width: 100%; margin-top: 4px; padding: 6px 8px; border: 1px solid var(--line);
+    border-radius: 8px; background: var(--surface); color: var(--ink); font: 13px var(--sans); }
   .option b { display: block; font-weight: 600; }
   .option small { display: block; color: var(--ink-3); font-family: var(--mono); font-size: 12px; }
 
@@ -188,6 +191,8 @@
     <section>
       <h2>Layer</h2>
       <div id="layers"></div>
+      <label class="variable" id="variable-row" hidden>Variable
+        <select id="variable" aria-label="ERA5 variable"></select></label>
     </section>
 
     <section>

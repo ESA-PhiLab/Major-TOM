@@ -1,0 +1,3355 @@
+{
+ "overviews": [
+  "era5_t2m",
+  "era5_d2m",
+  "era5_tp",
+  "era5_u10",
+  "era5_v10",
+  "era5_msl",
+  "era5_tcc",
+  "era5_ssrd"
+ ],
+ "variables": {
+  "era5_u100": {
+   "name": "100m u component of wind",
+   "unit": "m s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -9.54,
+    "centre": 0,
+    "max": 9.54,
+    "ramp": "diverging",
+    "ticks": [
+     -5.0,
+     0.0,
+     5.0
+    ]
+   }
+  },
+  "era5_v100": {
+   "name": "100m v component of wind",
+   "unit": "m s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -6.38,
+    "centre": 0,
+    "max": 6.38,
+    "ramp": "diverging",
+    "ticks": [
+     -6.0,
+     -4.0,
+     -2.0,
+     0.0,
+     2.0,
+     4.0,
+     6.0
+    ]
+   }
+  },
+  "era5_u10n": {
+   "name": "10m u component of neutral wind",
+   "unit": "m s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -7.65,
+    "centre": 0,
+    "max": 7.65,
+    "ramp": "diverging",
+    "ticks": [
+     -5.0,
+     0.0,
+     5.0
+    ]
+   }
+  },
+  "era5_u10": {
+   "name": "10m u component of wind",
+   "unit": "m s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -7.63,
+    "centre": 0,
+    "max": 7.63,
+    "ramp": "diverging",
+    "ticks": [
+     -5.0,
+     0.0,
+     5.0
+    ]
+   }
+  },
+  "era5_v10n": {
+   "name": "10m v component of neutral wind",
+   "unit": "m s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -5.56,
+    "centre": 0,
+    "max": 5.56,
+    "ramp": "diverging",
+    "ticks": [
+     -4.0,
+     -2.0,
+     0.0,
+     2.0,
+     4.0
+    ]
+   }
+  },
+  "era5_v10": {
+   "name": "10m v component of wind",
+   "unit": "m s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -5.46,
+    "centre": 0,
+    "max": 5.46,
+    "ramp": "diverging",
+    "ticks": [
+     -4.0,
+     -2.0,
+     0.0,
+     2.0,
+     4.0
+    ]
+   }
+  },
+  "era5_d2m": {
+   "name": "2m dewpoint temperature",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 240.0,
+    "max": 297.0,
+    "ramp": "coldHot",
+    "ticks": [
+     240.0,
+     250.0,
+     260.0,
+     270.0,
+     280.0,
+     290.0
+    ]
+   }
+  },
+  "era5_t2m": {
+   "name": "2m temperature",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 244.0,
+    "max": 302.0,
+    "ramp": "coldHot",
+    "ticks": [
+     250.0,
+     260.0,
+     270.0,
+     280.0,
+     290.0,
+     300.0
+    ]
+   }
+  },
+  "era5_rhoao": {
+   "name": "air density over the oceans",
+   "unit": "kg m⁻³",
+   "scale": {
+    "type": "linear",
+    "min": 1.15,
+    "max": 1.35,
+    "ramp": "magnitude",
+    "ticks": [
+     1.15,
+     1.2,
+     1.25,
+     1.3
+    ]
+   }
+  },
+  "era5_bfi": {
+   "name": "benjamin feir index",
+   "unit": "dimensionless",
+   "scale": {
+    "type": "linear",
+    "min": 0.0118,
+    "max": 0.207,
+    "ramp": "magnitude",
+    "ticks": [
+     0.05,
+     0.1,
+     0.15,
+     0.2
+    ]
+   }
+  },
+  "era5_bld": {
+   "name": "boundary layer dissipation",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 34800.0,
+    "max": 657000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     200000.0,
+     400000.0,
+     600000.0
+    ]
+   }
+  },
+  "era5_blh": {
+   "name": "boundary layer height",
+   "unit": "m",
+   "scale": {
+    "type": "linear",
+    "min": 167.0,
+    "max": 1170.0,
+    "ramp": "magnitude",
+    "ticks": [
+     200.0,
+     400.0,
+     600.0,
+     800.0,
+     1000.0
+    ]
+   }
+  },
+  "era5_chnk": {
+   "name": "charnock",
+   "unit": "~",
+   "scale": {
+    "type": "linear",
+    "min": 0.00857,
+    "max": 0.0195,
+    "ramp": "magnitude",
+    "ticks": [
+     0.01,
+     0.012,
+     0.014,
+     0.016,
+     0.018
+    ]
+   }
+  },
+  "era5_cdir": {
+   "name": "clear sky direct solar radiation at surface",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 31600.0,
+    "max": 28100000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     5000000.0,
+     10000000.0,
+     15000000.0,
+     20000000.0,
+     25000000.0
+    ]
+   }
+  },
+  "era5_cbh": {
+   "name": "cloud base height",
+   "unit": "m",
+   "scale": {
+    "type": "linear",
+    "min": 260.0,
+    "max": 5470.0,
+    "ramp": "magnitude",
+    "ticks": [
+     1000.0,
+     2000.0,
+     3000.0,
+     4000.0,
+     5000.0
+    ]
+   }
+  },
+  "era5_cdww": {
+   "name": "coefficient of drag with waves",
+   "unit": "dimensionless",
+   "scale": {
+    "type": "linear",
+    "min": 0.000845,
+    "max": 0.00157,
+    "ramp": "magnitude",
+    "ticks": [
+     0.001,
+     0.0012,
+     0.0014
+    ]
+   }
+  },
+  "era5_cape": {
+   "name": "convective available potential energy",
+   "unit": "J kg⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 1.2,
+    "max": 1160.0,
+    "ramp": "magnitude",
+    "ticks": [
+     2.0,
+     10.0,
+     50.0,
+     200.0,
+     1000.0
+    ]
+   }
+  },
+  "era5_cin": {
+   "name": "convective inhibition",
+   "unit": "J kg⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 57.9,
+    "max": 503.0,
+    "ramp": "magnitude",
+    "ticks": [
+     100.0,
+     200.0,
+     300.0,
+     400.0,
+     500.0
+    ]
+   }
+  },
+  "era5_cp": {
+   "name": "convective precipitation",
+   "unit": "m day⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 7.4e-06,
+    "max": 0.00737,
+    "ramp": "magnitude",
+    "ticks": [
+     1e-05,
+     5e-05,
+     0.0002,
+     0.001,
+     0.005
+    ]
+   }
+  },
+  "era5_crr": {
+   "name": "convective rain rate",
+   "unit": "kg m⁻² s⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 8.7e-08,
+    "max": 8.71e-05,
+    "ramp": "magnitude",
+    "ticks": [
+     1e-07,
+     5e-07,
+     2e-06,
+     1e-05,
+     5e-05
+    ]
+   }
+  },
+  "era5_csf": {
+   "name": "convective snowfall",
+   "unit": "m of water equivalent day⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 5.2e-07,
+    "max": 0.00052,
+    "ramp": "magnitude",
+    "ticks": [
+     1e-06,
+     5e-06,
+     2e-05,
+     0.0001,
+     0.0005
+    ]
+   }
+  },
+  "era5_csfr": {
+   "name": "convective snowfall rate water equivalent",
+   "unit": "kg m⁻² s⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 6e-09,
+    "max": 6.03e-06,
+    "ramp": "magnitude",
+    "ticks": [
+     1e-08,
+     5e-08,
+     2e-07,
+     1e-06,
+     5e-06
+    ]
+   }
+  },
+  "era5_uvb": {
+   "name": "downward uv radiation at the surface",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 8500.0,
+    "max": 3170000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     1000000.0,
+     2000000.0,
+     3000000.0
+    ]
+   }
+  },
+  "era5_dctb": {
+   "name": "duct base height",
+   "unit": "m",
+   "scale": {
+    "type": "centred",
+    "min": -726.0,
+    "centre": 0,
+    "max": 726.0,
+    "ramp": "diverging",
+    "ticks": [
+     -500.0,
+     0.0,
+     500.0
+    ]
+   }
+  },
+  "era5_lgws": {
+   "name": "eastward gravity wave surface stress",
+   "unit": "N m⁻² s day⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -3960.0,
+    "centre": 0,
+    "max": 3960.0,
+    "ramp": "diverging",
+    "ticks": [
+     -2000.0,
+     0.0,
+     2000.0
+    ]
+   }
+  },
+  "era5_ewss": {
+   "name": "eastward turbulent surface stress",
+   "unit": "N m⁻² s day⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -20500.0,
+    "centre": 0,
+    "max": 20500.0,
+    "ramp": "diverging",
+    "ticks": [
+     -20000.0,
+     -10000.0,
+     0.0,
+     10000.0,
+     20000.0
+    ]
+   }
+  },
+  "era5_e": {
+   "name": "evaporation",
+   "unit": "m of water equivalent day⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -0.00656,
+    "centre": 0,
+    "max": 0.00656,
+    "ramp": "diverging",
+    "ticks": [
+     -0.006,
+     -0.004,
+     -0.002,
+     0.0,
+     0.002,
+     0.004,
+     0.006
+    ]
+   }
+  },
+  "era5_fal": {
+   "name": "forecast albedo",
+   "unit": "(0 - 1)",
+   "scale": {
+    "type": "log",
+    "min": 0.06,
+    "max": 0.85,
+    "ramp": "magnitude",
+    "ticks": [
+     0.1,
+     0.2,
+     0.5
+    ]
+   }
+  },
+  "era5_flsr": {
+   "name": "forecast logarithm of surface roughness for heat",
+   "unit": "~",
+   "scale": {
+    "type": "centred",
+    "min": -11.0,
+    "centre": 0,
+    "max": 11.0,
+    "ramp": "diverging",
+    "ticks": [
+     -10.0,
+     -5.0,
+     0.0,
+     5.0,
+     10.0
+    ]
+   }
+  },
+  "era5_fsr": {
+   "name": "forecast surface roughness",
+   "unit": "m",
+   "scale": {
+    "type": "log",
+    "min": 0.0018,
+    "max": 1.81,
+    "ramp": "magnitude",
+    "ticks": [
+     0.002,
+     0.01,
+     0.05,
+     0.2,
+     1.0
+    ]
+   }
+  },
+  "era5_wstar": {
+   "name": "free convective velocity over the oceans",
+   "unit": "m s⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 0.209,
+    "max": 0.954,
+    "ramp": "magnitude",
+    "ticks": [
+     0.4,
+     0.6,
+     0.8
+    ]
+   }
+  },
+  "era5_zust": {
+   "name": "friction velocity",
+   "unit": "m s⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 0.0772,
+    "max": 0.464,
+    "ramp": "magnitude",
+    "ticks": [
+     0.1,
+     0.2,
+     0.3,
+     0.4
+    ]
+   }
+  },
+  "era5_gwd": {
+   "name": "gravity wave dissipation",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -111000.0,
+    "centre": 0,
+    "max": 111000.0,
+    "ramp": "diverging",
+    "ticks": [
+     -100000.0,
+     -50000.0,
+     0.0,
+     50000.0,
+     100000.0
+    ]
+   }
+  },
+  "era5_hcc": {
+   "name": "high cloud cover",
+   "unit": "(0 - 1)",
+   "scale": {
+    "type": "linear",
+    "min": 0.0472,
+    "max": 0.774,
+    "ramp": "magnitude",
+    "ticks": [
+     0.2,
+     0.4,
+     0.6
+    ]
+   }
+  },
+  "era5_istl1": {
+   "name": "ice temperature layer 1",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 261.0,
+    "max": 271.0,
+    "ramp": "coldHot",
+    "ticks": [
+     262.0,
+     264.0,
+     266.0,
+     268.0,
+     270.0
+    ]
+   }
+  },
+  "era5_istl2": {
+   "name": "ice temperature layer 2",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 262.0,
+    "max": 271.0,
+    "ramp": "coldHot",
+    "ticks": [
+     262.0,
+     264.0,
+     266.0,
+     268.0,
+     270.0
+    ]
+   }
+  },
+  "era5_istl3": {
+   "name": "ice temperature layer 3",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 265.0,
+    "max": 271.0,
+    "ramp": "coldHot",
+    "ticks": [
+     265.0,
+     266.0,
+     267.0,
+     268.0,
+     269.0,
+     270.0,
+     271.0
+    ]
+   }
+  },
+  "era5_istl4": {
+   "name": "ice temperature layer 4",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 268.0,
+    "max": 271.0,
+    "ramp": "coldHot",
+    "ticks": [
+     268.0,
+     268.5,
+     269.0,
+     269.5,
+     270.0,
+     270.5,
+     271.0
+    ]
+   }
+  },
+  "era5_i10fg": {
+   "name": "instantaneous 10m wind gust",
+   "unit": "m s⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 3.87,
+    "max": 15.1,
+    "ramp": "magnitude",
+    "ticks": [
+     4.0,
+     6.0,
+     8.0,
+     10.0,
+     12.0,
+     14.0
+    ]
+   }
+  },
+  "era5_iews": {
+   "name": "instantaneous eastward turbulent surface stress",
+   "unit": "N m⁻²",
+   "scale": {
+    "type": "centred",
+    "min": -0.225,
+    "centre": 0,
+    "max": 0.225,
+    "ramp": "diverging",
+    "ticks": [
+     -0.2,
+     -0.1,
+     0.0,
+     0.1,
+     0.2
+    ]
+   }
+  },
+  "era5_ilspf": {
+   "name": "instantaneous large scale surface precipitation fraction",
+   "unit": "(0 - 1)",
+   "scale": {
+    "type": "linear",
+    "min": 0.000624,
+    "max": 0.815,
+    "ramp": "magnitude",
+    "ticks": [
+     0.2,
+     0.4,
+     0.6,
+     0.8
+    ]
+   }
+  },
+  "era5_ie": {
+   "name": "instantaneous moisture flux",
+   "unit": "kg m⁻² s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -7.53e-05,
+    "centre": 0,
+    "max": 7.53e-05,
+    "ramp": "diverging",
+    "ticks": [
+     -5e-05,
+     0.0,
+     5e-05
+    ]
+   }
+  },
+  "era5_inss": {
+   "name": "instantaneous northward turbulent surface stress",
+   "unit": "N m⁻²",
+   "scale": {
+    "type": "centred",
+    "min": -0.134,
+    "centre": 0,
+    "max": 0.134,
+    "ramp": "diverging",
+    "ticks": [
+     -0.1,
+     -0.05,
+     0.0,
+     0.05,
+     0.1
+    ]
+   }
+  },
+  "era5_ishf": {
+   "name": "instantaneous surface sensible heat flux",
+   "unit": "W m⁻²",
+   "scale": {
+    "type": "centred",
+    "min": -78.3,
+    "centre": 0,
+    "max": 78.3,
+    "ramp": "diverging",
+    "ticks": [
+     -50.0,
+     0.0,
+     50.0
+    ]
+   }
+  },
+  "era5_kx": {
+   "name": "k index",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": -24.3,
+    "max": 33.4,
+    "ramp": "coldHot",
+    "ticks": [
+     -20.0,
+     -10.0,
+     0.0,
+     10.0,
+     20.0,
+     30.0
+    ]
+   }
+  },
+  "era5_lblt": {
+   "name": "lake bottom temperature",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 273.0,
+    "max": 303.0,
+    "ramp": "coldHot",
+    "ticks": [
+     275.0,
+     280.0,
+     285.0,
+     290.0,
+     295.0,
+     300.0
+    ]
+   }
+  },
+  "era5_licd": {
+   "name": "lake ice depth",
+   "unit": "m",
+   "scale": {
+    "type": "centred",
+    "min": -2.97,
+    "centre": 0,
+    "max": 2.97,
+    "ramp": "diverging",
+    "ticks": [
+     -2.0,
+     -1.0,
+     0.0,
+     1.0,
+     2.0
+    ]
+   }
+  },
+  "era5_lict": {
+   "name": "lake ice temperature",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 244.0,
+    "max": 273.0,
+    "ramp": "coldHot",
+    "ticks": [
+     245.0,
+     250.0,
+     255.0,
+     260.0,
+     265.0,
+     270.0
+    ]
+   }
+  },
+  "era5_lmld": {
+   "name": "lake mix layer depth",
+   "unit": "m",
+   "scale": {
+    "type": "linear",
+    "min": 1.6,
+    "max": 50.0,
+    "ramp": "magnitude",
+    "ticks": [
+     10.0,
+     20.0,
+     30.0,
+     40.0,
+     50.0
+    ]
+   }
+  },
+  "era5_lmlt": {
+   "name": "lake mix layer temperature",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 273.0,
+    "max": 303.0,
+    "ramp": "coldHot",
+    "ticks": [
+     275.0,
+     280.0,
+     285.0,
+     290.0,
+     295.0,
+     300.0
+    ]
+   }
+  },
+  "era5_ltlt": {
+   "name": "lake total layer temperature",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 273.0,
+    "max": 303.0,
+    "ramp": "coldHot",
+    "ticks": [
+     275.0,
+     280.0,
+     285.0,
+     290.0,
+     295.0,
+     300.0
+    ]
+   }
+  },
+  "era5_lsp": {
+   "name": "large scale precipitation",
+   "unit": "m day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 2.1e-06,
+    "max": 0.00438,
+    "ramp": "magnitude",
+    "ticks": [
+     0.001,
+     0.002,
+     0.003,
+     0.004
+    ]
+   }
+  },
+  "era5_lspf": {
+   "name": "large scale precipitation fraction",
+   "unit": "s day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 55.4,
+    "max": 70400.0,
+    "ramp": "magnitude",
+    "ticks": [
+     20000.0,
+     40000.0,
+     60000.0
+    ]
+   }
+  },
+  "era5_lsrr": {
+   "name": "large scale rain rate",
+   "unit": "kg m⁻² s⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 0.0,
+    "max": 4.94e-05,
+    "ramp": "magnitude",
+    "ticks": [
+     0.0,
+     1e-05,
+     2e-05,
+     3e-05,
+     4e-05
+    ]
+   }
+  },
+  "era5_lsf": {
+   "name": "large scale snowfall",
+   "unit": "m of water equivalent day⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 1.9e-06,
+    "max": 0.00185,
+    "ramp": "magnitude",
+    "ticks": [
+     2e-06,
+     1e-05,
+     5e-05,
+     0.0002,
+     0.001
+    ]
+   }
+  },
+  "era5_lssfr": {
+   "name": "large scale snowfall rate water equivalent",
+   "unit": "kg m⁻² s⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 2.2e-08,
+    "max": 2.15e-05,
+    "ramp": "magnitude",
+    "ticks": [
+     5e-08,
+     2e-07,
+     1e-06,
+     5e-06,
+     2e-05
+    ]
+   }
+  },
+  "era5_lai_hv": {
+   "name": "leaf area index high vegetation",
+   "unit": "m² m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 0.0,
+    "max": 5.69,
+    "ramp": "magnitude",
+    "ticks": [
+     0.0,
+     1.0,
+     2.0,
+     3.0,
+     4.0,
+     5.0
+    ]
+   }
+  },
+  "era5_lai_lv": {
+   "name": "leaf area index low vegetation",
+   "unit": "m² m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 0.0,
+    "max": 3.02,
+    "ramp": "magnitude",
+    "ticks": [
+     0.0,
+     1.0,
+     2.0,
+     3.0
+    ]
+   }
+  },
+  "era5_lcc": {
+   "name": "low cloud cover",
+   "unit": "(0 - 1)",
+   "scale": {
+    "type": "linear",
+    "min": 0.00142,
+    "max": 0.857,
+    "ramp": "magnitude",
+    "ticks": [
+     0.2,
+     0.4,
+     0.6,
+     0.8
+    ]
+   }
+  },
+  "era5_hmax": {
+   "name": "maximum individual wave height",
+   "unit": "m",
+   "scale": {
+    "type": "linear",
+    "min": 0.962,
+    "max": 8.41,
+    "ramp": "magnitude",
+    "ticks": [
+     2.0,
+     4.0,
+     6.0,
+     8.0
+    ]
+   }
+  },
+  "era5_mdts": {
+   "name": "mean direction of total swell",
+   "unit": "degrees",
+   "scale": {
+    "type": "linear",
+    "min": 40.6,
+    "max": 317.0,
+    "ramp": "magnitude",
+    "ticks": [
+     50.0,
+     100.0,
+     150.0,
+     200.0,
+     250.0,
+     300.0
+    ]
+   }
+  },
+  "era5_mdww": {
+   "name": "mean direction of wind waves",
+   "unit": "degrees",
+   "scale": {
+    "type": "linear",
+    "min": 43.1,
+    "max": 296.0,
+    "ramp": "magnitude",
+    "ticks": [
+     50.0,
+     100.0,
+     150.0,
+     200.0,
+     250.0
+    ]
+   }
+  },
+  "era5_mpts": {
+   "name": "mean period of total swell",
+   "unit": "s",
+   "scale": {
+    "type": "linear",
+    "min": 4.13,
+    "max": 11.5,
+    "ramp": "magnitude",
+    "ticks": [
+     6.0,
+     8.0,
+     10.0
+    ]
+   }
+  },
+  "era5_mpww": {
+   "name": "mean period of wind waves",
+   "unit": "s",
+   "scale": {
+    "type": "linear",
+    "min": 2.75,
+    "max": 6.21,
+    "ramp": "magnitude",
+    "ticks": [
+     3.0,
+     4.0,
+     5.0,
+     6.0
+    ]
+   }
+  },
+  "era5_msl": {
+   "name": "mean sea level pressure",
+   "unit": "Pa",
+   "scale": {
+    "type": "linear",
+    "min": 98400.0,
+    "max": 102000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     99000.0,
+     100000.0,
+     101000.0,
+     102000.0
+    ]
+   }
+  },
+  "era5_msqs": {
+   "name": "mean square slope of waves",
+   "unit": "dimensionless",
+   "scale": {
+    "type": "linear",
+    "min": 0.00235,
+    "max": 0.0149,
+    "ramp": "magnitude",
+    "ticks": [
+     0.004,
+     0.006,
+     0.008,
+     0.01,
+     0.012,
+     0.014
+    ]
+   }
+  },
+  "era5_dndza": {
+   "name": "mean vertical gradient of refractivity inside trapping layer",
+   "unit": "m⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -0.992,
+    "centre": 0,
+    "max": 0.992,
+    "ramp": "diverging",
+    "ticks": [
+     -0.5,
+     0.0,
+     0.5
+    ]
+   }
+  },
+  "era5_mwd": {
+   "name": "mean wave direction",
+   "unit": "Degree true",
+   "scale": {
+    "type": "linear",
+    "min": 43.2,
+    "max": 309.0,
+    "ramp": "magnitude",
+    "ticks": [
+     50.0,
+     100.0,
+     150.0,
+     200.0,
+     250.0,
+     300.0
+    ]
+   }
+  },
+  "era5_mwd1": {
+   "name": "mean wave direction of first swell partition",
+   "unit": "degrees",
+   "scale": {
+    "type": "linear",
+    "min": 78.6,
+    "max": 271.0,
+    "ramp": "magnitude",
+    "ticks": [
+     100.0,
+     150.0,
+     200.0,
+     250.0
+    ]
+   }
+  },
+  "era5_mwd2": {
+   "name": "mean wave direction of second swell partition",
+   "unit": "degrees",
+   "scale": {
+    "type": "linear",
+    "min": 105.0,
+    "max": 247.0,
+    "ramp": "magnitude",
+    "ticks": [
+     150.0,
+     200.0
+    ]
+   }
+  },
+  "era5_mwd3": {
+   "name": "mean wave direction of third swell partition",
+   "unit": "degrees",
+   "scale": {
+    "type": "linear",
+    "min": 116.0,
+    "max": 283.0,
+    "ramp": "magnitude",
+    "ticks": [
+     150.0,
+     200.0,
+     250.0
+    ]
+   }
+  },
+  "era5_mwp": {
+   "name": "mean wave period",
+   "unit": "s",
+   "scale": {
+    "type": "linear",
+    "min": 3.75,
+    "max": 10.6,
+    "ramp": "magnitude",
+    "ticks": [
+     4.0,
+     6.0,
+     8.0,
+     10.0
+    ]
+   }
+  },
+  "era5_mp1": {
+   "name": "mean wave period based on first moment",
+   "unit": "s",
+   "scale": {
+    "type": "linear",
+    "min": 3.23,
+    "max": 8.93,
+    "ramp": "magnitude",
+    "ticks": [
+     4.0,
+     5.0,
+     6.0,
+     7.0,
+     8.0
+    ]
+   }
+  },
+  "era5_p1ps": {
+   "name": "mean wave period based on first moment for swell",
+   "unit": "s",
+   "scale": {
+    "type": "linear",
+    "min": 3.63,
+    "max": 10.5,
+    "ramp": "magnitude",
+    "ticks": [
+     4.0,
+     6.0,
+     8.0,
+     10.0
+    ]
+   }
+  },
+  "era5_p1ww": {
+   "name": "mean wave period based on first moment for wind waves",
+   "unit": "s",
+   "scale": {
+    "type": "linear",
+    "min": 2.28,
+    "max": 5.5,
+    "ramp": "magnitude",
+    "ticks": [
+     3.0,
+     4.0,
+     5.0
+    ]
+   }
+  },
+  "era5_p2ps": {
+   "name": "mean wave period based on second moment for swell",
+   "unit": "s",
+   "scale": {
+    "type": "linear",
+    "min": 3.33,
+    "max": 9.72,
+    "ramp": "magnitude",
+    "ticks": [
+     4.0,
+     6.0,
+     8.0
+    ]
+   }
+  },
+  "era5_p2ww": {
+   "name": "mean wave period based on second moment for wind waves",
+   "unit": "s",
+   "scale": {
+    "type": "linear",
+    "min": 1.16,
+    "max": 4.93,
+    "ramp": "magnitude",
+    "ticks": [
+     2.0,
+     3.0,
+     4.0
+    ]
+   }
+  },
+  "era5_mwp1": {
+   "name": "mean wave period of first swell partition",
+   "unit": "s",
+   "scale": {
+    "type": "linear",
+    "min": 6.42,
+    "max": 13.7,
+    "ramp": "magnitude",
+    "ticks": [
+     8.0,
+     10.0,
+     12.0
+    ]
+   }
+  },
+  "era5_mwp2": {
+   "name": "mean wave period of second swell partition",
+   "unit": "s",
+   "scale": {
+    "type": "linear",
+    "min": 6.89,
+    "max": 12.1,
+    "ramp": "magnitude",
+    "ticks": [
+     7.0,
+     8.0,
+     9.0,
+     10.0,
+     11.0,
+     12.0
+    ]
+   }
+  },
+  "era5_mwp3": {
+   "name": "mean wave period of third swell partition",
+   "unit": "s",
+   "scale": {
+    "type": "linear",
+    "min": 6.87,
+    "max": 13.2,
+    "ramp": "magnitude",
+    "ticks": [
+     8.0,
+     10.0,
+     12.0
+    ]
+   }
+  },
+  "era5_mp2": {
+   "name": "mean zero crossing wave period",
+   "unit": "s",
+   "scale": {
+    "type": "linear",
+    "min": 2.92,
+    "max": 7.83,
+    "ramp": "magnitude",
+    "ticks": [
+     3.0,
+     4.0,
+     5.0,
+     6.0,
+     7.0
+    ]
+   }
+  },
+  "era5_mcc": {
+   "name": "medium cloud cover",
+   "unit": "(0 - 1)",
+   "scale": {
+    "type": "linear",
+    "min": 0.0153,
+    "max": 0.523,
+    "ramp": "magnitude",
+    "ticks": [
+     0.1,
+     0.2,
+     0.3,
+     0.4,
+     0.5
+    ]
+   }
+  },
+  "era5_dndzn": {
+   "name": "minimum vertical gradient of refractivity inside trapping layer",
+   "unit": "m⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -0.991,
+    "centre": 0,
+    "max": 0.991,
+    "ramp": "diverging",
+    "ticks": [
+     -0.5,
+     0.0,
+     0.5
+    ]
+   }
+  },
+  "era5_alnid": {
+   "name": "near ir albedo for diffuse radiation",
+   "unit": "(0 - 1)",
+   "scale": {
+    "type": "log",
+    "min": 0.06,
+    "max": 0.417,
+    "ramp": "magnitude",
+    "ticks": [
+     0.1,
+     0.2
+    ]
+   }
+  },
+  "era5_alnip": {
+   "name": "near ir albedo for direct radiation",
+   "unit": "(0 - 1)",
+   "scale": {
+    "type": "linear",
+    "min": 0.06,
+    "max": 0.398,
+    "ramp": "magnitude",
+    "ticks": [
+     0.1,
+     0.2,
+     0.3
+    ]
+   }
+  },
+  "era5_phioc": {
+   "name": "normalized energy flux into ocean",
+   "unit": "dimensionless",
+   "scale": {
+    "type": "linear",
+    "min": -7.05,
+    "max": -0.637,
+    "ramp": "magnitude",
+    "ticks": [
+     -6.0,
+     -4.0,
+     -2.0
+    ]
+   }
+  },
+  "era5_phiaw": {
+   "name": "normalized energy flux into waves",
+   "unit": "dimensionless",
+   "scale": {
+    "type": "linear",
+    "min": 0.851,
+    "max": 3.91,
+    "ramp": "magnitude",
+    "ticks": [
+     1.0,
+     2.0,
+     3.0
+    ]
+   }
+  },
+  "era5_tauoc": {
+   "name": "normalized stress into ocean",
+   "unit": "dimensionless",
+   "scale": {
+    "type": "linear",
+    "min": 0.958,
+    "max": 1.02,
+    "ramp": "magnitude",
+    "ticks": [
+     0.96,
+     0.98,
+     1.0,
+     1.02
+    ]
+   }
+  },
+  "era5_mgws": {
+   "name": "northward gravity wave surface stress",
+   "unit": "N m⁻² s day⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -3330.0,
+    "centre": 0,
+    "max": 3330.0,
+    "ramp": "diverging",
+    "ticks": [
+     -2000.0,
+     0.0,
+     2000.0
+    ]
+   }
+  },
+  "era5_nsss": {
+   "name": "northward turbulent surface stress",
+   "unit": "N m⁻² s day⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -11800.0,
+    "centre": 0,
+    "max": 11800.0,
+    "ramp": "diverging",
+    "ticks": [
+     -10000.0,
+     -5000.0,
+     0.0,
+     5000.0,
+     10000.0
+    ]
+   }
+  },
+  "era5_dwi": {
+   "name": "ocean surface stress equivalent 10m neutral wind direction",
+   "unit": "degrees",
+   "scale": {
+    "type": "linear",
+    "min": 54.7,
+    "max": 293.0,
+    "ramp": "magnitude",
+    "ticks": [
+     100.0,
+     150.0,
+     200.0,
+     250.0
+    ]
+   }
+  },
+  "era5_wind": {
+   "name": "ocean surface stress equivalent 10m neutral wind speed",
+   "unit": "m s⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 3.78,
+    "max": 11.6,
+    "ramp": "magnitude",
+    "ticks": [
+     4.0,
+     6.0,
+     8.0,
+     10.0
+    ]
+   }
+  },
+  "era5_pp1d": {
+   "name": "peak wave period",
+   "unit": "s",
+   "scale": {
+    "type": "linear",
+    "min": 4.37,
+    "max": 13.6,
+    "ramp": "magnitude",
+    "ticks": [
+     6.0,
+     8.0,
+     10.0,
+     12.0
+    ]
+   }
+  },
+  "era5_tmax": {
+   "name": "period corresponding to maximum individual wave height",
+   "unit": "s",
+   "scale": {
+    "type": "linear",
+    "min": 3.55,
+    "max": 9.21,
+    "ramp": "magnitude",
+    "ticks": [
+     4.0,
+     5.0,
+     6.0,
+     7.0,
+     8.0,
+     9.0
+    ]
+   }
+  },
+  "era5_pev": {
+   "name": "potential evaporation",
+   "unit": "m day⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -0.00707,
+    "centre": 0,
+    "max": 0.00707,
+    "ramp": "diverging",
+    "ticks": [
+     -0.005,
+     0.0,
+     0.005
+    ]
+   }
+  },
+  "era5_ro": {
+   "name": "runoff",
+   "unit": "m day⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 6.8e-06,
+    "max": 0.00683,
+    "ramp": "magnitude",
+    "ticks": [
+     1e-05,
+     5e-05,
+     0.0002,
+     0.001,
+     0.005
+    ]
+   }
+  },
+  "era5_siconc": {
+   "name": "sea ice cover",
+   "unit": "(0 - 1)",
+   "scale": {
+    "type": "log",
+    "min": 0.00095,
+    "max": 0.947,
+    "ramp": "magnitude",
+    "ticks": [
+     0.001,
+     0.005,
+     0.02,
+     0.1,
+     0.5
+    ]
+   }
+  },
+  "era5_sst": {
+   "name": "sea surface temperature",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 271.0,
+    "max": 303.0,
+    "ramp": "coldHot",
+    "ticks": [
+     280.0,
+     290.0,
+     300.0
+    ]
+   }
+  },
+  "era5_swh": {
+   "name": "significant height of combined wind waves and swell",
+   "unit": "m",
+   "scale": {
+    "type": "linear",
+    "min": 0.512,
+    "max": 4.51,
+    "ramp": "magnitude",
+    "ticks": [
+     1.0,
+     2.0,
+     3.0,
+     4.0
+    ]
+   }
+  },
+  "era5_shts": {
+   "name": "significant height of total swell",
+   "unit": "m",
+   "scale": {
+    "type": "linear",
+    "min": 0.348,
+    "max": 3.35,
+    "ramp": "magnitude",
+    "ticks": [
+     1.0,
+     2.0,
+     3.0
+    ]
+   }
+  },
+  "era5_shww": {
+   "name": "significant height of wind waves",
+   "unit": "m",
+   "scale": {
+    "type": "linear",
+    "min": 0.151,
+    "max": 2.57,
+    "ramp": "magnitude",
+    "ticks": [
+     0.5,
+     1.0,
+     1.5,
+     2.0,
+     2.5
+    ]
+   }
+  },
+  "era5_swh1": {
+   "name": "significant wave height of first swell partition",
+   "unit": "m",
+   "scale": {
+    "type": "linear",
+    "min": 0.316,
+    "max": 3.15,
+    "ramp": "magnitude",
+    "ticks": [
+     0.5,
+     1.0,
+     1.5,
+     2.0,
+     2.5,
+     3.0
+    ]
+   }
+  },
+  "era5_swh2": {
+   "name": "significant wave height of second swell partition",
+   "unit": "m",
+   "scale": {
+    "type": "linear",
+    "min": 0.0828,
+    "max": 1.13,
+    "ramp": "magnitude",
+    "ticks": [
+     0.2,
+     0.4,
+     0.6,
+     0.8,
+     1.0
+    ]
+   }
+  },
+  "era5_swh3": {
+   "name": "significant wave height of third swell partition",
+   "unit": "m",
+   "scale": {
+    "type": "linear",
+    "min": 0.0155,
+    "max": 0.745,
+    "ramp": "magnitude",
+    "ticks": [
+     0.2,
+     0.4,
+     0.6
+    ]
+   }
+  },
+  "era5_src": {
+   "name": "skin reservoir content",
+   "unit": "m of water equivalent",
+   "scale": {
+    "type": "centred",
+    "min": -0.000423,
+    "centre": 0,
+    "max": 0.000423,
+    "ramp": "diverging",
+    "ticks": [
+     -0.0004,
+     -0.0002,
+     0.0,
+     0.0002,
+     0.0004
+    ]
+   }
+  },
+  "era5_skt": {
+   "name": "skin temperature",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 242.0,
+    "max": 305.0,
+    "ramp": "coldHot",
+    "ticks": [
+     260.0,
+     280.0,
+     300.0
+    ]
+   }
+  },
+  "era5_asn": {
+   "name": "snow albedo",
+   "unit": "(0 - 1)",
+   "scale": {
+    "type": "linear",
+    "min": 0.667,
+    "max": 0.88,
+    "ramp": "magnitude",
+    "ticks": [
+     0.7,
+     0.75,
+     0.8,
+     0.85
+    ]
+   }
+  },
+  "era5_rsn": {
+   "name": "snow density",
+   "unit": "kg m⁻³",
+   "scale": {
+    "type": "linear",
+    "min": 100.0,
+    "max": 300.0,
+    "ramp": "magnitude",
+    "ticks": [
+     100.0,
+     150.0,
+     200.0,
+     250.0,
+     300.0
+    ]
+   }
+  },
+  "era5_sd": {
+   "name": "snow depth",
+   "unit": "m of water equivalent",
+   "scale": {
+    "type": "log",
+    "min": 0.01,
+    "max": 10.0,
+    "ramp": "magnitude",
+    "ticks": [
+     0.01,
+     0.05,
+     0.2,
+     1.0,
+     5.0
+    ]
+   }
+  },
+  "era5_es": {
+   "name": "snow evaporation",
+   "unit": "m of water equivalent day⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -0.000312,
+    "centre": 0,
+    "max": 0.000312,
+    "ramp": "diverging",
+    "ticks": [
+     -0.0002,
+     0.0,
+     0.0002
+    ]
+   }
+  },
+  "era5_sf": {
+   "name": "snowfall",
+   "unit": "m of water equivalent day⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 2.2e-06,
+    "max": 0.00223,
+    "ramp": "magnitude",
+    "ticks": [
+     5e-06,
+     2e-05,
+     0.0001,
+     0.0005,
+     0.002
+    ]
+   }
+  },
+  "era5_smlt": {
+   "name": "snowmelt",
+   "unit": "m of water equivalent day⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 2.1e-06,
+    "max": 0.00209,
+    "ramp": "magnitude",
+    "ticks": [
+     5e-06,
+     2e-05,
+     0.0001,
+     0.0005,
+     0.002
+    ]
+   }
+  },
+  "era5_stl1": {
+   "name": "soil temperature level 1",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 227.0,
+    "max": 309.0,
+    "ramp": "coldHot",
+    "ticks": [
+     240.0,
+     260.0,
+     280.0,
+     300.0
+    ]
+   }
+  },
+  "era5_stl2": {
+   "name": "soil temperature level 2",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 227.0,
+    "max": 308.0,
+    "ramp": "coldHot",
+    "ticks": [
+     240.0,
+     260.0,
+     280.0,
+     300.0
+    ]
+   }
+  },
+  "era5_stl3": {
+   "name": "soil temperature level 3",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 227.0,
+    "max": 307.0,
+    "ramp": "coldHot",
+    "ticks": [
+     240.0,
+     260.0,
+     280.0,
+     300.0
+    ]
+   }
+  },
+  "era5_stl4": {
+   "name": "soil temperature level 4",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 227.0,
+    "max": 305.0,
+    "ramp": "coldHot",
+    "ticks": [
+     240.0,
+     260.0,
+     280.0,
+     300.0
+    ]
+   }
+  },
+  "era5_ssro": {
+   "name": "sub surface runoff",
+   "unit": "m day⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 4.4e-06,
+    "max": 0.0044,
+    "ramp": "magnitude",
+    "ticks": [
+     5e-06,
+     2e-05,
+     0.0001,
+     0.0005,
+     0.002
+    ]
+   }
+  },
+  "era5_slhf": {
+   "name": "surface latent heat flux",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -16400000.0,
+    "centre": 0,
+    "max": 16400000.0,
+    "ramp": "diverging",
+    "ticks": [
+     -10000000.0,
+     0.0,
+     10000000.0
+    ]
+   }
+  },
+  "era5_ssr": {
+   "name": "surface net solar radiation",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 16200.0,
+    "max": 24200000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     5000000.0,
+     10000000.0,
+     15000000.0,
+     20000000.0
+    ]
+   }
+  },
+  "era5_ssrc": {
+   "name": "surface net solar radiation clear sky",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 21800.0,
+    "max": 30200000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     10000000.0,
+     20000000.0,
+     30000000.0
+    ]
+   }
+  },
+  "era5_str": {
+   "name": "surface net thermal radiation",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": -10600000.0,
+    "max": -2280000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     -10000000.0,
+     -8000000.0,
+     -6000000.0,
+     -4000000.0
+    ]
+   }
+  },
+  "era5_strc": {
+   "name": "surface net thermal radiation clear sky",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": -11200000.0,
+    "max": -4350000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     -10000000.0,
+     -8000000.0,
+     -6000000.0
+    ]
+   }
+  },
+  "era5_sp": {
+   "name": "surface pressure",
+   "unit": "Pa",
+   "scale": {
+    "type": "linear",
+    "min": 71800.0,
+    "max": 102000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     80000.0,
+     90000.0,
+     100000.0
+    ]
+   }
+  },
+  "era5_sro": {
+   "name": "surface runoff",
+   "unit": "m day⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 2.9e-06,
+    "max": 0.00292,
+    "ramp": "magnitude",
+    "ticks": [
+     5e-06,
+     2e-05,
+     0.0001,
+     0.0005,
+     0.002
+    ]
+   }
+  },
+  "era5_sshf": {
+   "name": "surface sensible heat flux",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -7190000.0,
+    "centre": 0,
+    "max": 7190000.0,
+    "ramp": "diverging",
+    "ticks": [
+     -5000000.0,
+     0.0,
+     5000000.0
+    ]
+   }
+  },
+  "era5_ssrdc": {
+   "name": "surface solar radiation downward clear sky",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 77900.0,
+    "max": 32600000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     10000000.0,
+     20000000.0,
+     30000000.0
+    ]
+   }
+  },
+  "era5_ssrd": {
+   "name": "surface solar radiation downwards",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 61700.0,
+    "max": 27300000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     5000000.0,
+     10000000.0,
+     15000000.0,
+     20000000.0,
+     25000000.0
+    ]
+   }
+  },
+  "era5_strdc": {
+   "name": "surface thermal radiation downward clear sky",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 11300000.0,
+    "max": 35900000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     15000000.0,
+     20000000.0,
+     25000000.0,
+     30000000.0,
+     35000000.0
+    ]
+   }
+  },
+  "era5_strd": {
+   "name": "surface thermal radiation downwards",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 13200000.0,
+    "max": 36800000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     15000000.0,
+     20000000.0,
+     25000000.0,
+     30000000.0,
+     35000000.0
+    ]
+   }
+  },
+  "era5_tsn": {
+   "name": "temperature of snow layer",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 226.0,
+    "max": 280.0,
+    "ramp": "coldHot",
+    "ticks": [
+     230.0,
+     240.0,
+     250.0,
+     260.0,
+     270.0,
+     280.0
+    ]
+   }
+  },
+  "era5_tisr": {
+   "name": "toa incident solar radiation",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 183000.0,
+    "max": 43500000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     10000000.0,
+     20000000.0,
+     30000000.0,
+     40000000.0
+    ]
+   }
+  },
+  "era5_tsr": {
+   "name": "top net solar radiation",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 70500.0,
+    "max": 33300000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     10000000.0,
+     20000000.0,
+     30000000.0
+    ]
+   }
+  },
+  "era5_tsrc": {
+   "name": "top net solar radiation clear sky",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 80100.0,
+    "max": 38900000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     10000000.0,
+     20000000.0,
+     30000000.0
+    ]
+   }
+  },
+  "era5_ttr": {
+   "name": "top net thermal radiation",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": -25600000.0,
+    "max": -14400000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     -24000000.0,
+     -22000000.0,
+     -20000000.0,
+     -18000000.0,
+     -16000000.0
+    ]
+   }
+  },
+  "era5_ttrc": {
+   "name": "top net thermal radiation clear sky",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": -26200000.0,
+    "max": -15000000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     -26000000.0,
+     -24000000.0,
+     -22000000.0,
+     -20000000.0,
+     -18000000.0,
+     -16000000.0
+    ]
+   }
+  },
+  "era5_tcc": {
+   "name": "total cloud cover",
+   "unit": "(0 - 1)",
+   "scale": {
+    "type": "linear",
+    "min": 0.169,
+    "max": 0.931,
+    "ramp": "magnitude",
+    "ticks": [
+     0.2,
+     0.4,
+     0.6,
+     0.8
+    ]
+   }
+  },
+  "era5_tciw": {
+   "name": "total column cloud ice water",
+   "unit": "kg m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 0.000284,
+    "max": 0.0581,
+    "ramp": "magnitude",
+    "ticks": [
+     0.01,
+     0.02,
+     0.03,
+     0.04,
+     0.05
+    ]
+   }
+  },
+  "era5_tclw": {
+   "name": "total column cloud liquid water",
+   "unit": "kg m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 0.000388,
+    "max": 0.133,
+    "ramp": "magnitude",
+    "ticks": [
+     0.02,
+     0.04,
+     0.06,
+     0.08,
+     0.1,
+     0.12
+    ]
+   }
+  },
+  "era5_tco3": {
+   "name": "total column ozone",
+   "unit": "kg m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 0.00518,
+    "max": 0.00863,
+    "ramp": "magnitude",
+    "ticks": [
+     0.006,
+     0.007,
+     0.008
+    ]
+   }
+  },
+  "era5_tcrw": {
+   "name": "total column rain water",
+   "unit": "kg m⁻²",
+   "scale": {
+    "type": "log",
+    "min": 4.4e-05,
+    "max": 0.0437,
+    "ramp": "magnitude",
+    "ticks": [
+     5e-05,
+     0.0002,
+     0.001,
+     0.005,
+     0.02
+    ]
+   }
+  },
+  "era5_tcsw": {
+   "name": "total column snow water",
+   "unit": "kg m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 0.000158,
+    "max": 0.143,
+    "ramp": "magnitude",
+    "ticks": [
+     0.05,
+     0.1
+    ]
+   }
+  },
+  "era5_tcslw": {
+   "name": "total column supercooled liquid water",
+   "unit": "kg m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 5.66e-05,
+    "max": 0.0552,
+    "ramp": "magnitude",
+    "ticks": [
+     0.01,
+     0.02,
+     0.03,
+     0.04,
+     0.05
+    ]
+   }
+  },
+  "era5_tcw": {
+   "name": "total column water",
+   "unit": "kg m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 1.46,
+    "max": 55.0,
+    "ramp": "magnitude",
+    "ticks": [
+     10.0,
+     20.0,
+     30.0,
+     40.0,
+     50.0
+    ]
+   }
+  },
+  "era5_tcwv": {
+   "name": "total column water vapour",
+   "unit": "kg m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 1.42,
+    "max": 54.7,
+    "ramp": "magnitude",
+    "ticks": [
+     10.0,
+     20.0,
+     30.0,
+     40.0,
+     50.0
+    ]
+   }
+  },
+  "era5_tp": {
+   "name": "total precipitation",
+   "unit": "m day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 2.75e-05,
+    "max": 0.011,
+    "ramp": "magnitude",
+    "ticks": [
+     0.002,
+     0.004,
+     0.006,
+     0.008,
+     0.01
+    ]
+   }
+  },
+  "era5_fdir": {
+   "name": "total sky direct solar radiation at surface",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 9000.0,
+    "max": 20800000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     5000000.0,
+     10000000.0,
+     15000000.0,
+     20000000.0
+    ]
+   }
+  },
+  "era5_totalx": {
+   "name": "total totals index",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 22.8,
+    "max": 43.9,
+    "ramp": "coldHot",
+    "ticks": [
+     25.0,
+     30.0,
+     35.0,
+     40.0
+    ]
+   }
+  },
+  "era5_tplb": {
+   "name": "trapping layer base height",
+   "unit": "m",
+   "scale": {
+    "type": "centred",
+    "min": -840.0,
+    "centre": 0,
+    "max": 840.0,
+    "ramp": "diverging",
+    "ticks": [
+     -500.0,
+     0.0,
+     500.0
+    ]
+   }
+  },
+  "era5_tplt": {
+   "name": "trapping layer top height",
+   "unit": "m",
+   "scale": {
+    "type": "log",
+    "min": 0.98,
+    "max": 959.0,
+    "ramp": "magnitude",
+    "ticks": [
+     1.0,
+     5.0,
+     20.0,
+     100.0,
+     500.0
+    ]
+   }
+  },
+  "era5_ust": {
+   "name": "u component stokes drift",
+   "unit": "m s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -0.151,
+    "centre": 0,
+    "max": 0.151,
+    "ramp": "diverging",
+    "ticks": [
+     -0.1,
+     0.0,
+     0.1
+    ]
+   }
+  },
+  "era5_aluvd": {
+   "name": "uv visible albedo for diffuse radiation",
+   "unit": "(0 - 1)",
+   "scale": {
+    "type": "linear",
+    "min": 0.0279,
+    "max": 0.224,
+    "ramp": "magnitude",
+    "ticks": [
+     0.05,
+     0.1,
+     0.15,
+     0.2
+    ]
+   }
+  },
+  "era5_aluvp": {
+   "name": "uv visible albedo for direct radiation",
+   "unit": "(0 - 1)",
+   "scale": {
+    "type": "linear",
+    "min": 0.0247,
+    "max": 0.209,
+    "ramp": "magnitude",
+    "ticks": [
+     0.05,
+     0.1,
+     0.15,
+     0.2
+    ]
+   }
+  },
+  "era5_vst": {
+   "name": "v component stokes drift",
+   "unit": "m s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -0.0814,
+    "centre": 0,
+    "max": 0.0814,
+    "ramp": "diverging",
+    "ticks": [
+     -0.05,
+     0.0,
+     0.05
+    ]
+   }
+  },
+  "era5_viiwd": {
+   "name": "vertical integral of divergence of cloud frozen water flux",
+   "unit": "kg m⁻² s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -7.72e-07,
+    "centre": 0,
+    "max": 7.72e-07,
+    "ramp": "diverging",
+    "ticks": [
+     -5e-07,
+     0.0,
+     5e-07
+    ]
+   }
+  },
+  "era5_vilwd": {
+   "name": "vertical integral of divergence of cloud liquid water flux",
+   "unit": "kg m⁻² s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -1.91e-06,
+    "centre": 0,
+    "max": 1.91e-06,
+    "ramp": "diverging",
+    "ticks": [
+     -1e-06,
+     0.0,
+     1e-06
+    ]
+   }
+  },
+  "era5_vigd": {
+   "name": "vertical integral of divergence of geopotential flux",
+   "unit": "W m⁻²",
+   "scale": {
+    "type": "centred",
+    "min": -830.0,
+    "centre": 0,
+    "max": 830.0,
+    "ramp": "diverging",
+    "ticks": [
+     -500.0,
+     0.0,
+     500.0
+    ]
+   }
+  },
+  "era5_viked": {
+   "name": "vertical integral of divergence of kinetic energy flux",
+   "unit": "W m⁻²",
+   "scale": {
+    "type": "centred",
+    "min": -16.4,
+    "centre": 0,
+    "max": 16.4,
+    "ramp": "diverging",
+    "ticks": [
+     -10.0,
+     0.0,
+     10.0
+    ]
+   }
+  },
+  "era5_vimad": {
+   "name": "vertical integral of divergence of mass flux",
+   "unit": "kg m⁻² s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -0.000918,
+    "centre": 0,
+    "max": 0.000918,
+    "ramp": "diverging",
+    "ticks": [
+     -0.0005,
+     0.0,
+     0.0005
+    ]
+   }
+  },
+  "era5_vimdf": {
+   "name": "vertical integral of divergence of moisture flux",
+   "unit": "kg m⁻² s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -8.58e-05,
+    "centre": 0,
+    "max": 8.58e-05,
+    "ramp": "diverging",
+    "ticks": [
+     -5e-05,
+     0.0,
+     5e-05
+    ]
+   }
+  },
+  "era5_viozd": {
+   "name": "vertical integral of divergence of ozone flux",
+   "unit": "kg m⁻² s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -1.01e-09,
+    "centre": 0,
+    "max": 1.01e-09,
+    "ramp": "diverging",
+    "ticks": [
+     -1e-09,
+     -5e-10,
+     0.0,
+     5e-10,
+     1e-09
+    ]
+   }
+  },
+  "era5_vithed": {
+   "name": "vertical integral of divergence of thermal energy flux",
+   "unit": "W m⁻²",
+   "scale": {
+    "type": "centred",
+    "min": -659.0,
+    "centre": 0,
+    "max": 659.0,
+    "ramp": "diverging",
+    "ticks": [
+     -600.0,
+     -400.0,
+     -200.0,
+     0.0,
+     200.0,
+     400.0,
+     600.0
+    ]
+   }
+  },
+  "era5_vited": {
+   "name": "vertical integral of divergence of total energy flux",
+   "unit": "W m⁻²",
+   "scale": {
+    "type": "centred",
+    "min": -292.0,
+    "centre": 0,
+    "max": 292.0,
+    "ramp": "diverging",
+    "ticks": [
+     -200.0,
+     -100.0,
+     0.0,
+     100.0,
+     200.0
+    ]
+   }
+  },
+  "era5_viiwe": {
+   "name": "vertical integral of eastward cloud frozen water flux",
+   "unit": "kg m⁻¹ s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -0.977,
+    "centre": 0,
+    "max": 0.977,
+    "ramp": "diverging",
+    "ticks": [
+     -0.5,
+     0.0,
+     0.5
+    ]
+   }
+  },
+  "era5_vilwe": {
+   "name": "vertical integral of eastward cloud liquid water flux",
+   "unit": "kg m⁻¹ s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -1.46,
+    "centre": 0,
+    "max": 1.46,
+    "ramp": "diverging",
+    "ticks": [
+     -1.0,
+     -0.5,
+     0.0,
+     0.5,
+     1.0
+    ]
+   }
+  },
+  "era5_vige": {
+   "name": "vertical integral of eastward geopotential flux",
+   "unit": "W m⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -22400000000.0,
+    "centre": 0,
+    "max": 22400000000.0,
+    "ramp": "diverging",
+    "ticks": [
+     -20000000000.0,
+     -10000000000.0,
+     0.0,
+     10000000000.0,
+     20000000000.0
+    ]
+   }
+  },
+  "era5_vithee": {
+   "name": "vertical integral of eastward heat flux",
+   "unit": "W m⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -57300000000.0,
+    "centre": 0,
+    "max": 57300000000.0,
+    "ramp": "diverging",
+    "ticks": [
+     -40000000000.0,
+     -20000000000.0,
+     0.0,
+     20000000000.0,
+     40000000000.0
+    ]
+   }
+  },
+  "era5_vikee": {
+   "name": "vertical integral of eastward kinetic energy flux",
+   "unit": "W m⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -213000000.0,
+    "centre": 0,
+    "max": 213000000.0,
+    "ramp": "diverging",
+    "ticks": [
+     -200000000.0,
+     -100000000.0,
+     0.0,
+     100000000.0,
+     200000000.0
+    ]
+   }
+  },
+  "era5_vimae": {
+   "name": "vertical integral of eastward mass flux",
+   "unit": "kg m⁻¹ s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -238000.0,
+    "centre": 0,
+    "max": 238000.0,
+    "ramp": "diverging",
+    "ticks": [
+     -200000.0,
+     -100000.0,
+     0.0,
+     100000.0,
+     200000.0
+    ]
+   }
+  },
+  "era5_vioze": {
+   "name": "vertical integral of eastward ozone flux",
+   "unit": "kg m⁻¹ s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -0.295,
+    "centre": 0,
+    "max": 0.295,
+    "ramp": "diverging",
+    "ticks": [
+     -0.2,
+     -0.1,
+     0.0,
+     0.1,
+     0.2
+    ]
+   }
+  },
+  "era5_vitee": {
+   "name": "vertical integral of eastward total energy flux",
+   "unit": "W m⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -78800000000.0,
+    "centre": 0,
+    "max": 78800000000.0,
+    "ramp": "diverging",
+    "ticks": [
+     -50000000000.0,
+     0.0,
+     50000000000.0
+    ]
+   }
+  },
+  "era5_viwve": {
+   "name": "vertical integral of eastward water vapour flux",
+   "unit": "kg m⁻¹ s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -303.0,
+    "centre": 0,
+    "max": 303.0,
+    "ramp": "diverging",
+    "ticks": [
+     -200.0,
+     0.0,
+     200.0
+    ]
+   }
+  },
+  "era5_viec": {
+   "name": "vertical integral of energy conversion",
+   "unit": "W m⁻²",
+   "scale": {
+    "type": "centred",
+    "min": -835.0,
+    "centre": 0,
+    "max": 835.0,
+    "ramp": "diverging",
+    "ticks": [
+     -500.0,
+     0.0,
+     500.0
+    ]
+   }
+  },
+  "era5_vike": {
+   "name": "vertical integral of kinetic energy",
+   "unit": "J m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 343000.0,
+    "max": 5080000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     1000000.0,
+     2000000.0,
+     3000000.0,
+     4000000.0,
+     5000000.0
+    ]
+   }
+  },
+  "era5_vima": {
+   "name": "vertical integral of mass of atmosphere",
+   "unit": "kg m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 7330.0,
+    "max": 10400.0,
+    "ramp": "magnitude",
+    "ticks": [
+     8000.0,
+     9000.0,
+     10000.0
+    ]
+   }
+  },
+  "era5_vimat": {
+   "name": "vertical integral of mass tendency",
+   "unit": "kg m⁻² s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -2.3e-05,
+    "centre": 0,
+    "max": 2.3e-05,
+    "ramp": "diverging",
+    "ticks": [
+     -2e-05,
+     -1e-05,
+     0.0,
+     1e-05,
+     2e-05
+    ]
+   }
+  },
+  "era5_viiwn": {
+   "name": "vertical integral of northward cloud frozen water flux",
+   "unit": "kg m⁻¹ s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -0.483,
+    "centre": 0,
+    "max": 0.483,
+    "ramp": "diverging",
+    "ticks": [
+     -0.4,
+     -0.2,
+     0.0,
+     0.2,
+     0.4
+    ]
+   }
+  },
+  "era5_vilwn": {
+   "name": "vertical integral of northward cloud liquid water flux",
+   "unit": "kg m⁻¹ s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -0.564,
+    "centre": 0,
+    "max": 0.564,
+    "ramp": "diverging",
+    "ticks": [
+     -0.4,
+     -0.2,
+     0.0,
+     0.2,
+     0.4
+    ]
+   }
+  },
+  "era5_vign": {
+   "name": "vertical integral of northward geopotential flux",
+   "unit": "W m⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -3090000000.0,
+    "centre": 0,
+    "max": 3090000000.0,
+    "ramp": "diverging",
+    "ticks": [
+     -2000000000.0,
+     0.0,
+     2000000000.0
+    ]
+   }
+  },
+  "era5_vithen": {
+   "name": "vertical integral of northward heat flux",
+   "unit": "W m⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -8520000000.0,
+    "centre": 0,
+    "max": 8520000000.0,
+    "ramp": "diverging",
+    "ticks": [
+     -5000000000.0,
+     0.0,
+     5000000000.0
+    ]
+   }
+  },
+  "era5_viken": {
+   "name": "vertical integral of northward kinetic energy flux",
+   "unit": "W m⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -21700000.0,
+    "centre": 0,
+    "max": 21700000.0,
+    "ramp": "diverging",
+    "ticks": [
+     -20000000.0,
+     -10000000.0,
+     0.0,
+     10000000.0,
+     20000000.0
+    ]
+   }
+  },
+  "era5_viman": {
+   "name": "vertical integral of northward mass flux",
+   "unit": "kg m⁻¹ s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -35500.0,
+    "centre": 0,
+    "max": 35500.0,
+    "ramp": "diverging",
+    "ticks": [
+     -20000.0,
+     0.0,
+     20000.0
+    ]
+   }
+  },
+  "era5_viozn": {
+   "name": "vertical integral of northward ozone flux",
+   "unit": "kg m⁻¹ s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -0.0396,
+    "centre": 0,
+    "max": 0.0396,
+    "ramp": "diverging",
+    "ticks": [
+     -0.02,
+     0.0,
+     0.02
+    ]
+   }
+  },
+  "era5_viten": {
+   "name": "vertical integral of northward total energy flux",
+   "unit": "W m⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -11400000000.0,
+    "centre": 0,
+    "max": 11400000000.0,
+    "ramp": "diverging",
+    "ticks": [
+     -10000000000.0,
+     -5000000000.0,
+     0.0,
+     5000000000.0,
+     10000000000.0
+    ]
+   }
+  },
+  "era5_viwvn": {
+   "name": "vertical integral of northward water vapour flux",
+   "unit": "kg m⁻¹ s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -111.0,
+    "centre": 0,
+    "max": 111.0,
+    "ramp": "diverging",
+    "ticks": [
+     -100.0,
+     -50.0,
+     0.0,
+     50.0,
+     100.0
+    ]
+   }
+  },
+  "era5_vipie": {
+   "name": "vertical integral of potential and internal energy",
+   "unit": "J m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 1880000000.0,
+    "max": 2700000000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     2000000000.0,
+     2200000000.0,
+     2400000000.0,
+     2600000000.0
+    ]
+   }
+  },
+  "era5_vipile": {
+   "name": "vertical integral of potential internal and latent energy",
+   "unit": "J m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 1880000000.0,
+    "max": 2830000000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     2000000000.0,
+     2200000000.0,
+     2400000000.0,
+     2600000000.0,
+     2800000000.0
+    ]
+   }
+  },
+  "era5_vit": {
+   "name": "vertical integral of temperature",
+   "unit": "K kg m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 1690000.0,
+    "max": 2680000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     1800000.0,
+     2000000.0,
+     2200000.0,
+     2400000.0,
+     2600000.0
+    ]
+   }
+  },
+  "era5_vithe": {
+   "name": "vertical integral of thermal energy",
+   "unit": "J m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 1690000000.0,
+    "max": 2700000000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     1800000000.0,
+     2000000000.0,
+     2200000000.0,
+     2400000000.0,
+     2600000000.0
+    ]
+   }
+  },
+  "era5_vitoe": {
+   "name": "vertical integral of total energy",
+   "unit": "J m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 1890000000.0,
+    "max": 2830000000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     2000000000.0,
+     2200000000.0,
+     2400000000.0,
+     2600000000.0,
+     2800000000.0
+    ]
+   }
+  },
+  "era5_vimd": {
+   "name": "vertically integrated moisture divergence",
+   "unit": "kg m⁻² day⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -6.92,
+    "centre": 0,
+    "max": 6.92,
+    "ramp": "diverging",
+    "ticks": [
+     -6.0,
+     -4.0,
+     -2.0,
+     0.0,
+     2.0,
+     4.0,
+     6.0
+    ]
+   }
+  },
+  "era5_swvl1": {
+   "name": "volumetric soil water layer 1",
+   "unit": "m³ m⁻³",
+   "scale": {
+    "type": "linear",
+    "min": 0.0013,
+    "max": 0.49,
+    "ramp": "magnitude",
+    "ticks": [
+     0.1,
+     0.2,
+     0.3,
+     0.4
+    ]
+   }
+  },
+  "era5_swvl2": {
+   "name": "volumetric soil water layer 2",
+   "unit": "m³ m⁻³",
+   "scale": {
+    "type": "linear",
+    "min": 0.00301,
+    "max": 0.492,
+    "ramp": "magnitude",
+    "ticks": [
+     0.1,
+     0.2,
+     0.3,
+     0.4
+    ]
+   }
+  },
+  "era5_swvl3": {
+   "name": "volumetric soil water layer 3",
+   "unit": "m³ m⁻³",
+   "scale": {
+    "type": "linear",
+    "min": 0.000396,
+    "max": 0.487,
+    "ramp": "magnitude",
+    "ticks": [
+     0.1,
+     0.2,
+     0.3,
+     0.4
+    ]
+   }
+  },
+  "era5_swvl4": {
+   "name": "volumetric soil water layer 4",
+   "unit": "m³ m⁻³",
+   "scale": {
+    "type": "linear",
+    "min": 0.0134,
+    "max": 0.502,
+    "ramp": "magnitude",
+    "ticks": [
+     0.1,
+     0.2,
+     0.3,
+     0.4,
+     0.5
+    ]
+   }
+  },
+  "era5_wdw": {
+   "name": "wave spectral directional width",
+   "unit": "radians",
+   "scale": {
+    "type": "linear",
+    "min": 0.462,
+    "max": 0.911,
+    "ramp": "magnitude",
+    "ticks": [
+     0.5,
+     0.6,
+     0.7,
+     0.8,
+     0.9
+    ]
+   }
+  },
+  "era5_dwps": {
+   "name": "wave spectral directional width for swell",
+   "unit": "radians",
+   "scale": {
+    "type": "linear",
+    "min": 0.283,
+    "max": 0.844,
+    "ramp": "magnitude",
+    "ticks": [
+     0.3,
+     0.4,
+     0.5,
+     0.6,
+     0.7,
+     0.8
+    ]
+   }
+  },
+  "era5_dwww": {
+   "name": "wave spectral directional width for wind waves",
+   "unit": "radians",
+   "scale": {
+    "type": "linear",
+    "min": 0.297,
+    "max": 0.741,
+    "ramp": "magnitude",
+    "ticks": [
+     0.3,
+     0.4,
+     0.5,
+     0.6,
+     0.7
+    ]
+   }
+  },
+  "era5_wsk": {
+   "name": "wave spectral kurtosis",
+   "unit": "dimensionless",
+   "scale": {
+    "type": "linear",
+    "min": 0.0021,
+    "max": 0.0216,
+    "ramp": "magnitude",
+    "ticks": [
+     0.005,
+     0.01,
+     0.015,
+     0.02
+    ]
+   }
+  },
+  "era5_wsp": {
+   "name": "wave spectral peakedness",
+   "unit": "dimensionless",
+   "scale": {
+    "type": "linear",
+    "min": 3.05,
+    "max": 4.74,
+    "ramp": "magnitude",
+    "ticks": [
+     3.5,
+     4.0,
+     4.5
+    ]
+   }
+  },
+  "era5_wss": {
+   "name": "wave spectral skewness",
+   "unit": "dimensionless",
+   "scale": {
+    "type": "linear",
+    "min": 0.0109,
+    "max": 0.0367,
+    "ramp": "magnitude",
+    "ticks": [
+     0.015,
+     0.02,
+     0.025,
+     0.03,
+     0.035
+    ]
+   }
+  },
+  "era5_deg0l": {
+   "name": "zero degree level",
+   "unit": "m",
+   "scale": {
+    "type": "linear",
+    "min": 0.0,
+    "max": 5210.0,
+    "ramp": "magnitude",
+    "ticks": [
+     0.0,
+     1000.0,
+     2000.0,
+     3000.0,
+     4000.0,
+     5000.0
+    ]
+   }
+  }
+ }
+}

@@ -27,7 +27,22 @@ export const LAYERS = [
     unit: 'µg/m³', perMonth: () => 1e9,                                          // stored as kg/m³
     scale: { type: 'log', min: 2, max: 150, ramp: 'haze', ticks: [2, 5, 10, 25, 50, 150] },
     preview: 'images/CAMS-Monthly/pm25/{MM}.png', series: [2003, 2025], normal: '2003–2025', tables: true },
+  // one entry for 201 variables: the panel picks the variable (era5Layer); normals from climatology_overviews/
+  { id: 'era5', name: 'ERA5', source: 'ERA5, reanalysis', dataset: 'ERA5-Monthly', variables: true, normals: true,
+    series: [1940, 2025], normal: '1991–2020', tables: false,
+    noSeries: 'ERA5 has no by_cell/ copy yet, so its series is not read here.' },
 ]
+
+/** ERA5's variables: names, units and colour scales (scales.json, made by build_scales.py). */
+export const loadEra5Variables = () => fetch('scales.json' + location.search).then(r => r.json())
+
+/** The ERA5 layer for one variable: a layer like the others, with that column, unit and scale. `overview`: the
+ *  variable has series overviews (globe-scale monthly maps); the others are read from series/ at every zoom. */
+export function era5Layer(info, column) {
+  const v = info.variables[column], base = LAYERS.find(l => l.id === 'era5')
+  return { ...base, id: `era5:${column}`, column, variable: v.name, name: `ERA5: ${v.name}`, unit: v.unit,
+    scale: v.scale, overview: info.overviews.includes(column) }
+}
 
 const TAIL = 131072             // a file's first request: its last 128 KB, which hold the footer (28-97 KB here);
                                 // hyparquet is told the same size, or it fetches its own last 512 KB again
@@ -207,14 +222,16 @@ export async function loadByCellSeries(layer, row, col) {
   const file = await countedFile(url, stats, footers.has(url) ? 8 : TAIL)           // 8 bytes: the size only
   if (!footers.has(url)) footers.set(url, await parquetMetadataAsync(file, { initialFetchSize: TAIL }))
   const metadata = footers.get(url), months = Number(metadata.num_rows) / count, first = rank * months
+  // year and month follow from the order (every month from the first January), so only the cell's position (the
+  // check that these rows are the cell) and the value are read: each column costs its page index and its pages
   await parquetRead({
     file, metadata, compressors, useOffsetIndex: true, rowStart: first, rowEnd: first + months,
-    columns: ['grid_row_u', 'grid_col_r', 'year', 'month', layer.column],
+    columns: ['grid_row_u', 'grid_col_r', layer.column],
     onComplete(rows) {
-      for (const [r, c, y, m, v] of rows) {
+      rows.forEach(([r, c, v], k) => {
         if (Number(r) !== row || Number(c) !== col) throw new Error(`${url}: rows ${first}+ are not cell ${row}, ${col}`)
-        if (v !== null) values[(y - a) * 12 + m - 1] = v * factor(layer, Number(m))
-      }
+        if (v !== null) values[k] = v * factor(layer, (k % 12) + 1)
+      })
     },
   })
   stats.read = performance.now() - stats.t0
@@ -222,13 +239,22 @@ export async function loadByCellSeries(layer, row, col) {
 }
 
 /** One month of the dataset's overview tables (4 x 4 block means, level 2): values on the block array. */
-export async function loadOverviewMonth(layer, year, month, onProgress = () => {}) {
-  const stats = newStats(), level = 2
+export function loadOverviewMonth(layer, year, month, onProgress = () => {}) {
   const url = `${SOURCE_COOP}/${layer.dataset}/overviews/year=${year}/${String(month).padStart(2, '0')}.parquet`
+  return readBlocks(url, layer.column, factor(layer, month), onProgress)
+}
+
+/** One calendar month of the dataset's climatology overviews: each block's normal (4 x 4 means of _mean). */
+export function loadNormalsOverview(layer, month, onProgress = () => {}) {
+  const url = `${SOURCE_COOP}/${layer.dataset}/climatology_overviews/${String(month).padStart(2, '0')}.parquet`
+  return readBlocks(url, `${layer.column}_mean`, factor(layer, month), onProgress)
+}
+
+async function readBlocks(url, column, f, onProgress) {
+  const stats = newStats(), level = 2
   const file = await countedFile(url, stats)
   const w = Math.ceil(COLS / 2 ** level), values = new Float32Array(Math.ceil(ROWS / 2 ** level) * w).fill(NaN)
-  const f = factor(layer, month)
-  await parquetRead({ file, compressors, initialFetchSize: TAIL, columns: ['block_row', 'block_col', layer.column],
+  await parquetRead({ file, compressors, initialFetchSize: TAIL, columns: ['block_row', 'block_col', column],
     onComplete(rows) { for (const [r, c, v] of rows) if (v !== null) values[r * w + c] = v * f } })
   onProgress(1, stats.bytes, stats.bytes)
   stats.read = performance.now() - stats.t0; stats.level = level
