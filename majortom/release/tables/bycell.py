@@ -1,14 +1,15 @@
-"""By-cell layout: every cell's whole series together, so one place over time reads one row group.
+"""By-cell layout: every cell's whole series together, so one place over time reads only its own pages.
 
     <src>/cells.parquet + series/year=YYYY/MM.parquet (as layout.repack writes them: every monthly file lists the
     cells in cells.parquet's order, with the same row groups)
       -> one band at a time (band = (grid_row_u + 1002) * 20 // 2004, as the climatology files):
-           the band's cells; from every monthly file only the row groups holding them (known from their positions);
-           their values (memory: the band's cells x months x columns, ~1/20 of the dataset)
+           the band's cells, in slices of ~4,096 cells (whole output row groups); for each slice, from every monthly
+           file only the row groups holding it (known from the positions); memory: one slice x months x columns
       -> rows: the band's cells along the curve, each with all its months (year, month) in turn
-      -> <dst>/by_cell/band=NN.parquet: row groups of whole cells (~65,536 rows), grid_cell dictionary-encoded, zstd,
-         statistics on grid_row_u and grid_col_r (so a reader finds a cell's row group without reading others)
-      -> checked: 50 random cells in 3 months equal the source rows
+      -> <dst>/by_cell/band=NN.parquet: row groups of 1,024 cells, zstd, statistics on grid_row_u and grid_col_r;
+         a page index and pages of about one cell's series, values without dictionaries (byte-stream split): a
+         reader that knows a cell's rows reads only its pages (ERA5: 0.8 MB for one variable, footer included)
+      -> checked: 50 random cells in 3 months equal the source rows; only then renamed into place
     Values are unchanged, missing values stay null. The monthly files suit maps of one month; this layout, time
     series of places (an app's chart, training on series).
 
@@ -16,6 +17,7 @@
 """
 from __future__ import annotations
 
+import os
 from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
@@ -23,7 +25,9 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-ROWS, BANDS, ROW_GROUP = 2004, 20, 65_536
+ROWS, BANDS = 2004, 20
+CELLS = 1024                                        # cells per row group: small footers, with the page index
+SLICE = 4 * CELLS                                   # cells held in memory at once (ERA5: ~28 GB per worker)
 POSITION = ["grid_cell", "grid_row_u", "grid_col_r", "year", "month"]
 
 
@@ -49,22 +53,45 @@ def _band(src: Path, dst: Path, band: int, seed: int = 0) -> int:
     months = _months(src)
     schema = pq.read_schema(months[0][2])
     names = [f.name for f in schema if f.name not in POSITION]
-    values = {n: np.empty((len(months), len(at)), schema.field(n).type.to_pandas_dtype()) for n in names}
-    valid = {n: np.empty((len(months), len(at)), bool) for n in names}
     bounds = _groups(months[0][2])
-    for k, (_, _, path) in enumerate(months):
+    for _, _, path in months:
         if not np.array_equal(_groups(path), bounds):
             raise ValueError(f"{path}: row groups differ from {months[0][2]}; repack the dataset first")
-        need = np.unique(np.searchsorted(bounds, at, side="right") - 1)                  # row groups holding the band
+    path = dst / "by_cell" / f"band={band:02d}.parquet"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    writer = None
+    floats = [n for n in names if pa.types.is_floating(schema.field(n).type)]
+    for s in range(0, len(at), SLICE):
+        table = _slice(at[s:s + SLICE], months, cells, rows, schema, names, bounds)
+        if writer is None:                                  # dictionaries would be read whole before any page
+            writer = pq.ParquetWriter(tmp, table.schema, compression="zstd", write_statistics=True,
+                                      write_page_index=True, use_dictionary=POSITION, use_byte_stream_split=floats,
+                                      data_page_size=4096, write_batch_size=len(months))  # ~one cell per page
+        writer.write_table(table, row_group_size=CELLS * len(months))
+    writer.close()
+    _check(tmp, months, at, cells, names, np.random.default_rng(seed + band))
+    os.replace(tmp, path)                                                                # into place only once checked
+    return len(at)
+
+
+def _slice(at: np.ndarray, months, cells: pa.Table, rows: np.ndarray, schema: pa.Schema, names: list[str],
+           bounds: np.ndarray) -> pa.Table:
+    """Rows of the cells at positions `at`, each with all its months: from every monthly file, only the row groups
+    holding them."""
+    values = {n: np.empty((len(months), len(at)), schema.field(n).type.to_pandas_dtype()) for n in names}
+    valid = {n: np.empty((len(months), len(at)), bool) for n in names}
+    need = np.unique(np.searchsorted(bounds, at, side="right") - 1)                      # row groups holding them
+    read_at = np.concatenate([np.arange(bounds[g], bounds[g + 1]) for g in need])         # positions of the rows read
+    take = pa.array(np.searchsorted(read_at, at))
+    for k, (_, _, path) in enumerate(months):
         t = pq.ParquetFile(path).read_row_groups(need.tolist(), columns=names)
-        read_at = np.concatenate([np.arange(bounds[g], bounds[g + 1]) for g in need])     # positions of the rows read
-        take = np.searchsorted(read_at, at)
         for n in names:
-            col = t.column(n).take(pa.array(take))
+            col = t.column(n).take(take)
             valid[n][k] = col.is_valid().to_numpy(zero_copy_only=False)
             values[n][k] = col.fill_null(0).to_numpy(zero_copy_only=False)
     n, m = len(at), len(months)
-    table = pa.table({
+    return pa.table({
         "grid_cell": pa.DictionaryArray.from_arrays(pa.array(np.repeat(np.arange(n, dtype=np.int32), m)),
                                                     cells.column("grid_cell").take(pa.array(at)).combine_chunks()),
         "grid_row_u": np.repeat(rows[at].astype(np.int16), m),
@@ -73,11 +100,6 @@ def _band(src: Path, dst: Path, band: int, seed: int = 0) -> int:
         "month": np.tile(np.array([mo for _, mo, _ in months], np.int8), n),
         **{c: pa.array(values[c].T.ravel(), mask=~valid[c].T.ravel(), type=schema.field(c).type) for c in names},
     })
-    path = dst / "by_cell" / f"band={band:02d}.parquet"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    pq.write_table(table, path, row_group_size=max(1, ROW_GROUP // m) * m, compression="zstd", write_statistics=True)
-    _check(path, months, at, cells, names, np.random.default_rng(seed + band))
-    return n
 
 
 def _check(path: Path, months, at: np.ndarray, cells: pa.Table, names: list[str], rng) -> None:

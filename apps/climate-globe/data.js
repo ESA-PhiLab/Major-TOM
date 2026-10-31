@@ -181,12 +181,42 @@ export async function loadCellClimatology(layer, row, col) {
   return { mean, std, stats }
 }
 
-/** One cell's every month from the dataset's by_cell layout: its band file, the row group holding its series. */
+/** A cell's place among its band's cells, and the band's number of cells: by_cell files list a band's cells in
+ *  the order of cells.parquet, each with all its months, so the cell's rows are rank x months onwards. */
+async function bandRank(dataset, row, col, stats) {
+  const progress = { total: 0, expected: 0, done: 0, report() {} }
+  const index = await cellPositions(dataset, stats, progress), want = (row + ROWS / 2) * COLS + col + COLS / 2
+  const band = Math.floor(((row + ROWS / 2) * 20) / ROWS)
+  let rank = -1, count = 0
+  for (let i = 0; i < index.length; i++) {
+    if (Math.floor((Math.floor(index[i] / COLS) * 20) / ROWS) !== band) continue
+    if (index[i] === want) rank = count
+    count += 1
+  }
+  return [rank, count]
+}
+
+const footers = new Map()       // by_cell footers, kept after the first read (ERA5: up to ~9 MB a band)
+
+/** One cell's every month from the dataset's by_cell layout: only its rows, read through the page index. */
 export async function loadByCellSeries(layer, row, col) {
   const stats = newStats(), [a, b] = layer.series, values = new Array((b - a + 1) * 12).fill(NaN)
-  const rows = await cellRows(`${SOURCE_COOP}/${layer.dataset}/by_cell/band=${bandOf(row)}.parquet`, row, col,
-    ['grid_row_u', 'grid_col_r', 'year', 'month', layer.column], stats)
-  for (const [, , y, m, v] of rows) if (v !== null) values[(y - a) * 12 + m - 1] = v * factor(layer, Number(m))
+  const url = `${SOURCE_COOP}/${layer.dataset}/by_cell/band=${bandOf(row)}.parquet`
+  const [rank, count] = await bandRank(layer.dataset, row, col, stats)
+  if (rank < 0) throw new Error(`no cell at row ${row}, column ${col}`)
+  const file = await countedFile(url, stats, footers.has(url) ? 8 : TAIL)           // 8 bytes: the size only
+  if (!footers.has(url)) footers.set(url, await parquetMetadataAsync(file, { initialFetchSize: TAIL }))
+  const metadata = footers.get(url), months = Number(metadata.num_rows) / count, first = rank * months
+  await parquetRead({
+    file, metadata, compressors, useOffsetIndex: true, rowStart: first, rowEnd: first + months,
+    columns: ['grid_row_u', 'grid_col_r', 'year', 'month', layer.column],
+    onComplete(rows) {
+      for (const [r, c, y, m, v] of rows) {
+        if (Number(r) !== row || Number(c) !== col) throw new Error(`${url}: rows ${first}+ are not cell ${row}, ${col}`)
+        if (v !== null) values[(y - a) * 12 + m - 1] = v * factor(layer, Number(m))
+      }
+    },
+  })
   stats.read = performance.now() - stats.t0
   return { values, stats }
 }
