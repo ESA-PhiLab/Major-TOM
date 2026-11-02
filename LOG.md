@@ -1,5 +1,6 @@
 # Log
 
+- 2026-11-02 ERA5-Land fill south of 57.1°S: source, merge --fill, scripts; checked at Loch Lomond against Earth Data Hub (t2m 2.7e-4); not run (paused)
 - 2026-11-02 ERA5Land-Monthly built and validated; ERA5-Monthly-v2 removed (ptype kept); ERA5 overviews for 201 variables; climatology with a page index; File layout in the climate README -> [report](docs/reports/2026-11-02-era5land-climatology-layout.md)
 - 2026-10-31 ERA5-Monthly upload finished (2,085 files, verified); README example runs; ERA5 live month in the app works
 - 2026-10-31 by_cell with 1,024-cell row groups, page index, no value dictionaries (CPC, IMERG, CAMS replaced, values equal); climatology overviews (4 datasets); ERA5 layer in the climate globe -> [report](docs/reports/2026-10-31-bycell-page-index.md)
