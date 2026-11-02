@@ -72,7 +72,7 @@ Licensed CC BY 4.0. Contains modified Copernicus Climate Change Service informat
 
 - Copernicus Climate Change Service (2018), ERA5 hourly data on single levels from 1940 to present, Copernicus Climate Change Service (C3S) Climate Data Store (CDS), doi:10.24381/cds.adbb2d47.
 - Hersbach, H., et al. (2020), The ERA5 global reanalysis, Q. J. R. Meteorol. Soc., 146, 1999–2049, doi:10.1002/qj.3803.
-- Carver, R. W., and A. Merose (2023), ARCO-ERA5: An Analysis-Ready Cloud-Optimized Reanalysis Dataset, 22nd Conf. on AI for Env. Science, Denver, CO, Amer. Meteo. Soc., 4A.1.
+- Carver, R. W., and A. Merose (2023), ARCO-ERA5: An Analysis-Ready Cloud-Optimized Reanalysis Dataset, 22nd Conf. on AI for Env. Science, Denver, CO, Amer. Meteo. Soc., 4A.1, https://ams.confex.com/ams/103ANNUAL/meetingapp.cgi/Paper/415842.
 
 ## Author and citation
 
