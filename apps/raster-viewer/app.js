@@ -16,7 +16,7 @@ import { cellAt, cellIndex, renderTile } from './tiles.js'
 const $ = id => document.getElementById(id)
 const COLOURS = { S2L2A: [57, 181, 74], S2L1C: [0, 113, 188], S1RTC: [241, 90, 36], DEM: [180, 140, 90] }
 
-const state = { name: null, info: null, coverage: null, version: 0, loading: 0 }
+const state = { name: null, info: null, datasets: null, coverage: null, version: 0, loading: 0 }
 
 // ---- map ---------------------------------------------------------------------------------------------------
 
@@ -67,6 +67,7 @@ map.on('load', async () => {
   map.getSource('coast').setData(coastLines(feature(topo, topo.objects.land)))
   map.getSource('land').setData(continuousRings(feature(topo, topo.objects.land)))
   const datasets = await DATASETS
+  state.datasets = datasets
   buildDatasetList(datasets)
   setDataset(Object.keys(datasets)[0], datasets)
 })
@@ -220,11 +221,47 @@ async function setDataset(name, datasets) {
     $('stat-draw').textContent = secs(performance.now() - t0)
     document.body.dataset.loaded = name                     // for automated checks
     stopLoader()
+    prefetchFootprints()
   })
+}
+
+/** The other datasets' footprints, one after another, once the shown one is drawn: switching is then instant. */
+async function prefetchFootprints() {
+  for (const name of Object.keys(state.datasets)) {
+    try { await loadCoverage(name) } catch { /* loaded again, with its error shown, when picked */ }
+  }
 }
 
 // ---- selected cell -----------------------------------------------------------------------------------------
 //   click -> cell -> its samples (footprint rows) -> buttons when there are several -> thumbnail of the chosen one
+//   then, in the background, the same cell in the other datasets: samples and first thumbnail, one dataset at a time
+//   lookups and thumbnails are kept (promises, so a load under way is joined, not repeated)
+
+const lookups = new Map()                                 // "<dataset>/<row>/<col>" -> samples
+const thumbs = new Map()                                  // "<dataset>/<part>/<parquet_row>" -> thumbnail
+
+function samplesOf(name, row, col) {
+  const key = `${name}/${row}/${col}`
+  if (!lookups.has(key)) lookups.set(key, samplesAt(name, row, col).catch(e => { lookups.delete(key); throw e }))
+  return lookups.get(key)
+}
+function thumbnailOf(name, sample) {
+  const key = `${name}/${sample.part}/${sample.parquet_row}`, fresh = !thumbs.has(key)
+  if (fresh) thumbs.set(key, loadThumbnail(state.datasets[name], sample).catch(e => { thumbs.delete(key); throw e }))
+  return [thumbs.get(key), fresh]
+}
+
+/** The selected cell in every other dataset, in the panel's order, after the shown one. */
+async function prefetchCell(cell) {
+  for (const name of Object.keys(state.datasets)) {
+    if (pick.cell !== cell) return                         // another cell was picked
+    if (name === state.name) continue
+    try {
+      const samples = await samplesOf(name, cell.row, cell.col)
+      if (samples.length) await thumbnailOf(name, samples[0])[0]
+    } catch { /* loaded again, with its error shown, when that dataset is shown */ }
+  }
+}
 
 const pick = { cell: null, samples: [], chosen: 0, thumbnail: null, ticket: 0 }
 
@@ -251,14 +288,14 @@ async function pickCell() {
   $('choices').replaceChildren(); $('pick-meta').replaceChildren(); $('pick-stats').textContent = ''
   let samples
   try {
-    samples = await samplesAt(name, row, col)
+    samples = await samplesOf(name, row, col)
   } catch (error) {
     if (ticket === pick.ticket) showThumbnail(null, `Could not load: ${error.message}`)
     return
   }
   if (ticket !== pick.ticket) return
   pick.samples = samples
-  if (!samples.length) { showThumbnail(null, `No ${state.info.label} sample in this cell`); return }
+  if (!samples.length) { showThumbnail(null, `No ${state.info.label} sample in this cell`); prefetchCell(pick.cell); return }
   if (samples.length > 1) {
     $('choices').replaceChildren(...samples.map((s, i) => {
       const b = document.createElement('button')
@@ -277,13 +314,14 @@ async function choose(i) {
   meta(sample, null, info)
   showThumbnail(null, 'Loading the thumbnail…')
   try {
-    const t = await loadThumbnail(info, sample)
-    if (ticket !== pick.ticket) { URL.revokeObjectURL(t.src); return }
-    if (pick.thumbnail) URL.revokeObjectURL(pick.thumbnail.src)
+    const [loading, fresh] = thumbnailOf(state.name, sample), t = await loading
+    if (ticket !== pick.ticket) return
     pick.thumbnail = t
     showThumbnail(t.src)
     meta(sample, t.productId, info)
-    $('pick-stats').textContent = `Thumbnail: ${kb(t.stats.bytes)} in ${t.stats.requests} requests · ${secs(t.stats.read)}`
+    $('pick-stats').textContent = `Thumbnail: ${kb(t.stats.bytes)} in ${t.stats.requests} requests · ${secs(t.stats.read)}` +
+      (fresh ? '' : ' (loaded before)')
+    prefetchCell(pick.cell)
   } catch (error) {
     if (ticket === pick.ticket) showThumbnail(null, `Could not load: ${error.message}`)
   }

@@ -108,3 +108,12 @@ def test_cursor_reports_coverage(page):
     page.wait_for_function("globe.loaded()", timeout=60_000)
     page.mouse.move(*at(page, *LOCH_LOMOND))
     assert page.text_content("#cursor-value") == "yes, click to load"
+
+
+def test_other_datasets_load_in_the_background(page):
+    """After a click, the cell's samples in the other datasets load behind it: switching shows them at once."""
+    thumbnail(page, "S2L2A")
+    page.wait_for_timeout(15_000)                              # S2L1C, S1RTC, DEM footprints and thumbnails
+    page.click("input[name=dataset][value=S1RTC]")
+    page.wait_for_function("document.getElementById('pick-stats').textContent.includes('loaded before')", timeout=60_000)
+    assert page.text_content("#pick-cell") == "624U_29L"

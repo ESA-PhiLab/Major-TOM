@@ -30,6 +30,8 @@ panel: dataset
   -> app.js:        MapLibre globe; cursor shows the cell and whether it has a sample
 click a cell -> its footprint rows (page index) -> the image file on Hugging Face (one row group per sample)
   -> samples.js: that row group's thumbnail column -> panel, with acquisition time, cloud cover or orbit, product
+in the background: the other datasets' footprints once the first is drawn; after a click, the same cell's samples
+  and first thumbnail in the other datasets (kept, so switching dataset shows them at once)
 ```
 
 ## Files
