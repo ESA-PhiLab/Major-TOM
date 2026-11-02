@@ -143,16 +143,16 @@ function clearCursor() {
 }
 map.getCanvas().addEventListener('mouseleave', clearCursor)
 
-// ---- loading indicator (as climate-globe/app.js) -------------------------------------------------------------
+// ---- loading indicator (as climate-globe/app.js, with the Major TOM logo) -------------------------------------------------------------
 
-const bars = [...document.querySelectorAll('#loader polygon')]                  // 4 columns x 5, each top to bottom
+const bars = [...document.querySelectorAll('#loader polygon')]                  // the logo's 4 panels, left to right
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches
 let loaderTimer = null, animation = null, tick = 0
 
 function animateFlag() {
-  const n = bars.length, k = tick++ % (2 * n)                  // first n ticks fill, next n empty
+  const n = bars.length, k = tick++ % (2 * n)                  // first n ticks light the panels, next n clear them
   if (k < n) bars[k].classList.add('on')
-  else { const i = k - n, col = Math.floor(i / 5); bars[col * 5 + 4 - (i % 5)].classList.remove('on') }
+  else bars[k - n].classList.remove('on')
 }
 function startLoader(text) {
   for (const b of bars) b.classList.remove('on')
@@ -163,8 +163,8 @@ function startLoader(text) {
   clearTimeout(loaderTimer); clearInterval(animation)
   loaderTimer = setTimeout(() => {                                               // fast and cached loads: no flash
     $('loader').hidden = false
-    if (still) bars.slice(0, 10).forEach(b => b.classList.add('on'))
-    else animation = setInterval(animateFlag, 70)
+    if (still) bars.slice(0, 2).forEach(b => b.classList.add('on'))
+    else animation = setInterval(animateFlag, 180)
   }, 150)
 }
 function loaderProgress(bytes, expected) {
