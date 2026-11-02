@@ -200,3 +200,14 @@ def test_downloads(page, tmp_path):
     page.click("#dl-python")
     code = page.evaluate("window.lastSnippet")
     assert "part_03814.parquet" in code and "read_row_group(299" in code
+
+
+def test_loading_flag_while_a_band_loads(page):
+    thumbnail(page, "S2L2A")
+    page.wait_for_function("document.querySelectorAll('#view option').length > 10", timeout=60_000)
+    page.select_option("#view", "rgb:B08,B04,B03")
+    page.wait_for_function("!document.getElementById('loader').hidden && document.getElementById('loader-bytes')"
+                           ".textContent.includes(' of ')", timeout=30_000)
+    assert "False colour" in page.text_content("#loader-text")
+    page.wait_for_function("document.getElementById('pick-stats').textContent.startsWith('False colour')", timeout=120_000)
+    assert page.evaluate("document.getElementById('loader').hidden")

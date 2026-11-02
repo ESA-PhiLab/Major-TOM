@@ -25,9 +25,9 @@ export async function downloadBand(info, name, cell, sample, band) {
 }
 
 /** Every band, the thumbnail and metadata.json, in one zip (stored, not recompressed: the GeoTIFFs are LZW). */
-export async function downloadAll(info, name, cell, sample, thumbnailSrc, productId) {
+export async function downloadAll(info, name, cell, sample, thumbnailSrc, productId, stats) {
   const bands = await bandNames(info, sample)
-  const [bytes, stats] = await readBands(info, sample, bands)
+  const [bytes] = await readBands(info, sample, bands, stats)
   const base = stem(cell, name, sample), entries = {}
   for (const b of bands) entries[`${base}_${b}.tif`] = bytes[b]
   const thumb = new Uint8Array(await (await fetch(thumbnailSrc)).arrayBuffer())

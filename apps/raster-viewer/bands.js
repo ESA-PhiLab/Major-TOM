@@ -33,14 +33,18 @@ export async function bandNames(info, sample) {
   return metadata.schema.slice(1).map(c => c.name).filter(n => !NOT_BANDS.has(n))
 }
 
-/** The GeoTIFF bytes of `bands` of one sample (read once, then kept): {name: Uint8Array}, and the read's stats. */
-export async function readBands(info, sample, bands) {
-  const stats = newStats(), url = imageUrl(info, sample.part), key = b => `${url}#${sample.parquet_row}/${b}`
+/** The GeoTIFF bytes of `bands` of one sample (read once, then kept): {name: Uint8Array}, and the read's stats.
+ *  stats.expected: the bytes the missing columns take in the row group (for a progress display), set before reading. */
+export async function readBands(info, sample, bands, stats = newStats()) {
+  const url = imageUrl(info, sample.part), key = b => `${url}#${sample.parquet_row}/${b}`
   const missing = bands.filter(b => !raw.has(key(b)))
   if (missing.length) {
     const { file, metadata } = await openFile(url, stats)
     let rowStart = 0
     for (let g = 0; g < sample.parquet_row; g++) rowStart += Number(metadata.row_groups[g].num_rows)
+    stats.expected = metadata.row_groups[sample.parquet_row].columns
+      .filter(c => missing.includes(c.meta_data.path_in_schema[0]))
+      .reduce((sum, c) => sum + Number(c.meta_data.total_compressed_size), 0)
     await parquetRead({ file, metadata, compressors, columns: missing, rowStart, rowEnd: rowStart + 1, rowFormat: 'object',
       utf8: false, onComplete(rows) { for (const b of missing) raw.set(key(b), rows[0][b]) } })
   }
@@ -79,10 +83,12 @@ function terrain(t) {
   return TERRAIN.at(-1)[1]
 }
 
-/** One view of a sample as a PNG object URL: {src, size, values (single band: for the cursor), stats}. */
-export async function render(info, sample, view) {
+/** One view of a sample as a PNG object URL: {src, size, values (single band: for the cursor), stats}.
+ *  stats (passed in to follow progress): bytes as they arrive, expected, then phase 'Decoding'. */
+export async function render(info, sample, view, stats = newStats()) {
   const needed = [...new Set(view.use.flatMap(b => (b === 'ratio' ? ['vv', 'vh'] : [b])))]
-  const [bytes, stats] = await readBands(info, sample, needed)
+  const [bytes] = await readBands(info, sample, needed, stats)
+  stats.phase = 'Decoding'
   const bands = Object.fromEntries(await Promise.all(needed.map(async b => [b, await decode(bytes[b])])))
   const size = Math.max(...needed.map(b => bands[b].width))
   const s1 = 'vv' in bands, at = (band, x, y) => {             // value at composite pixel (x, y), nearest

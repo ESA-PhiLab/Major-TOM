@@ -16,6 +16,7 @@ import { DATASETS, loadCoverage, samplesAt } from './footprints.js'
 import { placeLabels } from './labels.js'
 import { imageUrl, loadThumbnail } from './samples.js'
 import { bandNames, render, views } from './bands.js'
+import { newStats } from './parquet.js'
 import { downloadAll, downloadBand, pythonSnippet } from './download.js'
 import { cellAt, cellIndex, renderTile } from './tiles.js'
 
@@ -401,10 +402,11 @@ async function showView(id) {
   if (id === 'thumbnail') { pick.shown = { src: t.src, values: null, sample: t.sample, label: 'Thumbnail' }; refreshShown(); return }
   const view = pick.views.find(v => v.id === id), key = `${state.name}/${t.sample.part}/${t.sample.parquet_row}/${id}`
   $('pick-stats').textContent = `Loading ${view.label}…`
-  const fresh = !renders.has(key)
-  if (fresh) renders.set(key, render(state.info, t.sample, view).catch(e => { renders.delete(key); throw e }))
+  const fresh = !renders.has(key), stats = newStats()
+  if (fresh) renders.set(key, render(state.info, t.sample, view, stats).catch(e => { renders.delete(key); throw e }))
+  const stop = fresh ? followLoad(`${view.label} · ${pick.cell.name}`, stats) : () => {}
   try {
-    const r = await renders.get(key)
+    const r = await renders.get(key).finally(stop)
     if (ticket !== pick.viewTicket) return
     pick.shown = { ...r, sample: t.sample, label: view.label }
     refreshShown()
@@ -413,6 +415,17 @@ async function showView(id) {
   } catch (error) {
     if (ticket === pick.viewTicket) $('pick-stats').textContent = `Could not load ${view.label}: ${error.message}`
   }
+}
+
+/** The loading flag over the map while a band read runs: bytes of the expected total, then its phase (decoding).
+ *  Returns the function that ends it. */
+function followLoad(text, stats) {
+  startLoader(text)
+  const timer = setInterval(() => {
+    loaderProgress(stats.bytes, stats.expected)
+    if (stats.phase) $('loader-phase').textContent = stats.phase
+  }, 120)
+  return () => { clearInterval(timer); stopLoader() }
 }
 
 function refreshShown() {
@@ -447,8 +460,13 @@ async function downloading(button, job) {
 
 $('dl-band').addEventListener('click', () => downloading($('dl-band'),
   () => downloadBand(state.info, state.name, pick.cell.name, pick.thumbnail.sample, shownBand())))
-$('dl-all').addEventListener('click', () => downloading($('dl-all'),
-  () => downloadAll(state.info, state.name, pick.cell.name, pick.thumbnail.sample, pick.thumbnail.src, pick.thumbnail.productId)))
+$('dl-all').addEventListener('click', () => downloading($('dl-all'), async () => {
+  const stats = newStats(), stop = followLoad(`All bands · ${pick.cell.name} · for download`, stats)
+  try {
+    return await downloadAll(state.info, state.name, pick.cell.name, pick.thumbnail.sample, pick.thumbnail.src,
+      pick.thumbnail.productId, stats)
+  } finally { stop() }
+}))
 $('dl-python').addEventListener('click', async () => {
   const code = pythonSnippet(state.info, state.name, pick.cell.name, pick.thumbnail.sample, pick.bands.length ? pick.bands : ['thumbnail'])
   window.lastSnippet = code                                                         // for automated checks
