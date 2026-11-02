@@ -62,3 +62,32 @@ def test_nan_becomes_null(tmp_path):
 
     t = _nan_as_null(pa.table({"x": pa.array([1.0, float("nan"), None]), "n": pa.array([1, 2, 3])}))
     assert t.column("x").null_count == 2 and t.column("x")[0].as_py() == 1.0 and t.column("n").null_count == 0
+
+
+def test_climatology_rows_by_rank_and_page_index(tmp_path):
+    """A cell's 12 months are rows 12 x rank of the band's cells in cells.parquet; page index, no value dictionaries."""
+    from majortom.release.tables.layout import relayout_climatology
+
+    _monthly(tmp_path / "src")
+    repack(tmp_path / "src", tmp_path / "dst", workers=2, row_group=64)
+    order = pd.read_parquet(tmp_path / "dst" / "cells.parquet").grid_cell.tolist()
+    for path in (tmp_path / "dst" / "climatology").glob("band=*.parquet"):
+        clim = pd.read_parquet(path)
+        band = [c for c in order if c in set(clim.grid_cell)]
+        assert clim.grid_cell.tolist() == [c for c in band for _ in range(12)]
+        assert clim.month.tolist() == list(range(1, 13)) * len(band)
+        rg = pq.ParquetFile(path).metadata.row_group(0)
+        cols = {rg.column(i).path_in_schema: rg.column(i) for i in range(rg.num_columns)}
+        assert cols["x_t2m_mean"].has_offset_index and cols["x_t2m_mean"].dictionary_page_offset is None
+        assert cols["grid_cell"].dictionary_page_offset is not None
+    before = {p.name: pd.read_parquet(p) for p in (tmp_path / "src" / "climatology").glob("band=*.parquet")}
+    published = tmp_path / "dst"                                       # relayout of files written the old way
+    for p in (published / "climatology").glob("band=*.parquet"):
+        pq.write_table(pq.read_table(p), p, row_group_size=64)
+    old = {p.name: pd.read_parquet(p) for p in (published / "climatology").glob("band=*.parquet")}
+    relayout_climatology(published, workers=2)
+    for name, frame in old.items():
+        new = pq.ParquetFile(published / "climatology" / name)
+        assert new.metadata.row_group(0).column(4).has_offset_index
+        pd.testing.assert_frame_equal(new.read().to_pandas(), frame)
+    assert set(before) == set(old)

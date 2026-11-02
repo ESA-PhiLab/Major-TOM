@@ -6,6 +6,7 @@
       -> every file's rows reordered along the curve (climatology: by curve, then month)
          and grid_row_u, grid_col_r added after grid_cell (int16), so a region is a filter on two integers
       -> <dst>/same paths, row groups of ROW_GROUP rows with statistics, zstd
+         (climatology: also a page index and no value dictionaries, so one cell's pages can be read alone)
       -> each written file is read back and must equal its source row for row (same cells, same values;
          float NaN is stored as null, so missing values are null in every file)
     Nearby cells sit in the same row groups, so a point or region query reads one small row group per file
@@ -30,6 +31,20 @@ from ...cells import R_KM, n_rows
 from ..order import hilbert
 
 ROW_GROUP = 65_536
+KEYS = ["grid_cell", "grid_row_u", "grid_col_r", "year", "month", "n_years"]   # columns that keep dictionaries
+
+
+def _write_options(table: pa.Table) -> dict:
+    """Climatology files: a page index, pages of about one cell's 12 months, no value dictionaries (as by_cell/).
+
+    A cell's rows are 12 x its rank among the band's cells, so a reader with the page index fetches only its pages;
+    a value dictionary would be read whole first. Series files keep the defaults.
+    """
+    if "month" not in table.column_names or "year" in table.column_names:
+        return {}
+    floats = [f.name for f in table.schema if pa.types.is_floating(f.type)]
+    return dict(write_page_index=True, use_dictionary=[c for c in KEYS if c in table.column_names],
+                use_byte_stream_split=floats, data_page_size=4096, write_batch_size=12)
 
 
 def centroids(rows: np.ndarray, cols: np.ndarray, d: float = 10.0) -> tuple[np.ndarray, np.ndarray]:
@@ -83,7 +98,8 @@ def _one(src: Path, dst: Path, rank: pd.Series, where: pd.DataFrame, row_group: 
     out = _with_position(out, pos["grid_row_u"].to_numpy(), pos["grid_col_r"].to_numpy())
     dst.parent.mkdir(parents=True, exist_ok=True)
     tmp = dst.with_name(dst.name + ".tmp")                         # renamed only once checked: a killed run
-    pq.write_table(out, tmp, row_group_size=row_group, compression="zstd", write_statistics=True)   # leaves no
+    pq.write_table(out, tmp, row_group_size=row_group, compression="zstd", write_statistics=True,   # leaves no
+                   **_write_options(out))
     back = pq.ParquetFile(tmp).read().drop_columns(["grid_row_u", "grid_col_r"])                  # half file
     if not back.take(pa.array(np.argsort(sort))).equals(table):
         raise ValueError(f"{dst}: does not match {src} after reordering")
@@ -119,3 +135,25 @@ def repack(src: Path | str, dst: Path | str, workers: int | None = None, row_gro
             if i % 100 == 0 or i == len(jobs):
                 print(f"{i}/{len(jobs)} files", flush=True)
     return len(files)
+
+
+def _relayout_one(path: Path) -> tuple[int, int]:
+    """Rewrite one published climatology file with _write_options, same rows and row groups; check, then replace."""
+    meta = pq.ParquetFile(path).metadata
+    table = pq.read_table(path)
+    tmp = path.with_name(path.name + ".tmp")
+    pq.write_table(table, tmp, row_group_size=meta.row_group(0).num_rows, compression="zstd", write_statistics=True,
+                   **_write_options(table))
+    if not pq.read_table(tmp).equals(table):
+        raise ValueError(f"{path}: rewritten file differs")
+    old = path.stat().st_size
+    os.replace(tmp, path)
+    return old, path.stat().st_size
+
+
+def relayout_climatology(folder: Path | str, workers: int | None = None) -> tuple[int, int]:
+    """Give a published folder's climatology/ the layout of _write_options in place; returns bytes before, after."""
+    files = sorted(Path(folder).glob("climatology/band=*.parquet"))
+    with ProcessPoolExecutor(workers or min(len(files), len(os.sched_getaffinity(0)))) as pool:
+        sizes = list(pool.map(_relayout_one, files))
+    return sum(a for a, _ in sizes), sum(b for _, b in sizes)

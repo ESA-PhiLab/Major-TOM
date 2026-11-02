@@ -76,6 +76,12 @@ def _tables(a: argparse.Namespace) -> None:
 
         print(f"{overviews(a.src, a.out, a.level, a.workers, a.columns):,} overview files written", flush=True)
         return
+    if a.layout == "relayout":
+        from .tables.layout import relayout_climatology
+
+        before, after = relayout_climatology(a.folder, a.workers)
+        print(f"climatology/: {before / 1e9:.2f} GB -> {after / 1e9:.2f} GB, every file checked", flush=True)
+        return
     from .tables import repack
 
     only = tuple(a.only or ("series", "climatology", "static"))
@@ -119,6 +125,10 @@ def main(argv: list[str] | None = None) -> None:
     r.add_argument("--drop", nargs="+", help="columns left out, with their climatology _mean and _std (e.g. era5_ptype)")
     r.add_argument("--only", nargs="+", choices=["series", "climatology", "static"], help="repack only these parts")
     r.set_defaults(run=_tables)
+    rl = tsub.add_parser("relayout", help="a published folder's climatology/ rewritten in place with a page index")
+    rl.add_argument("--folder", type=Path, required=True, help="a published dataset folder (climatology/band=NN.parquet)")
+    rl.add_argument("--workers", type=int, default=None)
+    rl.set_defaults(run=_tables)
     o = tsub.add_parser("overviews", help="monthly files -> block means for globe-wide maps")
     o.add_argument("--src", type=Path, required=True, help="a dataset folder with series/year=YYYY/MM.parquet")
     o.add_argument("--out", type=Path, required=True, help="dataset folder to write overviews/ into")
