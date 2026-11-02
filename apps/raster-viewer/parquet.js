@@ -1,6 +1,7 @@
 // Remote Parquet files over HTTP range requests, with the bytes, requests and network time each read costs
 // (as climate-globe/data.js).
 
+import { parquetMetadataAsync } from 'https://cdn.jsdelivr.net/npm/hyparquet@1.31.4/+esm'
 export { parquetMetadataAsync, parquetRead } from 'https://cdn.jsdelivr.net/npm/hyparquet@1.31.4/+esm'
 export { compressors } from 'https://cdn.jsdelivr.net/npm/hyparquet-compressors@1.1.2/+esm'
 
@@ -29,11 +30,27 @@ export async function countedFile(url, stats, tailSize = TAIL) {
   const range = r.headers.get('content-range')                                    // "bytes a-b/size"; absent if whole
   const byteLength = range ? Number(range.split('/')[1]) : tail.byteLength
   const tailStart = byteLength - tail.byteLength
-  return {
-    byteLength,
+  const file = {
+    byteLength, stats,                                   // stats: the read being counted, set again by openFile
     async slice(start, end = byteLength) {
       if (start >= tailStart) return tail.slice(start - tailStart, end - tailStart)
-      return (await rangeGet(url, `${start}-${end - 1}`, stats))[1]
+      return (await rangeGet(url, `${start}-${end - 1}`, file.stats))[1]
     },
   }
+  return file
+}
+
+const opened = new Map()                       // URL -> {file, metadata}: a file's footer is read once per page
+
+/** A remote file and its metadata, opened once; later reads are counted in `stats`. */
+export async function openFile(url, stats) {
+  if (!opened.has(url)) {
+    opened.set(url, (async () => {
+      const file = await countedFile(url, stats)
+      return { file, metadata: await parquetMetadataAsync(file, { initialFetchSize: TAIL }) }
+    })().catch(e => { opened.delete(url); throw e }))
+  }
+  const found = await opened.get(url)
+  found.file.stats = stats
+  return found
 }

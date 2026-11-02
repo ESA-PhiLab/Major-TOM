@@ -87,10 +87,15 @@
   .image-actions button { font: inherit; padding: 4px 10px; border: 1px solid var(--line); border-radius: 8px;
     background: var(--surface); color: var(--ink); cursor: pointer; }
   .image-actions button:hover { border-color: var(--mt-blue); color: var(--mt-blue); }
+  .image-actions button:disabled { opacity: .45; cursor: not-allowed; border-color: var(--line); color: var(--ink); }
   .image-actions label { display: flex; align-items: center; gap: 6px; color: var(--ink-2); cursor: pointer; }
   .image-actions input[type=checkbox], .image-actions input[type=range] { accent-color: var(--mt-blue); }
   .image-actions input[type=range] { width: 90px; }
   .image-actions[hidden] { display: none; }
+  .view-row { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 13px; color: var(--ink-2); }
+  .view-row select { flex: 1; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+    color: var(--ink); font: 13px var(--sans); }
+  .view-row[hidden] { display: none; }
   #lightbox { position: fixed; inset: 0; z-index: 10; background: rgba(17,24,39,.88); overflow: hidden; cursor: grab;
     touch-action: none; }
   #lightbox[hidden] { display: none; }
@@ -174,11 +179,17 @@
       <div class="pick-head"><h2>Selected cell</h2><button id="pick-clear" class="link">Clear</button></div>
       <div class="pick-name"><b id="pick-cell"></b><span id="pick-pos"></span></div>
       <div id="choices"></div>
+      <label class="view-row" id="view-row" hidden>View <select id="view" aria-label="Band or composite"></select></label>
       <div id="thumb-wrap"><img id="thumb" alt="Thumbnail of the selected sample" hidden><span id="thumb-note"></span></div>
       <div class="image-actions" id="image-actions" hidden>
         <button id="open-image">Open</button>
         <label><input type="checkbox" id="on-map"> Show on map</label>
         <label>Opacity <input type="range" id="opacity" min="0" max="100" value="100" aria-label="Opacity on the map"></label>
+      </div>
+      <div class="image-actions" id="download-actions" hidden>
+        <button id="dl-band" title="The shown band as stored: a GeoTIFF">Download band (.tif)</button>
+        <button id="dl-all" title="Every band as stored, the thumbnail and metadata.json">All bands (.zip)</button>
+        <button id="dl-python" title="Python that reads this sample from Hugging Face">Copy Python</button>
       </div>
       <dl id="pick-meta"></dl>
       <div class="tiny" id="pick-stats"></div>
@@ -214,7 +225,7 @@
 
 <div id="lightbox" hidden role="dialog" aria-label="Selected image">
   <img id="lightbox-img" alt="">
-  <div id="lightbox-bar"><span id="lightbox-title"></span><span>scroll to zoom · drag to pan · Esc to close
+  <div id="lightbox-bar"><span><span id="lightbox-title"></span> <span id="lightbox-value"></span></span><span>scroll to zoom · drag to pan · Esc to close
     <button id="lightbox-close">Close</button></span></div>
 </div>
 
@@ -223,7 +234,7 @@
   // carry the signature are let through there: modules imported by other modules would not. So every file of the app
   // is asked for with it (an import map, then app.js). With no signature (public Space, local) nothing changes.
   {
-    const sign = location.search, files = ['app.js', 'footprints.js', 'samples.js', 'parquet.js', 'tiles.js', 'labels.js']
+    const sign = location.search, files = ['app.js', 'footprints.js', 'samples.js', 'bands.js', 'download.js', 'parquet.js', 'tiles.js', 'labels.js']
     const url = file => new URL(file, location.href).href.split('?')[0]
     const map = document.createElement('script')
     map.type = 'importmap'

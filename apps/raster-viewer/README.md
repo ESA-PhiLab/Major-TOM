@@ -32,6 +32,11 @@ click a cell -> its footprint rows (page index) -> the image file on Hugging Fac
   -> samples.js: that row group's thumbnail column -> panel, with acquisition time, cloud cover or orbit, product
 the shown image: Open (full window, zoom and pan) or Show on map (over its footprint, opacity slider): every image
   is 10,680 m square in its UTM zone, centred on the sample's centre_lat, centre_lon, so corners need no band read
+View menu: the stored thumbnail (default), composites (S2: true colour, false colour, SWIR, one stretch for the three
+  bands; S1: VV, VH, VV/VH in dB; DEM: elevation in colour) and every band (grey, 2-98% stretch, value under the
+  cursor in the full window) -> bands.js: the band columns (LZW GeoTIFFs) of the sample's row group, geotiff.js
+Downloads (download.js): the shown band as stored (.tif); every band, the thumbnail and metadata.json (.zip); a
+  Python snippet that reads the same row group from Hugging Face
 in the background: the other datasets' footprints once the first is drawn; after a click, the same cell's samples
   and first thumbnail in the other datasets (kept, so switching dataset shows them at once)
 ```
@@ -44,7 +49,9 @@ in the background: the other datasets' footprints once the first is drawn; after
 | `app.js` | globe, dataset list, loading flag, cursor, selected cell |
 | `footprints.js` | a dataset's footprints: coverage mask, a cell's samples |
 | `samples.js` | one sample's thumbnail from its image file |
-| `parquet.js` | range requests for hyparquet, with bytes and time counted |
+| `bands.js` | a sample's band columns: read, decode (geotiff.js), stretch, composites |
+| `download.js` | band GeoTIFFs as stored, all bands as a zip (fflate), the Python snippet |
+| `parquet.js` | range requests for hyparquet, with bytes and time counted; each file's footer read once |
 | `tiles.js`, `labels.js`, `places.json` | copied from the Climate Globe: cells and tiles, place names |
 | `build_index.py` | Core `metadata.parquet` -> `footprints/<name>.parquet` and `footprints/datasets.json` |
 | `footprints/` | built files, not in git: uploaded to the Space once (S2L2A and S2L1C 32.9 MB each, S1RTC 20.6 MB, DEM 14.5 MB) |

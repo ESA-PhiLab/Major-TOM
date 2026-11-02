@@ -146,3 +146,57 @@ def test_show_the_image_on_the_map(page):
     assert page.evaluate("globe.getPaintProperty('sample', 'raster-opacity')") == 0.4
     page.click("#pick-clear")
     assert not page.evaluate("Boolean(globe.getLayer('sample'))")
+
+
+def view(page, view_id, label):
+    page.select_option("#view", view_id)
+    page.wait_for_function(f"document.getElementById('pick-stats').textContent.startsWith({label!r})", timeout=120_000)
+    page.wait_for_function("(() => { const t = document.getElementById('thumb'); return t.complete && t.naturalWidth > 0 })()")
+    return page.evaluate("document.getElementById('thumb').naturalWidth")
+
+
+def test_bands_and_composites(page):
+    thumbnail(page, "S2L2A")
+    page.wait_for_function("document.querySelectorAll('#view option').length > 10", timeout=60_000)
+    options = page.locator("#view option").evaluate_all("o => o.map(x => x.value)")
+    assert options[:2] == ["thumbnail", "rgb:B04,B03,B02"] and {"B01", "B04", "B12", "cloud_mask"} <= set(options)
+    assert view(page, "rgb:B04,B03,B02", "True colour") == 1068
+    assert view(page, "B01", "B01") == 178                                          # 60 m band at its own size
+    assert view(page, "rgb:B12,B8A,B04", "SWIR") == 1068                            # 20 m and 10 m bands together
+    page.check("#on-map")
+    assert page.evaluate("Boolean(globe.getLayer('sample'))")                       # the shown view on the map
+    view(page, "B04", "B04")                                                         # a single band: values
+    page.click("#open-image"); page.mouse.move(700, 450)
+    page.wait_for_function("document.getElementById('lightbox-value').textContent.includes('pixel')", timeout=10_000)
+    page.keyboard.press("Escape")
+
+
+def test_s1_and_dem_views(page):
+    thumbnail(page, "S1RTC")
+    page.wait_for_function("document.querySelectorAll('#view option').length >= 4", timeout=60_000)
+    assert view(page, "rgb:vv,vh,ratio", "VV, VH") == 1068                          # this S1 sample: 10 m (others 7.5 m)
+    thumbnail(page, "DEM")
+    page.wait_for_function("[...document.querySelectorAll('#view option')].some(o => o.value === 'rgb:DEM')", timeout=60_000)
+    assert view(page, "rgb:DEM", "Elevation") == 356
+
+
+def test_downloads(page, tmp_path):
+    import io, json, zipfile
+    thumbnail(page, "S2L2A")
+    page.wait_for_function("document.querySelectorAll('#view option').length > 10", timeout=60_000)
+    view(page, "B04", "B04")
+    with page.expect_download(timeout=120_000) as d:
+        page.click("#dl-band")
+    path = tmp_path / d.value.suggested_filename; d.value.save_as(path)
+    assert path.name.startswith("624U_29L_S2L2A_") and path.name.endswith("_B04.tif")
+    assert path.read_bytes()[:4] == b"II*\x00" and path.stat().st_size > 1_000_000          # a TIFF, 10 m band
+    with page.expect_download(timeout=180_000) as d:
+        page.click("#dl-all")
+    z = zipfile.ZipFile(io.BytesIO(Path(d.value.path()).read_bytes()))
+    names = z.namelist()
+    assert sum(n.endswith(".tif") for n in names) == 13 and any("thumbnail" in n for n in names)   # 12 bands, cloud_mask
+    meta = json.loads(z.read("metadata.json"))
+    assert meta["grid_cell"] == "624U_29L" and meta["row_group"] == 299 and meta["source_file"].endswith("part_03814.parquet")
+    page.click("#dl-python")
+    code = page.evaluate("window.lastSnippet")
+    assert "part_03814.parquet" in code and "read_row_group(299" in code

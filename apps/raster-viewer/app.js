@@ -5,7 +5,9 @@
 //   click -> cell -> its samples (footprint rows, page index) -> image file on Hugging Face, one row group,
 //     thumbnail column (samples.js) -> panel
 //   cursor -> cell under it -> outline + name, position, whether it has a sample
-//   the shown image -> full window (zoom, pan) or on the map over its footprint (corners from its UTM centre)
+//   the shown image (the stored thumbnail, or a band or composite decoded from the image file, bands.js)
+//     -> full window (zoom, pan, value under the cursor) or on the map over its footprint (corners from its UTM centre)
+//     -> downloads of the bands as stored (download.js)
 
 import * as maplibregl from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.mjs'
 import { feature } from 'https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/+esm'
@@ -13,6 +15,8 @@ import proj4 from 'https://cdn.jsdelivr.net/npm/proj4@2.12.1/+esm'
 import { DATASETS, loadCoverage, samplesAt } from './footprints.js'
 import { placeLabels } from './labels.js'
 import { imageUrl, loadThumbnail } from './samples.js'
+import { bandNames, render, views } from './bands.js'
+import { downloadAll, downloadBand, pythonSnippet } from './download.js'
 import { cellAt, cellIndex, renderTile } from './tiles.js'
 
 const $ = id => document.getElementById(id)
@@ -182,6 +186,7 @@ function stopLoader() {
 
 const kb = bytes => (bytes >= 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.round(bytes / 1e3)} KB`)
 const secs = ms => `${(ms / 1000).toFixed(1)} s`
+const reqs = n => `${n} request${n === 1 ? '' : 's'}`
 
 function buildDatasetList(datasets) {
   $('datasets').replaceChildren(...Object.entries(datasets).map(([name, d]) => {
@@ -218,7 +223,7 @@ async function setDataset(name, datasets) {
   if (pick.cell) pickCell()
   map.once('idle', () => {
     if (ticket !== state.loading) return
-    $('stat-footprints').textContent = `${kb(coverage.stats.bytes)} in ${coverage.stats.requests} requests · ${secs(coverage.stats.read)}`
+    $('stat-footprints').textContent = `${kb(coverage.stats.bytes)} in ${reqs(coverage.stats.requests)} · ${secs(coverage.stats.read)}`
     $('stat-samples').textContent = coverage.samples.toLocaleString('en')
     $('stat-draw').textContent = secs(performance.now() - t0)
     document.body.dataset.loaded = name                     // for automated checks
@@ -265,7 +270,7 @@ async function prefetchCell(cell) {
   }
 }
 
-const pick = { cell: null, samples: [], chosen: 0, thumbnail: null, ticket: 0 }
+const pick = { cell: null, samples: [], chosen: 0, thumbnail: null, shown: null, views: [], bands: [], ticket: 0, viewTicket: 0 }
 
 map.on('click', e => {
   if (!onGlobe(e.point, e.lngLat)) return
@@ -286,7 +291,7 @@ $('pick-clear').addEventListener('click', () => {
 /** The selected cell in the shown dataset: its samples, then the first one's thumbnail. */
 async function pickCell() {
   const ticket = ++pick.ticket, { row, col } = pick.cell, name = state.name
-  pick.samples = []; pick.thumbnail = null
+  pick.samples = []; pick.thumbnail = null; pick.shown = null; pick.viewTicket++
   showThumbnail(null, 'Looking up the cell…'); showOnMap()
   $('choices').replaceChildren(); $('pick-meta').replaceChildren(); $('pick-stats').textContent = ''
   let samples
@@ -311,8 +316,8 @@ async function pickCell() {
 }
 
 async function choose(i) {
-  const ticket = ++pick.ticket, sample = pick.samples[i], info = state.info
-  pick.chosen = i
+  const ticket = ++pick.ticket, sample = pick.samples[i], info = state.info, name = state.name
+  pick.chosen = i; pick.shown = null; pick.bands = []; pick.views = []; pick.viewTicket++
   for (const [k, b] of [...$('choices').children].entries()) b.setAttribute('aria-pressed', String(k === i))
   meta(sample, null, info)
   showThumbnail(null, 'Loading the thumbnail…')
@@ -320,10 +325,12 @@ async function choose(i) {
     const [loading, fresh] = thumbnailOf(state.name, sample), t = await loading
     if (ticket !== pick.ticket) return
     pick.thumbnail = { ...t, sample }
+    pick.shown = { src: t.src, values: null, sample, label: 'Thumbnail' }
     showThumbnail(t.src)
     showOnMap()
     meta(sample, t.productId, info)
-    $('pick-stats').textContent = `Thumbnail: ${kb(t.stats.bytes)} in ${t.stats.requests} requests · ${secs(t.stats.read)}` +
+    buildViews(name, info, sample, ticket)
+    $('pick-stats').textContent = `Thumbnail: ${kb(t.stats.bytes)} in ${reqs(t.stats.requests)} · ${secs(t.stats.read)}` +
       (fresh ? '' : ' (loaded before)')
     prefetchCell(pick.cell)
   } catch (error) {
@@ -334,6 +341,8 @@ async function choose(i) {
 function showThumbnail(src, note = '') {
   $('thumb').hidden = !src
   $('image-actions').hidden = !src
+  $('download-actions').hidden = !src
+  if (!src) $('view-row').hidden = true
   if (src) $('thumb').src = src
   $('thumb-note').textContent = src ? '' : note
 }
@@ -352,9 +361,9 @@ function corners(s) {
   return [[x - HALF, y + HALF], [x + HALF, y + HALF], [x + HALF, y - HALF], [x - HALF, y - HALF]].map(p => utm.inverse(p))
 }
 
-/** The shown thumbnail over its footprint when "Show on map" is ticked; otherwise none. */
+/** The shown image over its footprint when "Show on map" is ticked; otherwise none. */
 function showOnMap() {
-  const t = pick.thumbnail, on = $('on-map').checked && t && pick.cell
+  const t = pick.shown, on = $('on-map').checked && t && pick.cell
   if (map.getLayer('sample')) map.removeLayer('sample')
   if (map.getSource('sample')) map.removeSource('sample')
   if (!on) return
@@ -366,7 +375,86 @@ $('on-map').addEventListener('change', showOnMap)
 $('opacity').addEventListener('input', () => {
   if (map.getLayer('sample')) map.setPaintProperty('sample', 'raster-opacity', Number($('opacity').value) / 100)
 })
-window.sampleCorners = () => (pick.thumbnail ? corners(pick.thumbnail.sample) : null)     // for automated checks
+window.sampleCorners = () => (pick.shown ? corners(pick.shown.sample) : null)             // for automated checks
+
+// ---- views: the stored thumbnail, composites and single bands ------------------------------------------------
+//   the menu lists the image file's band columns; a chosen view is decoded once and kept (renders)
+
+const renders = new Map()                                 // "<dataset>/<part>/<row>/<view>" -> rendered view
+
+async function buildViews(name, info, sample, ticket) {
+  try {
+    const bands = await bandNames(info, sample)
+    if (ticket !== pick.ticket) return
+    pick.bands = bands; pick.views = views(name, bands)
+    $('view').replaceChildren(new Option('Thumbnail (stored)', 'thumbnail'), ...pick.views.map(v => new Option(v.label, v.id)))
+    $('view').value = 'thumbnail'; $('view-row').hidden = false
+    updateDownloads()
+  } catch { /* no menu: the thumbnail stays */ }
+}
+
+$('view').addEventListener('change', () => showView($('view').value))
+
+async function showView(id) {
+  const t = pick.thumbnail, ticket = ++pick.viewTicket
+  if (!t) return
+  if (id === 'thumbnail') { pick.shown = { src: t.src, values: null, sample: t.sample, label: 'Thumbnail' }; refreshShown(); return }
+  const view = pick.views.find(v => v.id === id), key = `${state.name}/${t.sample.part}/${t.sample.parquet_row}/${id}`
+  $('pick-stats').textContent = `Loading ${view.label}…`
+  const fresh = !renders.has(key)
+  if (fresh) renders.set(key, render(state.info, t.sample, view).catch(e => { renders.delete(key); throw e }))
+  try {
+    const r = await renders.get(key)
+    if (ticket !== pick.viewTicket) return
+    pick.shown = { ...r, sample: t.sample, label: view.label }
+    refreshShown()
+    $('pick-stats').textContent = `${view.label}: ${kb(r.stats.bytes)} in ${reqs(r.stats.requests)} · ${secs(r.stats.read)}` +
+      (fresh ? '' : ' (loaded before)')
+  } catch (error) {
+    if (ticket === pick.viewTicket) $('pick-stats').textContent = `Could not load ${view.label}: ${error.message}`
+  }
+}
+
+function refreshShown() {
+  showThumbnail(pick.shown.src)
+  showOnMap()
+  if (!$('lightbox').hidden) openImage()
+  updateDownloads()
+}
+
+// ---- downloads ---------------------------------------------------------------------------------------------
+
+const shownBand = () => (pick.shown && pick.bands.includes(pick.shown.label) ? pick.shown.label : null)
+
+function updateDownloads() {
+  const band = shownBand()
+  $('dl-band').disabled = !band
+  $('dl-band').textContent = band ? `Download ${band} (.tif)` : 'Download band (.tif)'
+  $('dl-band').title = band ? `${band} as stored: a GeoTIFF` : 'Choose a single band under View'
+  $('dl-all').disabled = !pick.bands.length
+}
+
+async function downloading(button, job) {
+  const label = button.textContent
+  button.disabled = true; button.textContent = 'Preparing…'
+  try {
+    const stats = await job()
+    $('pick-stats').textContent = `Downloaded: ${kb(stats.bytes)} read in ${reqs(stats.requests)} · ${secs(stats.read)}`
+  } catch (error) {
+    $('pick-stats').textContent = `Could not download: ${error.message}`
+  } finally { button.textContent = label; updateDownloads() }
+}
+
+$('dl-band').addEventListener('click', () => downloading($('dl-band'),
+  () => downloadBand(state.info, state.name, pick.cell.name, pick.thumbnail.sample, shownBand())))
+$('dl-all').addEventListener('click', () => downloading($('dl-all'),
+  () => downloadAll(state.info, state.name, pick.cell.name, pick.thumbnail.sample, pick.thumbnail.src, pick.thumbnail.productId)))
+$('dl-python').addEventListener('click', async () => {
+  const code = pythonSnippet(state.info, state.name, pick.cell.name, pick.thumbnail.sample, pick.bands.length ? pick.bands : ['thumbnail'])
+  window.lastSnippet = code                                                         // for automated checks
+  try { await navigator.clipboard.writeText(code); $('pick-stats').textContent = 'Python copied to the clipboard' }
+  catch { window.prompt('Python that reads this sample:', code) }
+})
 
 // ---- the shown image in the full window -----------------------------------------------------------------------
 //   opens fitted to the window; scroll zooms about the cursor, drag pans, Esc or Close closes
@@ -374,11 +462,12 @@ window.sampleCorners = () => (pick.thumbnail ? corners(pick.thumbnail.sample) : 
 const view = { scale: 1, x: 0, y: 0, drag: null }
 
 function openImage() {
-  if (!pick.thumbnail) return
+  if (!pick.shown) return
   const img = $('lightbox-img')
-  img.src = pick.thumbnail.src
-  $('lightbox-title').textContent = `${pick.cell.name} · ${state.info.label}` +
-    (pick.thumbnail.sample.timestamp ? ` · ${when(pick.thumbnail.sample.timestamp)}` : '')
+  img.src = pick.shown.src
+  $('lightbox-value').textContent = ''
+  $('lightbox-title').textContent = `${pick.cell.name} · ${state.info.label} · ${pick.shown.label}` +
+    (pick.shown.sample.timestamp ? ` · ${when(pick.shown.sample.timestamp)}` : '')
   $('lightbox').hidden = false
   img.decode().then(() => {
     const w = innerWidth, h = innerHeight - 44, s = Math.min(w / img.naturalWidth, h / img.naturalHeight)
@@ -406,6 +495,14 @@ $('lightbox').addEventListener('pointerdown', e => {
   $('lightbox').classList.add('dragging'); $('lightbox').setPointerCapture(e.pointerId)
 })
 $('lightbox').addEventListener('pointermove', e => {
+  const v = pick.shown?.values
+  if (v) {                                                   // value under the cursor (single bands, elevation)
+    const k = v.width / pick.shown.size, x = Math.floor(((e.clientX - view.x) / view.scale) * k)
+    const y = Math.floor(((e.clientY - view.y) / view.scale) * k)
+    const inside = x >= 0 && y >= 0 && x < v.width && y < v.values.length / v.width
+    const value = inside ? v.values[y * v.width + x] : NaN
+    $('lightbox-value').textContent = inside && Number.isFinite(value) ? `· pixel ${x}, ${y}: ${+value.toFixed(3)}${v.unit ? ` ${v.unit}` : ''}` : ''
+  }
   if (!view.drag) return
   view.x = e.clientX - view.drag[0]; view.y = e.clientY - view.drag[1]; place()
 })
