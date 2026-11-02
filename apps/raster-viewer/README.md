@@ -5,12 +5,12 @@ colorFrom: blue
 colorTo: green
 sdk: static
 pinned: false
-short_description: Major TOM Core samples on a 3D globe, read from Hugging Face in the browser
+short_description: Major TOM Core samples on a 3D globe, read in the browser
 ---
 
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** draft for review, 2026-11-02. Space not yet created.
+> **Review status:** draft for review, 2026-11-02. Space created (private) and deployed 2026-11-02.
 
 # Major TOM Raster Viewer
 

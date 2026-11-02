@@ -12,7 +12,7 @@ the installable `majortom` package.
 |---|---|---|---|
 | `viewer/` | [MajorTOM-Core-Viewer](https://huggingface.co/spaces/Major-TOM/MajorTOM-Core-Viewer) | one Core sample at the map centre or found by a text prompt (SigLIP); Sentinel-2, Sentinel-1, DEM, AlphaEarth, VIIRS | Python server (Solara, Docker) |
 | `climate-globe/` | [MajorTOM-Climate-Globe](https://huggingface.co/spaces/Major-TOM/MajorTOM-Climate-Globe) | Major TOM Climate (CPC, IMERG, CAMS, ERA5) on a 3D globe: monthly maps, normals, a cell's whole series | static page, reads source.coop |
-| `raster-viewer/` | MajorTOM-Raster-Viewer (not yet created) | where each Core dataset has samples, on a 3D globe; the thumbnail of the sample in a clicked cell | static page, reads Hugging Face |
+| `raster-viewer/` | [MajorTOM-Raster-Viewer](https://huggingface.co/spaces/Major-TOM/MajorTOM-Raster-Viewer) (private) | where each Core dataset has samples, on a 3D globe; the thumbnail of the sample in a clicked cell | static page, reads Hugging Face |
 
 ## Static apps
 

@@ -18,6 +18,7 @@ jobs:
         include:                           # one line per app: its folder and its Space
           - { folder: apps/viewer, space: Major-TOM/MajorTOM-Core-Viewer }
           - { folder: apps/climate-globe, space: Major-TOM/MajorTOM-Climate-Globe }
+          - { folder: apps/raster-viewer, space: Major-TOM/MajorTOM-Raster-Viewer }
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,7 +39,7 @@ jobs:
           HfApi(token=os.environ["HF_TOKEN"]).upload_folder(
               folder_path=os.environ["FOLDER"], repo_id=os.environ["SPACE"], repo_type="space",
               commit_message=f"Sync from GitHub {os.environ['GITHUB_SHA'][:7]}",
-              ignore_patterns=["tests/*", "pytest.ini", "**/__pycache__/*"])                # the Space needs the app only
+              ignore_patterns=["tests/*", "pytest.ini", "**/__pycache__/*", ".gitignore"])                # the Space needs the app only
           EOF
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
