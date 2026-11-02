@@ -22,6 +22,7 @@ from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
@@ -58,6 +59,8 @@ def _band(src: Path, dst: Path, band: int, seed: int = 0) -> int:
         if not np.array_equal(_groups(path), bounds):
             raise ValueError(f"{path}: row groups differ from {months[0][2]}; repack the dataset first")
     path = dst / "by_cell" / f"band={band:02d}.parquet"
+    if path.exists():                                       # written and checked by an earlier run (renamed last)
+        return len(at)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
     writer = None
@@ -70,7 +73,7 @@ def _band(src: Path, dst: Path, band: int, seed: int = 0) -> int:
                                       data_page_size=4096, write_batch_size=len(months))  # ~one cell per page
         writer.write_table(table, row_group_size=CELLS * len(months))
     writer.close()
-    _check(tmp, months, at, cells, names, np.random.default_rng(seed + band))
+    _check(tmp, months, at, cells, names, bounds, np.random.default_rng(seed + band))
     os.replace(tmp, path)                                                                # into place only once checked
     return len(at)
 
@@ -102,15 +105,29 @@ def _slice(at: np.ndarray, months, cells: pa.Table, rows: np.ndarray, schema: pa
     })
 
 
-def _check(path: Path, months, at: np.ndarray, cells: pa.Table, names: list[str], rng) -> None:
-    """50 random cells of the band in 3 months: the written rows equal the source rows."""
-    pick = rng.choice(len(at), min(50, len(at)), replace=False)
+def _rows_of(path: Path, groups, columns: list[str], want: list[str]) -> pd.DataFrame:
+    """The rows of cells `want` from row groups `groups` of a file, read one row group at a time."""
+    f, parts = pq.ParquetFile(path), []
+    for g in sorted(set(groups)):
+        part = f.read_row_group(int(g), columns=columns).to_pandas()
+        part["grid_cell"] = part.grid_cell.astype(str)
+        parts.append(part[part.grid_cell.isin(want)])
+    return pd.concat(parts, ignore_index=True)
+
+
+def _check(path: Path, months, at: np.ndarray, cells: pa.Table, names: list[str], bounds: np.ndarray, rng) -> None:
+    """50 random cells of the band in 3 months: the written rows equal the source rows.
+
+    Only the row groups holding the sampled cells are read (a grid_cell filter cannot skip row groups, so it would
+    read whole files: ~60 GB for a large ERA5 band). In the band file a cell's row group is rank // CELLS; in a
+    monthly file, the one whose rows hold its position.
+    """
+    pick = np.sort(rng.choice(len(at), min(50, len(at)), replace=False))
     want_cells = sorted(set(cells.column("grid_cell").take(pa.array(at[pick])).to_pylist()))
-    only = [("grid_cell", "in", want_cells)]                                  # read the sampled cells only
-    written = pq.read_table(path, columns=["grid_cell", "year", "month", *names], filters=only).to_pandas()
-    written["grid_cell"] = written.grid_cell.astype(str)
+    written = _rows_of(path, pick // CELLS, ["grid_cell", "year", "month", *names], want_cells)
     for y, mo, f in [months[0], months[len(months) // 2], months[-1]]:
-        src = pq.read_table(f, columns=["grid_cell", *names], filters=only).to_pandas().set_index("grid_cell").loc[want_cells]
+        groups = np.searchsorted(bounds, at[pick], side="right") - 1
+        src = _rows_of(f, groups, ["grid_cell", *names], want_cells).set_index("grid_cell").loc[want_cells]
         got = written[(written.year == y) & (written.month == mo)]
         got = got.set_index("grid_cell").loc[src.index, names]
         if not got.equals(src[names]):
