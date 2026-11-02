@@ -79,8 +79,9 @@ def test_series_month_and_cell(page):
     page.evaluate(f"globe.jumpTo({{center: [{LOCH_LOMOND[0]}, {LOCH_LOMOND[1]}], zoom: 4}})")
     page.wait_for_function("document.body.dataset.loaded.endsWith('/0')", timeout=300_000)    # zoomed: series/
     page.mouse.click(*at(page, *LOCH_LOMOND))
-    page.wait_for_function("document.getElementById('clim-stats').textContent.includes('row group')", timeout=120_000)
+    page.wait_for_function("document.getElementById('clim-stats').textContent.includes('requests')", timeout=120_000)
     assert page.text_content("#pick-cell") == "624U_29L"
+    assert page.text_content("#clim-stats").startswith("Page index")             # rows 12 x rank, not row groups
     normals = page.evaluate("pickState().clim.mean")
     assert normals[0] == pytest.approx(122.892, abs=1e-3) and normals[6] == pytest.approx(78.631, abs=1e-3)
     page.click("#series-load")

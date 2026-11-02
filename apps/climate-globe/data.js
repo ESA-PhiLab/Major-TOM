@@ -183,11 +183,26 @@ async function cellRows(url, row, col, columns, stats) {
 
 const bandOf = row => String(Math.floor(((row + ROWS / 2) * 20) / ROWS)).padStart(2, '0')      // as majortom.climate
 
-/** One cell's monthly normals: {mean[12], std[12], stats}, from its climatology band file. */
+/** One cell's monthly normals: {mean[12], std[12], stats}, from its climatology band file. Climatology files list
+ *  a band's cells in the order of cells.parquet, 12 months each, with a page index: the cell's rows are 12 x rank
+ *  onwards and only their pages are read. Files without that layout are read by row-group statistics. */
 export async function loadCellClimatology(layer, row, col) {
   const stats = newStats(), mean = new Array(12).fill(NaN), std = new Array(12).fill(NaN)
-  const rows = await cellRows(`${SOURCE_COOP}/${layer.dataset}/climatology/band=${bandOf(row)}.parquet`, row, col,
-    ['grid_row_u', 'grid_col_r', 'month', `${layer.column}_mean`, `${layer.column}_std`], stats)
+  const url = `${SOURCE_COOP}/${layer.dataset}/climatology/band=${bandOf(row)}.parquet`
+  const columns = ['grid_row_u', 'grid_col_r', 'month', `${layer.column}_mean`, `${layer.column}_std`]
+  const [rank, count] = await bandRank(layer.dataset, row, col, stats)
+  const file = await countedFile(url, stats, footers.has(url) ? 8 : TAIL)
+  if (!footers.has(url)) footers.set(url, await parquetMetadataAsync(file, { initialFetchSize: TAIL }))
+  const metadata = footers.get(url)
+  const indexed = metadata.row_groups[0]?.columns.every(c => c.offset_index_offset !== undefined)
+  let rows = []
+  if (rank >= 0 && indexed && Number(metadata.num_rows) === 12 * count) {
+    await parquetRead({ file, metadata, compressors, columns, useOffsetIndex: true, rowStart: 12 * rank,
+      rowEnd: 12 * rank + 12, onComplete(rs) { rows = rs } })
+  }
+  if (rows.length !== 12 || rows.some(r => Number(r[0]) !== row || Number(r[1]) !== col)) {
+    rows = await cellRows(url, row, col, columns, stats)
+  }
   for (const [, , m, mu, sd] of rows) {
     const f = factor(layer, Number(m))
     mean[m - 1] = mu === null ? NaN : mu * f; std[m - 1] = sd === null ? NaN : sd * f

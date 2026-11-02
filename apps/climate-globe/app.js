@@ -236,7 +236,8 @@ async function pickLayer() {
     const c = await loadCellClimatology(layer, row, col)
     if (ticket !== pick.ticket) return
     pick.clim = c
-    $('clim-stats').textContent = `${c.stats.rowGroups} row group${c.stats.rowGroups === 1 ? "" : "s"} · ${kb(c.stats.bytes)} in ${c.stats.requests} requests · ${secs(c.stats.read)}`
+    const how = c.stats.rowGroups === undefined ? 'Page index' : `${c.stats.rowGroups} row group${c.stats.rowGroups === 1 ? "" : "s"}`
+    $('clim-stats').textContent = `${how} · ${kb(c.stats.bytes)} in ${c.stats.requests} requests · ${secs(c.stats.read)}`
   } catch (error) {
     if (ticket === pick.ticket) $('clim-stats').textContent = `Could not load: ${error.message}`
   }
