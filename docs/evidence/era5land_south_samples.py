@@ -5,6 +5,8 @@
          Hub's copy misses, and those that straddle 57.1°S (partly covered there)
       -> <out>/south/Core-<name>/metadata.parquet: grid_cell, grid_row_u, grid_col_r, timestamp, product_id
          (stream's samples; the folder names the dataset, as stream's acquisitions.parquet records it)
+      -> <out>/south/year=<YYYY>/Core-<name>/metadata.parquet: the same, one folder per acquisition year (the fill
+         runs year by year)
       -> <out>/overlap/Core-<name>/metadata.parquet: the samples of the first two acquisition times in cells wholly
          between 56.5°S and 57.1°S (rows -635 to -630), which both copies cover: the end-to-end test compares the two
 
@@ -32,6 +34,10 @@ def main(core: str, out: str) -> None:
             path = out / name / f"Core-{d}" / "metadata.parquet"
             path.parent.mkdir(parents=True, exist_ok=True)
             part[COLUMNS].to_parquet(path, index=False)
+    for (year, d), part in south.groupby([south.timestamp.str[:4], "dataset"]):      # timestamp: "20191105T144255"
+        path = out / "south" / f"year={year}" / f"Core-{d}" / "metadata.parquet"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        part[COLUMNS].to_parquet(path, index=False)
     acquisitions = south.drop_duplicates(["grid_cell", "timestamp"])
     print(f"{len(south):,} samples, {len(acquisitions):,} acquisitions, {south.grid_cell.nunique():,} cells south of 57.1°S")
     print(f"overlap test: {both.drop_duplicates(['grid_cell', 'timestamp'])[['grid_cell', 'timestamp']].values.tolist()}")
