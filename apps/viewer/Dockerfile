@@ -18,8 +18,9 @@ WORKDIR /home/user/app
 RUN conda create -n app_env python=3.9 wget -y
 
 # 5. Install Faiss via Conda (Pinned MKL)
-# This handles the "libmkl_intel_lp64.so.1" error
-RUN conda install -n app_env -c pytorch -c nvidia -c conda-forge faiss-gpu=1.7.4 mkl=2021 blas=1.0=mkl -y && \
+# This handles the "libmkl_intel_lp64.so.1" error; libgomp (OpenMP, which faiss 1.7.4 links but does not declare):
+# since conda-forge split it out of libgcc, it is not installed otherwise ("libgomp.so.1: cannot open shared object file")
+RUN conda install -n app_env -c pytorch -c nvidia -c conda-forge faiss-gpu=1.7.4 mkl=2021 blas=1.0=mkl libgomp -y && \
     conda clean -ya
 
 # 6. Install Pip Requirements
