@@ -6,7 +6,8 @@
       -> per column: min, max (row-group statistics), largest share of nulls in a day
       -> <out>/<kind>.csv (one row per source and column) and a printed summary; problems marked CHECK
 
-    python docs/evidence/core_weather_validate.py /data/Major-TOM/Core-Weather <out folder>     (Slurm CPU job)
+    python docs/evidence/core_weather_validate.py /data/Major-TOM/Core-Weather <out folder> [merged ...]   (Slurm CPU job)
+    further folders (merged) are checked with the sources: same rows per day, columns in the same ranges
 """
 from __future__ import annotations
 
@@ -42,13 +43,13 @@ def file_stats(path: Path) -> tuple[str, int, dict]:
     return path.stem, md.num_rows, dict(out)
 
 
-def main(root: str, out: str) -> None:
+def main(root: str, out: str, *more: str) -> None:
     root, out = Path(root), Path(out)
     out.mkdir(parents=True, exist_ok=True)
     for kind in ("hourly", "daily"):
         rows_by_day, table = defaultdict(dict), []
         with ProcessPoolExecutor(16) as pool:
-            for source in SOURCES:
+            for source in [*SOURCES, *more]:
                 files = sorted((root / source / kind).glob("year=*/*.parquet"))
                 if not files:
                     continue
@@ -71,4 +72,4 @@ def main(root: str, out: str) -> None:
 
 
 if __name__ == "__main__":
-    main(*sys.argv[1:3])
+    main(*sys.argv[1:])

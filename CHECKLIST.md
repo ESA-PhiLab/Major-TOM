@@ -92,7 +92,13 @@ Workstreams are defined in [docs/STRATEGY.md](docs/STRATEGY.md).
 - [ ] 1 November: resume IMERG in Core-Weather on Earth Engine (256 / 2,976 days; ~130 EECU-hours), after a one-hour calibration against the quota counter
 - [ ] ERA5-Monthly v2 climatology (1991-2020)
 - [ ] Optional: ERA5Land-Monthly with all 49 variables from Earth Data Hub's monthly store (check its chunking on 1 November)
-- [ ] Later, if needed: fill ERA5-Land south of 57.1°S from the Climate Data Store (area request; docs/CLIMATE.md 6.1); ask Earth Data Hub about a full-globe copy
+- [ ] Fill ERA5-Land south of 57.1°S from the Climate Data Store, year by year (docs/CLIMATE.md 6.1; 2016 running since 2026-11-02); then upload Core-Weather to source.coop major-tom/core-weather
 - [ ] Validate ERA5 groups 3-8 and ERA5-Land groups 2-6; clear the 815 GB download cache after publishing
 - [ ] Merge sources and publish Core-Weather and the monthly datasets: source.coop first, Hugging Face second (Miko, 2026-10-24)
 - [ ] Climate datasets in the Major TOM viewing app (HF Space; final task)
+
+## WS10 — Apps (`apps/`, apps/README.md)
+
+- [ ] Core Viewer: layout clean-up (header done locally 2026-11-02; controls, fonts, text prompt, placeholder, acquisition time)
+- [ ] Raster Viewer: climate panel for the selected cell
+- [ ] Future: text search in the browser (Raster Viewer): SigLIP text encoder in transformers.js; embeddings in an inverted-file index (cluster centres loaded once, Parquet sorted by cluster, nearest clusters read by range request, optional product quantisation); check the exact SigLIP model of Core-S2RGB-SigLIP, its ONNX export and download size

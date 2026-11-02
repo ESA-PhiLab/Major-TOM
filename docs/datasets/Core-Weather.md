@@ -1,10 +1,10 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** reviewed (Miko, 2026-10-24); draft of the dataset card for Major-TOM/Core-Weather (2026-10-23). ERA5-Land rows, note and credit added 2026-10-26; ERA5 and ERA5-Land rows, Size and Validation updated 2026-10-30 (overnight, from docs/evidence/core_weather_validate.py and a trial merge of four days): not yet reviewed.
+> **Review status:** reviewed (Miko, 2026-10-24); draft of the dataset card for Major-TOM/Core-Weather (2026-10-23). ERA5-Land rows, note and credit added 2026-10-26; ERA5 and ERA5-Land rows, Size and Validation updated 2026-10-30 (overnight, from docs/evidence/core_weather_validate.py and a trial merge of four days); reviewed (Miko, 2026-11-02). 2026-11-02, for publishing (not yet reviewed): Reading section with a tested example, daily column names, Copernicus disclaimer, ERA5-Land south note, GitHub links.
 
 # Core-Weather
 
-Weather and air quality around every acquisition of the timestamped Major TOM Core datasets (Core-S2L2A, Core-S2L1C, Core-S1RTC): an hourly table for the 24 hours either side of each image, and a daily table for the 30 days either side. Values are means over each 10 km grid cell. Built with `majortom.climate` (`python -m majortom.climate stream`); design in [docs/CLIMATE.md](../CLIMATE.md).
+Weather and air quality around every acquisition of the timestamped Major TOM Core datasets (Core-S2L2A, Core-S2L1C, Core-S1RTC): an hourly table for the 24 hours either side of each image, and a daily table for the 30 days either side. Values are means over each 10 km grid cell. Built with `majortom.climate` (`python -m majortom.climate stream`); design in [docs/CLIMATE.md](https://github.com/ESA-PhiLab/Major-TOM/blob/main/docs/CLIMATE.md).
 
 ## Tables
 
@@ -15,6 +15,26 @@ Weather and air quality around every acquisition of the timestamped Major TOM Co
 | `acquisitions.parquet` | Core sample | links each sample (`dataset`, `product_id`) to its rows |
 
 Rows are keyed by `grid_cell` and `acquired` (the acquisition time, UTC). Core-S2L2A and Core-S2L1C samples of the same acquisition share rows. Files are split by acquisition year and day: `daily/year=2021/2021-07-14.parquet`.
+
+## Reading
+
+The files are at `https://data.source.coop/major-tom/core-weather/`. Find a sample's acquisition in `acquisitions.parquet`, then read its rows from that day's file:
+
+```python
+import fsspec
+import pandas as pd
+
+https = fsspec.filesystem("https")
+url = "https://data.source.coop/major-tom/core-weather"
+links = pd.read_parquet(f"{url}/acquisitions.parquet", filesystem=https, filters=[("grid_cell", "=", "624U_29L")])
+pick = links[links.dataset == "Core-S2L2A"].iloc[0]                      # Loch Lomond, 2022-12-11 11:45:01 UTC
+day = f"year={pick.acquired:%Y}/{pick.acquired:%Y-%m-%d}.parquet"     # files are split by acquisition day
+here = [("grid_cell", "=", pick.grid_cell), ("acquired", "=", pick.acquired)]
+hourly = pd.read_parquet(f"{url}/hourly/{day}", filesystem=https, filters=here,
+                         columns=["step_h", "era5_t2m", "era5land_t2m", "imerg_precip"])              # 49 hours
+daily = pd.read_parquet(f"{url}/daily/{day}", filesystem=https, filters=here,
+                        columns=["step_d", "era5land_t2m_mean", "cpc_precip", "cams_pm2p5_mean", "s5p_no2"])  # 61 days
+```
 
 ## Steps
 
@@ -30,7 +50,7 @@ Each source's columns carry its prefix. Units are as published by the producer; 
 
 | Source | Hourly | Daily | Grid |
 |---|---|---|---|
-| ERA5 (`era5_`) | 207 variables: every hourly single-level ERA5 variable except exact duplicates and mean rates ([ERA5_VARIABLES.md](../ERA5_VARIABLES.md)), among them `t2m`, `d2m` (K), `tp` (m, hour ending at the stamp), `u10`, `v10` (m s⁻¹), `sp` (Pa), `ssrd` (J m⁻²), `sf`, `sd` (m of water equivalent), `swvl1` (m³ m⁻³), `sst` (K), `siconc` (0–1); `valid`, `land` | means of states, sums of accumulated variables, min and max of the hourly extremes | 0.25° |
+| ERA5 (`era5_`) | 207 variables: every hourly single-level ERA5 variable except exact duplicates and mean rates ([ERA5_VARIABLES.md](https://github.com/ESA-PhiLab/Major-TOM/blob/main/docs/ERA5_VARIABLES.md)), among them `t2m`, `d2m` (K), `tp` (m, hour ending at the stamp), `u10`, `v10` (m s⁻¹), `sp` (Pa), `ssrd` (J m⁻²), `sf`, `sd` (m of water equivalent), `swvl1` (m³ m⁻³), `sst` (K), `siconc` (0–1); `valid`, `land` | means of states, sums of accumulated variables, min and max of the hourly extremes | 0.25° |
 | ERA5-Land (`era5land_`) | all 49 time-varying land variables (among them `t2m`, `d2m` (K), `u10`, `v10` (m s⁻¹), `sp` (Pa), `tp` (m), `sf`, `sd` (m of water equivalent), `ssrd` (J m⁻²), `snowc` (%), `swvl1` (m³ m⁻³)); accumulated variables are amounts over the hour ending at the stamp | means of states, sums of accumulated variables, min and max of `t2m` | 0.1°, land only, 90°N–57.1°S |
 | CAMS EAC4 (`cams_`) | every 3 hours: surface `no2`, `o3`, `co`, `so2`, `hcho` (kg kg⁻¹, lowest model level), `pm1`, `pm2p5`, `pm10` (kg m⁻³); total columns `tc_no2`, `tc_o3`, `tc_co`, `tc_so2`, `tc_hcho`, `tc_ch4` (kg m⁻²); aerosol optical depth at 550 nm, total and by type | means of the 8 three-hourly steps | 0.75° |
 | NOAA CPC (`cpc_`) | — | `precip` (mm), `tmax`, `tmin` (°C), `start` | 0.5° |
@@ -39,10 +59,12 @@ Each source's columns carry its prefix. Units are as published by the producer; 
 
 `<source>_valid` is the share of the cell with data; for ERA5 it is counted on 2 m temperature, which covers every cell. `era5_land` is the share of the cell in ERA5 land pixels (land fraction ≥ 0.5); ERA5 soil water and snow depth average over those pixels only, and are empty for cells without land. Sea surface temperature and sea ice cover are empty over land.
 
+Daily columns name their statistic: `_mean` for states, `_sum` for accumulated variables, `_min` and `_max` for 2 m temperature (ERA5, ERA5-Land) and for ERA5's own extremes (`fg10_max`, `mx2t_max`, `mxtpr_max`, `mn2t_min`, `mntpr_min`); `era5_ptype_mode` is the most frequent precipitation type. The `_valid` columns, `era5_land`, NOAA CPC and Sentinel-5P keep their names.
+
 ## Notes on the sources
 
 - **ERA5:** hourly accumulations hold tiny negative values (about −2 × 10⁻⁹ m) from storage precision; they are kept.
-- **ERA5-Land:** read from Destination Earth's Earth Data Hub copy (zarr), which stores values rounded to 1 part in 16,384 (bitround, 13 mantissa bits; ±0.018 K at 300 K). Checked against Earth Engine's copy: within 4 × 10⁻⁴ relative. Built in six groups of variables (docs/CLIMATE.md 6.1). Empty over the sea, and **south of 57.1°S** (Antarctica and nearby islands): Earth Data Hub's copy stops there, though ERA5-Land itself is global. ERA5 covers those cells at 0.25°; a fill from the Climate Data Store is planned (docs/CLIMATE.md 6.1).
+- **ERA5-Land:** read from Destination Earth's Earth Data Hub copy (zarr), which stores values rounded to 1 part in 16,384 (bitround, 13 mantissa bits; ±0.018 K at 300 K). Checked against Earth Engine's copy: within 4 × 10⁻⁴ relative. Built in six groups of variables ([docs/CLIMATE.md](https://github.com/ESA-PhiLab/Major-TOM/blob/main/docs/CLIMATE.md) 6.1). Empty over the sea, and **south of 57.1°S** (Antarctica and nearby islands): Earth Data Hub's copy stops there, though ERA5-Land itself is global. ERA5 covers those cells at 0.25°. A fill from the Climate Data Store's hourly ERA5-Land is being built and will be published as an update of the affected day files ([docs/CLIMATE.md](https://github.com/ESA-PhiLab/Major-TOM/blob/main/docs/CLIMATE.md) 6.1).
 - **NOAA CPC:** each country's gauges report at their own hour, so a CPC day ends at a different UTC hour per country (CPC's end-of-day map, which CPC describes as based on limited, unchecked information).
 - **Sentinel-5P:** data start on 2018-06-28; earlier steps are empty. One overpass a day; gaps under clouds and between swaths.
 - **CAMS EAC4:** available 2003–2025.
@@ -58,7 +80,7 @@ Each source's columns carry its prefix. Units are as published by the producer; 
 | NOAA CPC | no restriction | acknowledgement of NOAA PSL requested |
 | IMERG | NASA open data | cite the IMERG V07 product |
 
-ERA5-Land is Copernicus Climate Change Service data under the Copernicus licence; Earth Data Hub serves it under CC-BY 4.0 and is credited as the access route, not as a licensor. The exact ERA5 and CAMS notice wording is to be checked against each product's licence page before publishing.
+ERA5-Land is Copernicus Climate Change Service data under the Copernicus licence; Earth Data Hub serves it under CC-BY 4.0 and is credited as the access route, not as a licensor. The notices follow the Licence to use Copernicus Products (rev. 12), clause 5.1.2 (modified products). As clause 5.1.3 requires: neither the European Commission nor ECMWF is responsible for any use that may be made of the Copernicus information or data this dataset contains.
 
 ## Size
 
