@@ -30,6 +30,8 @@ panel: dataset
   -> app.js:        MapLibre globe; cursor shows the cell and whether it has a sample
 click a cell -> its footprint rows (page index) -> the image file on Hugging Face (one row group per sample)
   -> samples.js: that row group's thumbnail column -> panel, with acquisition time, cloud cover or orbit, product
+the shown image: Open (full window, zoom and pan) or Show on map (over its footprint, opacity slider): every image
+  is 10,680 m square in its UTM zone, centred on the sample's centre_lat, centre_lon, so corners need no band read
 in the background: the other datasets' footprints once the first is drawn; after a click, the same cell's samples
   and first thumbnail in the other datasets (kept, so switching dataset shows them at once)
 ```
@@ -45,7 +47,7 @@ in the background: the other datasets' footprints once the first is drawn; after
 | `parquet.js` | range requests for hyparquet, with bytes and time counted |
 | `tiles.js`, `labels.js`, `places.json` | copied from the Climate Globe: cells and tiles, place names |
 | `build_index.py` | Core `metadata.parquet` -> `footprints/<name>.parquet` and `footprints/datasets.json` |
-| `footprints/` | built files, not in git: uploaded to the Space once (S2L2A and S2L1C 20.5 MB each, S1RTC 12.1 MB, DEM 4.5 MB) |
+| `footprints/` | built files, not in git: uploaded to the Space once (S2L2A and S2L1C 32.9 MB each, S1RTC 20.6 MB, DEM 14.5 MB) |
 
 ## Reads
 

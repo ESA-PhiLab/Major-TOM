@@ -5,9 +5,11 @@
 //   click -> cell -> its samples (footprint rows, page index) -> image file on Hugging Face, one row group,
 //     thumbnail column (samples.js) -> panel
 //   cursor -> cell under it -> outline + name, position, whether it has a sample
+//   the shown image -> full window (zoom, pan) or on the map over its footprint (corners from its UTM centre)
 
 import * as maplibregl from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.mjs'
 import { feature } from 'https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/+esm'
+import proj4 from 'https://cdn.jsdelivr.net/npm/proj4@2.12.1/+esm'
 import { DATASETS, loadCoverage, samplesAt } from './footprints.js'
 import { placeLabels } from './labels.js'
 import { imageUrl, loadThumbnail } from './samples.js'
@@ -278,13 +280,14 @@ map.on('click', e => {
 $('pick-clear').addEventListener('click', () => {
   pick.cell = null; pick.ticket++; $('pick').hidden = true
   map.getSource('selected').setData({ type: 'FeatureCollection', features: [] })
+  showOnMap()
 })
 
 /** The selected cell in the shown dataset: its samples, then the first one's thumbnail. */
 async function pickCell() {
   const ticket = ++pick.ticket, { row, col } = pick.cell, name = state.name
   pick.samples = []; pick.thumbnail = null
-  showThumbnail(null, 'Looking up the cell…')
+  showThumbnail(null, 'Looking up the cell…'); showOnMap()
   $('choices').replaceChildren(); $('pick-meta').replaceChildren(); $('pick-stats').textContent = ''
   let samples
   try {
@@ -316,8 +319,9 @@ async function choose(i) {
   try {
     const [loading, fresh] = thumbnailOf(state.name, sample), t = await loading
     if (ticket !== pick.ticket) return
-    pick.thumbnail = t
+    pick.thumbnail = { ...t, sample }
     showThumbnail(t.src)
+    showOnMap()
     meta(sample, t.productId, info)
     $('pick-stats').textContent = `Thumbnail: ${kb(t.stats.bytes)} in ${t.stats.requests} requests · ${secs(t.stats.read)}` +
       (fresh ? '' : ' (loaded before)')
@@ -329,9 +333,83 @@ async function choose(i) {
 
 function showThumbnail(src, note = '') {
   $('thumb').hidden = !src
+  $('image-actions').hidden = !src
   if (src) $('thumb').src = src
   $('thumb-note').textContent = src ? '' : note
 }
+
+// ---- the shown image on the map -------------------------------------------------------------------------------
+// Every Core image is 10,680 m square in its UTM zone, centred on the sample's centre_lat, centre_lon (checked
+// against the GeoTIFF bounds), north up: its corners are the centre +- 5,340 m, back in longitude and latitude.
+
+const HALF = 5340
+
+/** Corners of a sample's image, [lon, lat], from top left clockwise (as MapLibre's image source wants them). */
+function corners(s) {
+  const zone = s.epsg % 100, south = s.epsg > 32700
+  const utm = proj4(`+proj=utm +zone=${zone}${south ? ' +south' : ''} +datum=WGS84 +units=m +no_defs`)
+  const [x, y] = utm.forward([s.centre_lon, s.centre_lat])
+  return [[x - HALF, y + HALF], [x + HALF, y + HALF], [x + HALF, y - HALF], [x - HALF, y - HALF]].map(p => utm.inverse(p))
+}
+
+/** The shown thumbnail over its footprint when "Show on map" is ticked; otherwise none. */
+function showOnMap() {
+  const t = pick.thumbnail, on = $('on-map').checked && t && pick.cell
+  if (map.getLayer('sample')) map.removeLayer('sample')
+  if (map.getSource('sample')) map.removeSource('sample')
+  if (!on) return
+  map.addSource('sample', { type: 'image', url: t.src, coordinates: corners(t.sample) })
+  map.addLayer({ id: 'sample', type: 'raster', source: 'sample',
+    paint: { 'raster-opacity': Number($('opacity').value) / 100, 'raster-fade-duration': 0 } }, 'coast')
+}
+$('on-map').addEventListener('change', showOnMap)
+$('opacity').addEventListener('input', () => {
+  if (map.getLayer('sample')) map.setPaintProperty('sample', 'raster-opacity', Number($('opacity').value) / 100)
+})
+window.sampleCorners = () => (pick.thumbnail ? corners(pick.thumbnail.sample) : null)     // for automated checks
+
+// ---- the shown image in the full window -----------------------------------------------------------------------
+//   opens fitted to the window; scroll zooms about the cursor, drag pans, Esc or Close closes
+
+const view = { scale: 1, x: 0, y: 0, drag: null }
+
+function openImage() {
+  if (!pick.thumbnail) return
+  const img = $('lightbox-img')
+  img.src = pick.thumbnail.src
+  $('lightbox-title').textContent = `${pick.cell.name} · ${state.info.label}` +
+    (pick.thumbnail.sample.timestamp ? ` · ${when(pick.thumbnail.sample.timestamp)}` : '')
+  $('lightbox').hidden = false
+  img.decode().then(() => {
+    const w = innerWidth, h = innerHeight - 44, s = Math.min(w / img.naturalWidth, h / img.naturalHeight)
+    Object.assign(view, { scale: s, x: (w - img.naturalWidth * s) / 2, y: 44 + (h - img.naturalHeight * s) / 2 })
+    place()
+  })
+}
+const place = () => { $('lightbox-img').style.transform = `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }
+const closeImage = () => { $('lightbox').hidden = true }
+
+$('thumb').addEventListener('click', openImage)
+$('open-image').addEventListener('click', openImage)
+$('lightbox-close').addEventListener('click', closeImage)
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('lightbox').hidden) closeImage() })
+$('lightbox').addEventListener('wheel', e => {
+  e.preventDefault()
+  const k = Math.exp(-e.deltaY * 0.0015), s = Math.min(Math.max(view.scale * k, 0.05), 40)
+  view.x = e.clientX - (e.clientX - view.x) * (s / view.scale)
+  view.y = e.clientY - (e.clientY - view.y) * (s / view.scale)
+  view.scale = s; place()
+}, { passive: false })
+$('lightbox').addEventListener('pointerdown', e => {
+  if (e.target.closest('button')) return
+  view.drag = [e.clientX - view.x, e.clientY - view.y]
+  $('lightbox').classList.add('dragging'); $('lightbox').setPointerCapture(e.pointerId)
+})
+$('lightbox').addEventListener('pointermove', e => {
+  if (!view.drag) return
+  view.x = e.clientX - view.drag[0]; view.y = e.clientY - view.drag[1]; place()
+})
+$('lightbox').addEventListener('pointerup', () => { view.drag = null; $('lightbox').classList.remove('dragging') })
 
 /** "20200213T023821" -> "2020-02-13 02:38 UTC". */
 const when = t => `${t.slice(0, 4)}-${t.slice(4, 6)}-${t.slice(6, 8)} ${t.slice(9, 11)}:${t.slice(11, 13)} UTC`

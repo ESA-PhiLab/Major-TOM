@@ -117,3 +117,32 @@ def test_other_datasets_load_in_the_background(page):
     page.click("input[name=dataset][value=S1RTC]")
     page.wait_for_function("document.getElementById('pick-stats').textContent.includes('loaded before')", timeout=60_000)
     assert page.text_content("#pick-cell") == "624U_29L"
+
+
+def test_open_the_image_full_window(page):
+    thumbnail(page, "S2L2A")
+    page.click("#open-image")
+    page.wait_for_function("(() => { const i = document.getElementById('lightbox-img'); return !document.getElementById('lightbox')"
+                           ".hidden && i.complete && i.naturalWidth > 0 && i.style.transform.includes('scale') })()", timeout=30_000)
+    before = page.evaluate("document.getElementById('lightbox-img').style.transform")
+    page.mouse.move(700, 450); page.mouse.wheel(0, -400)                   # zoom in about the cursor
+    assert page.evaluate("document.getElementById('lightbox-img').style.transform") != before
+    page.keyboard.press("Escape")
+    assert page.evaluate("document.getElementById('lightbox').hidden")
+
+
+# corners of the Loch Lomond S2L2A image (part_03814, row 299), from its B04 GeoTIFF's bounds with pyproj
+GEOTIFF_CORNERS = [[-4.672272, 56.140694], [-4.500466, 56.1429], [-4.49674, 56.046975], [-4.66812, 56.044777]]
+
+
+def test_show_the_image_on_the_map(page):
+    thumbnail(page, "S2L2A")
+    page.check("#on-map")
+    assert page.evaluate("Boolean(globe.getLayer('sample'))")
+    corners = page.evaluate("sampleCorners()")
+    for (lon, lat), (lon0, lat0) in zip(corners, GEOTIFF_CORNERS):
+        assert abs(lon - lon0) < 2e-5 and abs(lat - lat0) < 2e-5                         # under 2 m
+    page.fill("#opacity", "40"); page.dispatch_event("#opacity", "input")
+    assert page.evaluate("globe.getPaintProperty('sample', 'raster-opacity')") == 0.4
+    page.click("#pick-clear")
+    assert not page.evaluate("Boolean(globe.getLayer('sample'))")

@@ -3,7 +3,9 @@
     <core>/Core-<name>/metadata.parquet (one row per sample: grid_row_u, grid_col_r, parquet_url, parquet_row, ...)
       -> parquet_url -> part number (every URL is <base>/images/part_NNNNN.parquet; checked)
       -> rows sorted by grid_row_u, grid_col_r
-      -> footprints/<name>.parquet: grid_row_u, grid_col_r, part, parquet_row, timestamp, + cloud_cover / orbit_state
+      -> footprints/<name>.parquet: grid_row_u, grid_col_r, part, parquet_row, timestamp, + cloud_cover / orbit_state,
+         centre_lat, centre_lon, epsg: every image is 10,680 m square in its UTM zone (epsg), centred there exactly
+         (checked against the GeoTIFF bounds), so the app places it on the map without reading a band
          row groups of 65,536 rows with statistics and a page index, no value dictionaries (as the climate files):
          the app reads the two position columns for the coverage map and, for a click, the page holding the cell
       -> footprints/datasets.json: per dataset its label, the URL base of its image files, its samples
@@ -31,7 +33,7 @@ def index(metadata: Path, name: str) -> tuple[pa.Table, str]:
     """The footprint table of one dataset, and the URL base of its image files."""
     have = pq.read_schema(metadata).names
     table = pq.read_table(metadata, columns=["grid_row_u", "grid_col_r", "parquet_url", "parquet_row",
-                                             *[c for c in EXTRA if c in have]])
+                                             *[c for c in EXTRA if c in have], "centre_lat", "centre_lon", "crs"])
     base = f"https://huggingface.co/datasets/Major-TOM/Core-{name}/resolve/main/images/"
     urls = table.column("parquet_url").to_pylist()
     part = [re.fullmatch(re.escape(base) + r"part_(\d{5})\.parquet", u) for u in urls]
@@ -41,15 +43,26 @@ def index(metadata: Path, name: str) -> tuple[pa.Table, str]:
                     "grid_col_r": pc.cast(table.column("grid_col_r"), pa.int16()),
                     "part": pa.array(np.array([int(m[1]) for m in part], np.int16)),
                     "parquet_row": pc.cast(table.column("parquet_row"), pa.int16()),
-                    **{c: table.column(c) for c in EXTRA if c in have}})
+                    **{c: table.column(c) for c in EXTRA if c in have},
+                    "centre_lat": pc.cast(table.column("centre_lat"), pa.float32()),     # 4e-6 degrees: under 1 m
+                    "centre_lon": pc.cast(table.column("centre_lon"), pa.float32()),
+                    "epsg": pa.array(epsg(table.column("crs").to_pylist()), pa.int16())})
     if "cloud_cover" in out.column_names:
         out = out.set_column(out.schema.get_field_index("cloud_cover"), "cloud_cover",
                              pc.cast(out.column("cloud_cover"), pa.float32()))
     return out.sort_by([("grid_row_u", "ascending"), ("grid_col_r", "ascending")]), base
 
 
+def epsg(crs: list[str]) -> np.ndarray:
+    """EPSG codes from the metadata's crs strings ("EPSG:32701"; Core-S1RTC writes "EPSG:EPSG:32752")."""
+    codes = np.array([int(c.rsplit(":", 1)[1]) for c in crs])
+    if not np.all(((codes > 32600) & (codes <= 32660)) | ((codes > 32700) & (codes <= 32760))):
+        raise ValueError("a crs outside the UTM zones (EPSG 32601-32660, 32701-32760)")
+    return codes.astype(np.int16)
+
+
 def write(table: pa.Table, path: Path) -> None:
-    keys = ["grid_row_u", "grid_col_r", "orbit_state"]
+    keys = ["grid_row_u", "grid_col_r", "orbit_state", "epsg"]
     pq.write_table(table, path, row_group_size=ROW_GROUP, compression="zstd", write_statistics=True,
                    write_page_index=True, use_dictionary=[c for c in keys if c in table.column_names],
                    data_page_size=4096)
