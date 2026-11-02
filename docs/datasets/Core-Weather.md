@@ -34,7 +34,7 @@ Each source's columns carry its prefix. Units are as published by the producer; 
 | ERA5-Land (`era5land_`) | all 49 time-varying land variables (among them `t2m`, `d2m` (K), `u10`, `v10` (m s⁻¹), `sp` (Pa), `tp` (m), `sf`, `sd` (m of water equivalent), `ssrd` (J m⁻²), `snowc` (%), `swvl1` (m³ m⁻³)); accumulated variables are amounts over the hour ending at the stamp | means of states, sums of accumulated variables, min and max of `t2m` | 0.1°, land only, 90°N–57.1°S |
 | CAMS EAC4 (`cams_`) | every 3 hours: surface `no2`, `o3`, `co`, `so2`, `hcho` (kg kg⁻¹, lowest model level), `pm1`, `pm2p5`, `pm10` (kg m⁻³); total columns `tc_no2`, `tc_o3`, `tc_co`, `tc_so2`, `tc_hcho`, `tc_ch4` (kg m⁻²); aerosol optical depth at 550 nm, total and by type | means of the 8 three-hourly steps | 0.75° |
 | NOAA CPC (`cpc_`) | — | `precip` (mm), `tmax`, `tmin` (°C), `start` | 0.5° |
-| Sentinel-5P (`s5p_`) | — | `no2`, `co`, `o3`, `so2`, `hcho` (mol m⁻²), `ch4` (ppb), `aer_ai`, a valid share per product, `start` | 0.05° grid of ~5.5 × 3.5 km pixels |
+| Sentinel-5P (`s5p_`) | — | `no2`, `co`, `o3`, `so2`, `hcho` (mol m⁻²), `ch4` (ppb), `aer_ai`, a valid share per product, `start` | 0.05° grid of pixels of 5.5 × 3.5 km at nadir |
 | IMERG (`imerg_`) | `precip` (mm, hour ending at the stamp) | sums | 0.1° |
 
 `<source>_valid` is the share of the cell with data; for ERA5 it is counted on 2 m temperature, which covers every cell. `era5_land` is the share of the cell in ERA5 land pixels (land fraction ≥ 0.5); ERA5 soil water and snow depth average over those pixels only, and are empty for cells without land. Sea surface temperature and sea ice cover are empty over land.
@@ -42,7 +42,7 @@ Each source's columns carry its prefix. Units are as published by the producer; 
 ## Notes on the sources
 
 - **ERA5:** hourly accumulations hold tiny negative values (about −2 × 10⁻⁹ m) from storage precision; they are kept.
-- **ERA5-Land:** read from Destination Earth's Earth Data Hub copy (zarr), which stores values rounded to ~1 part in 16,000 (bitround, 13 mantissa bits; ±0.02 K at 300 K). Checked against Earth Engine's copy: within 4 × 10⁻⁴ relative. Built in six groups of variables (docs/CLIMATE.md 6.1). Empty over the sea, and **south of 57.1°S** (Antarctica and nearby islands): Earth Data Hub's copy stops there, though ERA5-Land itself is global. ERA5 covers those cells at 0.25°; a fill from the Climate Data Store is planned (docs/CLIMATE.md 6.1).
+- **ERA5-Land:** read from Destination Earth's Earth Data Hub copy (zarr), which stores values rounded to 1 part in 16,384 (bitround, 13 mantissa bits; ±0.018 K at 300 K). Checked against Earth Engine's copy: within 4 × 10⁻⁴ relative. Built in six groups of variables (docs/CLIMATE.md 6.1). Empty over the sea, and **south of 57.1°S** (Antarctica and nearby islands): Earth Data Hub's copy stops there, though ERA5-Land itself is global. ERA5 covers those cells at 0.25°; a fill from the Climate Data Store is planned (docs/CLIMATE.md 6.1).
 - **NOAA CPC:** each country's gauges report at their own hour, so a CPC day ends at a different UTC hour per country (CPC's end-of-day map, which CPC describes as based on limited, unchecked information).
 - **Sentinel-5P:** data start on 2018-06-28; earlier steps are empty. One overpass a day; gaps under clouds and between swaths.
 - **CAMS EAC4:** available 2003–2025.
@@ -62,9 +62,10 @@ ERA5-Land is Copernicus Climate Change Service data under the Copernicus licence
 
 ## Size
 
-About 3.8 million acquisitions, 2,976 acquisition days (2015–2024). The hourly table has about 181 million rows and
-260 columns (~93 GB of parquet), the daily table about 226 million rows and 284 columns (~181 GB); estimated from a
-merge of four days.
+3,704,013 acquisitions (distinct cell and acquisition time) on 2,976 days, 2015–2024, for 5,961,727 Core samples
+(2,245,886 each of Core-S2L2A and Core-S2L1C, 1,469,955 of Core-S1RTC). The hourly table has 181,496,637 rows and
+285 columns (137.4 GB of Parquet in 2,976 files), the daily table 225,944,793 rows and 309 columns (257.8 GB in 2,976
+files).
 
 ## Validation
 

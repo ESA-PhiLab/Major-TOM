@@ -74,8 +74,8 @@ The band of a cell is (row + 1002) × 20 // 2004, with row the signed number in 
 - **Climatology period.** IMERG starts in 1998, so its normals use the whole record (1998–2024) rather than the WMO period 1991–2020; `n_years` gives the years behind each value (24–27).
 - **Quality columns.** `imerg_error`, `imerg_gauge_weight` and `imerg_quality` are IMERG's own per-pixel quality fields, averaged over the cell like precipitation. Low `imerg_quality` and `imerg_gauge_weight` and high `imerg_error` mark values to treat with caution.
 - **High latitudes.** Satellite microwave estimates of precipitation are least reliable over snow-covered and freezing ground.
-- **Known source artifacts.** Beyond 55° latitude, 1,805 cell-months exceed 1 mm h⁻¹ (about 720 mm in a month), spread over the whole record:
-  - **north-eastern Siberia** (around 68°N 145°E): 1,027 cell-months, up to 6.8 mm h⁻¹, mostly in March and September–November, in a region that receives about 250 mm a year: artifacts of the freeze and thaw seasons (e.g. 7.1 mm h⁻¹ in NASA's own file at 63.3°N 143.7°E in March 1999);
+- **Known source artifacts.** Beyond 55° latitude, 1,805 cell-months exceed 1 mm h⁻¹ (720 mm in a 30-day month, 744 mm in a 31-day month), spread over the whole record:
+  - **north-eastern Siberia** (around 68°N 145°E): 1,027 cell-months, up to 6.8 mm h⁻¹, mostly in March and September–November, in a region whose CPC 1991–2020 normals give 162–200 mm a year (67–69°N, 143–147°E): artifacts of the freeze and thaw seasons (e.g. 7.1 mm h⁻¹ in NASA's own file at 63.3°N 143.7°E in March 1999);
   - **the southern Alaska coast** (around 60°N 148°W): 753 cell-months, up to 1.8 mm h⁻¹; a very wet coast; likely overestimates.
   Values are kept unchanged.
 - **Cell means.** Values are area-weighted means over each cell, without interpolation; see the [top-level README](https://source.coop/major-tom/climate).

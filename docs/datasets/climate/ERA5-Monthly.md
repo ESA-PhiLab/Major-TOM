@@ -253,10 +253,10 @@ Every single-level variable ERA5 offers as a monthly mean, except exact duplicat
 | `cells.parquet` | `grid_cell`, `grid_row_u`, `grid_col_r` |
 | `series/year=YYYY/MM.parquet` | one row per cell, along the Hilbert curve: `grid_cell`, `grid_row_u`, `grid_col_r`, `year`, `month`, the columns above |
 | `climatology/band=NN.parquet` | one row per cell and calendar month, 1991–2020: `grid_cell`, `grid_row_u`, `grid_col_r`, `month`, `<column>_mean`, `<column>_std`, `n_years` |
-| `overviews/year=YYYY/MM.parquet` | one row per block of 4 × 4 cells, for maps of the whole globe: `block_row` = (`grid_row_u` + 1002) // 4, `block_col` = (`grid_col_r` + 2004) // 4, `n_cells`, and the means of `era5_t2m`, `era5_d2m`, `era5_tp`, `era5_u10`, `era5_v10`, `era5_msl`, `era5_tcc`, `era5_ssrd` |
+| `overviews/year=YYYY/MM.parquet` | one row per block of 4 × 4 cells, for maps of the whole globe: `block_row` = (`grid_row_u` + 1002) // 4, `block_col` = (`grid_col_r` + 2004) // 4, `n_cells`, and the mean of every variable (212–216 MB per file: read only the columns needed) |
 | `climatology_overviews/MM.parquet` | one row per block of 4 × 4 cells with a value and calendar month MM: `block_row`, `block_col`, `n_cells`, and the block mean of each `<column>_mean` of the climatology (the normals; `_std` and `n_years` left out) |
 
-There is no `by_cell/` copy for ERA5-Monthly (it would add about 1.8 TB to its 2.5 TB); read a place over time from `series/`, one file per month, or select the columns you need.
+`by_cell/` is being built (2026-11-02). Until it is published, read a place over time from `series/`, selecting columns: one cell's record of one variable costs 2.96 GB, 1.80 GB of it the footers of the 1,032 monthly files (1.74 MB each).
 
 ```python
 import fsspec
@@ -283,7 +283,7 @@ The band of a cell is (row + 1002) × 20 // 2004, with row the signed number in 
 
 ## Validation
 
-Every month from 1940-01 to 2025-12 is present; every file has one row per cell (5,113,745); 201 variables and `era5_valid`, no `ptype`; the climatology has one row per cell and calendar month (61,364,940 rows) and 30 years in every cell; overviews hold the eight variables listed above for all 1,032 months. The largest shares of missing values are in the ocean-only variables (waves, ocean surface: up to 86% of cells in a month).
+Every month from 1940-01 to 2025-12 is present; every file has one row per cell (5,113,745); 201 variables and `era5_valid`, no `ptype`; the climatology has one row per cell and calendar month (61,364,940 rows) and 30 years in every cell; overviews hold all 201 variables for all 1,032 months. The largest shares of missing values are in the ocean-only variables (waves, ocean surface: up to 86% of cells in a month).
 
 ## Licence and citation
 

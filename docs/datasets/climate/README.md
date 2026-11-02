@@ -15,12 +15,12 @@ Each dataset is a separate folder with its own README.
 
 | Dataset | What | Source | Record | Grid | Cells | Variables | Size |
 |---|---|---|---|---|---|---|---|
-| [CPC-Monthly](https://source.coop/major-tom/climate/CPC-Monthly) | rain-gauge precipitation, daily max and min temperature, gauges nearby | NOAA CPC Global Unified | 1979–2025 | 0.5° | 1,657,095 (land) | 4 | 23 GB |
-| [IMERG-Monthly](https://source.coop/major-tom/climate/IMERG-Monthly) | satellite precipitation and its quality fields | NASA GPM IMERG V07 | 1998–2024 | 0.1° | 5,113,745 (globe) | 5 | 77 GB |
-| [CAMS-Monthly](https://source.coop/major-tom/climate/CAMS-Monthly) | air quality: trace gases, aerosols, particulate matter | Copernicus CAMS EAC4 | 2003–2025 | 0.75° | 5,113,745 (globe) | 19 | 117 GB |
-| [ERA5-Static](https://source.coop/major-tom/climate/ERA5-Static) | fixed surface fields: terrain, land and lake cover, soil and vegetation types | ECMWF ERA5 | — | 0.25° | 5,113,745 (globe) | 16 | 0.1 GB |
-| [ERA5Land-Monthly](https://source.coop/major-tom/climate/ERA5Land-Monthly) | land surface at 0.1°: temperature, soil water and temperature, snow, runoff, evaporation, fluxes, lakes | ECMWF ERA5-Land | 1950–2025 | 0.1° | 1,524,009 (land) | 49 | 470 GB |
-| [ERA5-Monthly](https://source.coop/major-tom/climate/ERA5-Monthly) | weather and land surface: temperature, humidity, wind, pressure, precipitation, radiation, clouds, soil, snow, waves | ECMWF ERA5 | 1940–2025 | 0.25° | 5,113,745 (globe) | 201 | 2.8 TB |
+| [CPC-Monthly](https://source.coop/major-tom/climate/CPC-Monthly) | rain-gauge precipitation, daily max and min temperature, gauges nearby | NOAA CPC Global Unified | 1979–2025 | 0.5° | 1,657,095 (land) | 4 | 21.2 GB |
+| [IMERG-Monthly](https://source.coop/major-tom/climate/IMERG-Monthly) | satellite precipitation and its quality fields | NASA GPM IMERG V07 | 1998–2024 | 0.1° | 5,113,745 (globe) | 5 | 54.4 GB |
+| [CAMS-Monthly](https://source.coop/major-tom/climate/CAMS-Monthly) | air quality: trace gases, aerosols, particulate matter | Copernicus CAMS EAC4 | 2003–2025 | 0.75° | 5,113,745 (globe) | 19 | 110.9 GB |
+| [ERA5-Static](https://source.coop/major-tom/climate/ERA5-Static) | fixed surface fields: terrain, land and lake cover, soil and vegetation types | ECMWF ERA5 | — | 0.25° | 5,113,745 (globe) | 16 | 0.12 GB |
+| [ERA5Land-Monthly](https://source.coop/major-tom/climate/ERA5Land-Monthly) | land surface at 0.1°: temperature, soil water and temperature, snow, runoff, evaporation, fluxes, lakes | ECMWF ERA5-Land | 1950–2025 | 0.1° | 1,524,009 (land) | 49 | 469.8 GB |
+| [ERA5-Monthly](https://source.coop/major-tom/climate/ERA5-Monthly) | weather and land surface: temperature, humidity, wind, pressure, precipitation, radiation, clouds, soil, snow, waves | ECMWF ERA5 | 1940–2025 | 0.25° | 5,113,745 (globe) | 201 | 3.03 TB (`by_cell/` being built) |
 
 Files are at `https://data.source.coop/major-tom/climate/<dataset>/...`.
 
@@ -31,10 +31,10 @@ The sources were chosen so that the main quantities come from more than one type
 - **Data types.** Reanalyses (ERA5, ERA5-Land, CAMS) are models fitted to observations and are complete in space and time. Satellite products (IMERG) are observations at finer resolution, with retrieval errors. Rain-gauge analyses (CPC) are ground measurements and are sparse where gauges are sparse.
 - **Precipitation from three types of source.** Precipitation affects imagery most (wet soil, flooding, cloud) and is reproduced least well by reanalyses, especially in mountains and the tropics. CPC (gauges), IMERG (satellites) and ERA5 / ERA5-Land (models) can be compared or chosen per region.
 - **Weather and land surface.** ERA5 covers the atmosphere and ocean surface at 0.25°. ERA5-Land reruns the land surface at 0.1°, with temperatures adjusted for elevation.
-- **Air quality.** CAMS is a global air-quality reanalysis without gaps. Sentinel-5P (in Major TOM Core-Weather) observes at a few kilometres, with gaps under cloud.
+- **Air quality.** CAMS is a global air-quality reanalysis without gaps. Sentinel-5P (in Major TOM Core-Weather) observes in pixels of 5.5 × 3.5 km at nadir, with gaps under cloud.
 - **Access.** Global coverage, long records, open licences and free bulk access, measured before building.
 
-> Routes we tested and did not use: IMERG from NASA GES DISC (0.09 MB/s from our server, against 12.9 MB/s from Earth Engine); Sentinel-5P level-2 swaths (whole orbits must be downloaded, ~18 TB for NO₂ alone); ERA5-Land daily statistics from the Climate Data Store (no accumulated variables such as precipitation).
+> Routes we tested and did not use: IMERG from NASA GES DISC (0.09 MB/s from our server, against 12.9 MB/s from Earth Engine); Sentinel-5P level-2 swaths (whole orbits must be downloaded: an estimated 18 TB for NO₂ alone); ERA5-Land daily statistics from the Climate Data Store (no accumulated variables such as precipitation).
 
 Monthly normals at the three cells of Major TOM's release test. Gauges and satellites agree on the timing of the Amazon's wet season and differ in amounts in Scotland and the Alps.
 
@@ -52,7 +52,7 @@ Every monthly dataset has the same parts:
 | `series/year=YYYY/MM.parquet` | cell and month | `grid_cell`, `grid_row_u`, `grid_col_r`, `year`, `month`, `<source>_<variable>`, `<source>_valid` (share of the cell with data) |
 | `climatology/band=NN.parquet` | cell and calendar month | `grid_cell`, `grid_row_u`, `grid_col_r`, `month`, `<variable>_mean`, `<variable>_std` (spread across years), `n_years` |
 | `by_cell/band=NN.parquet` | cell and month | as `series/`, but each cell's months together: rows by cell, then `year`, `month` (CPC, IMERG, CAMS) |
-| `overviews/year=YYYY/MM.parquet` | block of 4 × 4 cells and month | `block_row`, `block_col`, `n_cells`, each variable's mean: a whole-globe map from one small file |
+| `overviews/year=YYYY/MM.parquet` | block of 4 × 4 cells and month | `block_row`, `block_col`, `n_cells`, each variable's mean: a whole-globe map from one file, reading one column |
 | `climatology_overviews/MM.parquet` | block of 4 × 4 cells and calendar month | `block_row`, `block_col`, `n_cells`, each variable's normal (block mean of `<variable>_mean`): a whole-globe map of a month's normal from one small file |
 
 Rows are ordered along a Hilbert curve over the globe (the order used in Major TOM's TACO releases), so neighbouring cells are stored together. Every file has statistics on `grid_row_u` and `grid_col_r` for each row group, so a filter on these two columns reads only the row groups that cover the area. Reading one cell's 47-year CPC series from `series/` takes 0.35 GB instead of 6.9 GB.
@@ -72,15 +72,15 @@ cells.parquet                    every cell with data, along the Hilbert curve: 
   |    row group 1: cells 65,536 - 131,071
   |
   +- climatology/band=16.parquet       one band of grid rows, 12 rows per cell (calendar months 1-12)
-  |    row group 0: rows 0 - 65,535 (about 5,461 cells)
+  |    row group 0: rows 0 - 65,535 (5,461 cells and 4 rows)
   |      cpc_precip_mean: pages of 4 KB      page index: where each page starts and its first row
   |
   +- by_cell/band=16.parquet           one band, every month of each cell together
   |    row group 0: cells 0 - 1,023 x 564 months
-  |      cpc_precip: one page ~ one cell's 564 months
+  |      cpc_precip: pages of 4 KB, written one cell's 564 months at a time
   |    footer: row groups with statistics; page index
   |
-  +- overviews/year=2020/07.parquet    one month, one row per block of 4 x 4 cells (whole globe, a few MB)
+  +- overviews/year=2020/07.parquet    one month, one row per block of 4 x 4 cells (whole globe; CPC: 2 MB)
 ```
 
 A cell's rows in `climatology/` and `by_cell/` follow from its rank: the band holds the cells of `cells.parquet`
@@ -94,20 +94,23 @@ Settings per folder:
 | Folder | Rows | Row group | Page index | Value dictionaries |
 |---|---|---|---|---|
 | `series/` | one per cell | 65,536 rows (65,536 cells) | no | yes (pyarrow default) |
-| `climatology/` | 12 per cell | 65,536 rows (about 5,461 cells) | yes, pages of 4 KB | no |
-| `by_cell/` | months per cell | 1,024 cells | yes, pages of about one cell | no |
+| `climatology/` | 12 per cell | 65,536 rows (5,461 cells and 4 rows: a cell's 12 rows can span two row groups) | yes, pages of 4 KB | no |
+| `by_cell/` | months per cell | 1,024 cells | yes, pages of 4 KB, written one cell at a time | no |
 | `overviews/`, `climatology_overviews/` | one per 4 × 4 block | the whole file | no | yes |
 
 Why these settings:
 
 - **Row groups of 1,024 cells in `by_cell/`.** The footer holds statistics for every row group and column. Few row
-  groups keep it small: about 9 MB for ERA5's largest band, against about 130 MB with row groups of 65,536 rows
-  (63 ERA5 cells).
+  groups keep it small: ERA5's band 00 (31,712 cells) has a 0.73 MB footer with row groups of 1,024 cells (31),
+  and had 10.4 MB with row groups of 65,536 rows (63 ERA5 cells, 500 row groups). Band 04 (259,858 cells, 254 row
+  groups) has 5.84 MB.
 - **`climatology/` keeps row groups of 65,536 rows.** ERA5's climatology footer is already 3.3 MB (74 row groups,
-  407 columns); row groups of 1,024 cells would multiply it by about five.
+  407 columns); row groups of 1,024 cells would give band 10 394 row groups instead of 74, and a footer 5.3 times
+  as large.
 - **Page index.** Without it, a reader decodes a whole column chunk to reach one cell's rows. With it, one page.
-- **No value dictionaries.** A column chunk's dictionary page is read whole before any of its pages: about 0.9 MB
-  per ERA5 column and row group in `by_cell/`. Values are stored with byte-stream-split encoding and zstd instead.
+- **No value dictionaries.** A column chunk's dictionary page is read whole before any of its pages: one ERA5
+  variable of one cell costs 1.8 MB with dictionaries and 0.8 MB without (table below). Values are stored with
+  byte-stream-split encoding and zstd instead.
   `grid_cell`, the position columns, `year`, `month` and `n_years` keep dictionaries.
 
 Sizes on source.coop, and the largest footer of a file in each folder:
@@ -158,7 +161,7 @@ Lomond's CPC record (564 months), read from source.coop:
 
 | Read | From `series/` | From `by_cell/` |
 |---|---|---|
-| One cell, every month (in a browser, through the page index) | 1,140 requests, 153 MB, ~10 s | 10 requests, 0.18 MB, 0.8 s |
+| One cell, every month (in a browser, through the page index) | 1,140 requests, 153 MB, 10.2 s | 10 requests, 0.18 MB, 0.8 s |
 | One cell, every month (pandas, the example below: the cell's row group) | one request per file, 564 files | 1.5 s |
 | 1,000 cells chosen at random, every month (pyarrow, 16 reads at once, whole row groups) | 261 s, 2.3 GB | 60 s, 1.1 GB |
 | 1,000 neighbouring cells, every month | | 1.1 s, 2.3 MB |
@@ -172,16 +175,16 @@ shuffle row groups, or download a dataset's `by_cell/` folder first.
 
 `overviews/` holds means over blocks of 4 × 4 cells, one small file per month, for maps of the whole globe. The
 blocks follow the grid's numbering: rows 4i to 4i + 3 (`grid_row_u` + 1002) and, in each of those rows, columns 4j
-to 4j + 3 (`grid_col_r` + 2004). Major TOM numbers each row's cells from the prime meridian and every cell is about
-10 km wide, so a block is a square of about 40 × 40 km in distance north–south and east–west of the prime meridian:
+to 4j + 3 (`grid_col_r` + 2004). Major TOM numbers each row's cells from the prime meridian; rows are 9.99 km high (180° / 2,004)
+and each row is split into whole cells of at most 10 km, so a block is at most 40 × 40 km in distance north–south and east–west of the prime meridian:
 the sinusoidal projection the figures above use, in which the grid is regular. In longitude and latitude, blocks far
 from the prime meridian are sheared, as the cells are. `n_cells` counts a block's cells with a value (coasts and
 the edges of the grid have fewer than 16). The Major TOM Climate Globe app reads these files when the whole globe
 is in view and the monthly files when zoomed in.
 
-ERA5-Monthly has no full `by_cell/` copy (it would add about 1.8 TB to its 2.5 TB). Read a place over time from
-`series/`, selecting columns; each monthly file's footer is 1.7 MB (207 columns), so one cell's record of one variable
-costs about 2 GB in 2,064 requests.
+ERA5-Monthly's `by_cell/` is being built (2026-11-02). Until it is published, read a place over time from
+`series/`, selecting columns: each of the 1,032 monthly files has a 1.74 MB footer (207 columns), so one cell's record
+of one variable costs 2.96 GB, 1.80 GB of it footers (Loch Lomond, `era5_t2m`, from the files' metadata).
 
 ### Climatology
 
