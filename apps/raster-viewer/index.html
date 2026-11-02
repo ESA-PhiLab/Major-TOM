@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Major TOM Raster Viewer</title>
+<link rel="icon" href="mt-icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.css">
+<style>
+  :root {
+    /* Major TOM logo colours */
+    --mt-blue: #0071bc; --mt-navy: #2e3192; --mt-green: #39b54a; --mt-orange: #f15a24;
+    /* light interface, as Hugging Face in light mode */
+    --page: #f9fafb; --surface: #ffffff; --ink: #111827; --ink-2: #4b5563; --ink-3: #6b7280;
+    --line: #e5e7eb; --tint: #eff6fc; --globe-space: #f3f4f6;
+    --sans: 'Source Sans 3', system-ui, sans-serif; --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--page); color: var(--ink); font: 15px/1.45 var(--sans); display: flex; flex-direction: column; }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--line); position: relative; }
+  .brand-strip { display: flex; height: 3px; }
+  .brand-strip span { flex: 1; }
+  .bar { display: flex; align-items: center; gap: 12px; padding: 10px 20px; }
+  .bar img { width: 26px; height: 26px; }
+  .crumbs { font-family: var(--mono); font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .crumbs .org { color: var(--ink-3); }
+  .crumbs b { font-weight: 500; }
+  .pill { font-size: 12px; color: var(--ink-2); border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; white-space: nowrap; }
+  #loader { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 3; display: flex;
+    flex-direction: column; align-items: center; gap: 6px; min-width: 220px; padding: 18px 22px 14px;
+    background: rgba(255,255,255,.94); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 4px 16px rgba(17,24,39,.08); }
+  #loader[hidden] { display: none; }
+  #loader svg { width: 64px; height: 56px; margin-bottom: 4px; }
+  #loader polygon { fill: var(--line); transition: fill .12s; }
+  #loader polygon.on { fill: var(--on); }
+  #loader-phase { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+  #loader-text { font-size: 14px; color: var(--ink); text-align: center; }
+  #loader-bytes { font-family: var(--mono); font-size: 12px; color: var(--ink-3); min-height: 1em; }
+  .bar nav { margin-left: auto; display: flex; gap: 16px; font-size: 14px; }
+  .bar nav a { color: var(--ink-2); text-decoration: none; white-space: nowrap; }
+  .bar nav a:hover { color: var(--mt-blue); }
+
+  main { flex: 1; display: flex; min-height: 0; }
+  #map-wrap { flex: 1; position: relative; background: var(--globe-space); }
+  #map { position: absolute; inset: 0; }
+  .places { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 1; }
+  .place { position: absolute; left: 0; top: 0; margin: -7px 0 0 -4px; display: flex; align-items: center; gap: 4px;
+    font: 600 12px/14px var(--sans); color: var(--ink); white-space: nowrap;
+    text-shadow: 0 0 2px #fff, 0 0 3px #fff, 0 0 5px rgba(255,255,255,.9); }
+  .place i { font-style: normal; font-size: 8px; color: var(--ink-2); }
+  .place.capital span { font-weight: 700; }
+  .place.peak i, .place.low i, .place.pass i { color: #6b4f2a; }
+  .place.peak span, .place.low span, .place.pass span, .place.falls span { font-weight: 400; font-style: italic; }
+  .toggle { display: flex; gap: 8px; align-items: center; font-size: 14px; cursor: pointer; }
+  .toggle input { accent-color: var(--mt-blue); }
+  #status:not(:empty) { position: absolute; top: 14px; left: 14px; z-index: 2; background: var(--surface);
+    border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; font-size: 13px; color: var(--ink-2); }
+
+  aside { width: 344px; flex: none; background: var(--surface); border-left: 1px solid var(--line); overflow-y: auto; }
+  section { padding: 14px 18px 16px; border-bottom: 1px solid var(--line); }
+  h2 { font-size: 13px; font-weight: 600; color: var(--ink-3); margin: 0 0 10px; }
+
+  .option { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line);
+    border-radius: 8px; margin-bottom: 6px; cursor: pointer; }
+  .option:has(input:checked) { border-color: var(--mt-blue); background: var(--tint); }
+  .option input { margin: 4px 0 0; accent-color: var(--mt-blue); }
+  .option b { display: block; font-weight: 600; }
+  .option small { display: block; color: var(--ink-3); font-family: var(--mono); font-size: 12px; }
+  .note { font-size: 13px; color: var(--ink-3); margin: 0; }
+
+  .pick-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .pick-head h2 { margin-bottom: 4px; }
+  .link { font: inherit; font-size: 13px; color: var(--mt-blue); background: none; border: 0; padding: 0; cursor: pointer; }
+  .pick-name { display: flex; justify-content: space-between; gap: 8px; font-family: var(--mono); font-size: 13px; margin-bottom: 10px; }
+  .pick-name b { font-weight: 500; }
+  .pick-name span { color: var(--ink-3); }
+  #thumb-wrap { position: relative; aspect-ratio: 1; background: var(--globe-space); border-radius: 8px; overflow: hidden;
+    margin-bottom: 10px; display: flex; align-items: center; justify-content: center; color: var(--ink-3); font-size: 13px; }
+  #thumb { width: 100%; height: 100%; object-fit: contain; display: block; }
+  #thumb[hidden] { display: none; }
+  #choices { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+  #choices:empty { display: none; }
+  #choices button { font: 12px var(--mono); padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px;
+    background: var(--surface); color: var(--ink-2); cursor: pointer; }
+  #choices button[aria-pressed=true] { border-color: var(--mt-blue); color: var(--mt-blue); background: var(--tint); }
+  .tiny { font: 11px/1.4 var(--mono); color: var(--ink-3); min-height: 1em; margin-top: 8px; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; margin: 0; font-size: 14px; }
+  dt { color: var(--ink-3); }
+  dd { margin: 0; font-family: var(--mono); font-size: 13px; text-align: right; overflow-wrap: anywhere; }
+  dd a { color: var(--mt-blue); }
+  .source { font-size: 12px; color: var(--ink-3); padding: 12px 18px 18px; }
+  .source a { color: var(--mt-blue); }
+
+  .maplibregl-ctrl-attrib { font-family: var(--sans); }
+
+  @media (max-width: 820px) {
+    main { flex-direction: column; overflow-y: auto; }
+    #map-wrap { flex: none; height: 62vh; }
+    aside { width: 100%; border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+    .bar { padding: 10px 16px; }
+    .bar nav, .pill { display: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand-strip" aria-hidden="true">
+    <span style="background:var(--mt-blue)"></span><span style="background:var(--mt-navy)"></span>
+    <span style="background:var(--mt-green)"></span><span style="background:var(--mt-orange)"></span>
+  </div>
+  <div class="bar">
+    <img src="mt-icon.svg" alt="">
+    <div class="crumbs"><span class="org">Major-TOM /</span> <b>Raster Viewer</b></div>
+    <span class="pill">serverless</span>
+    <nav>
+      <a href="https://huggingface.co/Major-TOM">Datasets</a>
+      <a href="https://huggingface.co/spaces/Major-TOM/MajorTOM-Core-Viewer">Core Viewer</a>
+      <a href="https://github.com/ESA-PhiLab/Major-TOM">Code</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div id="places" class="places" aria-hidden="true"></div>
+    <div id="status"></div>
+    <div id="loader" role="status" aria-live="polite" hidden>
+      <!-- the Major TOM flag (mt-icon.svg, its 20 bars): they light up as the data arrives -->
+      <svg viewBox="398 10 100 86" aria-hidden="true">
+      <polygon style="--on:var(--mt-navy)" points="420.45 14.5 402.24 23.6 402.24 34.39 420.45 25.29"/>
+      <polygon style="--on:var(--mt-navy)" points="420.45 28.89 402.24 37.99 402.24 48.79 420.45 39.69"/>
+      <polygon style="--on:var(--mt-navy)" points="420.45 43.28 402.24 52.38 402.24 63.18 420.45 54.08"/>
+      <polygon style="--on:var(--mt-navy)" points="420.45 57.67 402.24 66.78 402.24 77.57 420.45 68.47"/>
+      <polygon style="--on:var(--mt-navy)" points="420.45 72.07 402.24 81.17 402.24 92.6 420.45 83.04"/>
+      <polygon style="--on:var(--mt-blue)" points="424.04 14.26 446.45 22.88 446.45 33.67 424.04 25.05"/>
+      <polygon style="--on:var(--mt-blue)" points="424.04 28.65 446.45 37.26 446.45 48.06 424.04 39.45"/>
+      <polygon style="--on:var(--mt-blue)" points="424.04 43.04 446.45 51.66 446.45 62.46 424.04 53.84"/>
+      <polygon style="--on:var(--mt-blue)" points="424.04 57.43 446.45 66.05 446.45 76.85 424.04 68.23"/>
+      <polygon style="--on:var(--mt-blue)" points="424.04 71.83 446.45 80.45 446.45 91.84 424.04 82.79"/>
+      <polygon style="--on:var(--mt-green)" points="450.04 22.91 472.45 14.29 472.45 25.08 450.04 33.7"/>
+      <polygon style="--on:var(--mt-green)" points="450.04 37.3 472.45 28.68 472.45 39.48 450.04 48.1"/>
+      <polygon style="--on:var(--mt-green)" points="450.04 51.69 472.45 43.07 472.45 53.87 450.04 62.49"/>
+      <polygon style="--on:var(--mt-green)" points="450.04 66.08 472.45 57.47 472.45 68.27 450.04 76.88"/>
+      <polygon style="--on:var(--mt-green)" points="450.04 80.48 472.45 71.86 472.45 82.82 450.04 91.88"/>
+      <polygon style="--on:var(--mt-orange)" points="476.04 14.5 494.24 23.6 494.24 34.39 476.04 25.29"/>
+      <polygon style="--on:var(--mt-orange)" points="476.04 28.89 494.24 37.99 494.24 48.79 476.04 39.69"/>
+      <polygon style="--on:var(--mt-orange)" points="476.04 43.28 494.24 52.38 494.24 63.18 476.04 54.08"/>
+      <polygon style="--on:var(--mt-orange)" points="476.04 57.67 494.24 66.78 494.24 77.57 476.04 68.47"/>
+      <polygon style="--on:var(--mt-orange)" points="476.04 72.07 494.24 81.17 494.24 92.6 476.04 83.04"/>
+      </svg>
+      <div id="loader-phase"></div>
+      <div id="loader-text"></div>
+      <div id="loader-bytes"></div>
+    </div>
+  </div>
+
+  <aside>
+    <section>
+      <h2>Dataset</h2>
+      <div id="datasets"></div>
+      <p class="note">Runs in your browser: reads the Core Parquet files on Hugging Face directly, no server. Click a
+        cell with a sample to load its image.</p>
+    </section>
+
+    <section id="pick" hidden>
+      <div class="pick-head"><h2>Selected cell</h2><button id="pick-clear" class="link">Clear</button></div>
+      <div class="pick-name"><b id="pick-cell"></b><span id="pick-pos"></span></div>
+      <div id="choices"></div>
+      <div id="thumb-wrap"><img id="thumb" alt="Thumbnail of the selected sample" hidden><span id="thumb-note"></span></div>
+      <dl id="pick-meta"></dl>
+      <div class="tiny" id="pick-stats"></div>
+    </section>
+
+    <section>
+      <h2>Map</h2>
+      <label class="toggle"><input type="checkbox" id="show-places" checked> Place names (cities, peaks) from zoom 5</label>
+    </section>
+
+    <section>
+      <h2>Cursor</h2>
+      <dl>
+        <dt>Cell</dt><dd id="cursor-cell">–</dd>
+        <dt>Latitude, longitude</dt><dd id="cursor-pos">–</dd>
+        <dt>Sample</dt><dd id="cursor-value">–</dd>
+      </dl>
+    </section>
+
+    <section>
+      <h2>Last load</h2>
+      <dl>
+        <dt>Footprints</dt><dd id="stat-footprints">–</dd>
+        <dt>Samples</dt><dd id="stat-samples">–</dd>
+        <dt>Draw on globe</dt><dd id="stat-draw">–</dd>
+      </dl>
+    </section>
+
+    <div class="source">Reads <a id="dataset-link" href="https://huggingface.co/Major-TOM">huggingface.co/Major-TOM</a>
+      · footprints from each dataset's metadata.parquet</div>
+  </aside>
+</main>
+
+<script>
+  // A private Space is shown in huggingface.co's frame through a signed link (?__sign=...), and only requests that
+  // carry the signature are let through there: modules imported by other modules would not. So every file of the app
+  // is asked for with it (an import map, then app.js). With no signature (public Space, local) nothing changes.
+  {
+    const sign = location.search, files = ['app.js', 'footprints.js', 'samples.js', 'parquet.js', 'tiles.js', 'labels.js']
+    const url = file => new URL(file, location.href).href.split('?')[0]
+    const map = document.createElement('script')
+    map.type = 'importmap'
+    map.textContent = JSON.stringify({ imports: Object.fromEntries(files.map(f => [url(f), url(f) + sign])) })
+    document.head.append(map)
+    const app = document.createElement('script')
+    app.type = 'module'
+    app.src = 'app.js' + sign
+    document.body.append(app)
+  }
+</script>
+</body>
+</html>
