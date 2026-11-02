@@ -1,5 +1,6 @@
 # Log
 
+- 2026-11-02 Core-Weather published to source.coop major-tom/core-weather (5,954 files, verified; README example runs over https); cache deleted except the south-fill downloads (/data 4.0 TB free); fill job 2235 released -> [report](docs/reports/2026-11-02-core-weather-publish.md)
 - 2026-11-02 Core-Weather: merged tables validated against all 19 sources (2,976 days, rows equal, column ranges equal); README Reading section, daily column names, Copernicus disclaimer; upload to source.coop major-tom/core-weather started (job 2240); ERA5-Land south fill held until after the upload
 - 2026-11-02 ERA5-Land south fill runs year by year (era5land_south.sh <year>); 2016 submitted (jobs 2229-2234, fill 2235)
 - 2026-11-02 ERA5Land-Monthly-v2 (254G) and v1 ERA5Land-Monthly (64G) deleted: 933 files checked against climate-release (rows, columns; 8 files value-equal), upload verified; reviewed climate READMEs published
