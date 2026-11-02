@@ -153,7 +153,7 @@ def gallery(samples: pd.DataFrame, out: Path) -> None:
 
 
 def cell_map(samples: pd.DataFrame, out: Path) -> None:
-    land = pd.read_parquet("/data/Major-TOM/ERA5Land-Monthly/cells.parquet", columns=["grid_row_u", "grid_col_r"])
+    land = pd.read_parquet("/data/Major-TOM/climate-release/ERA5Land-Monthly/cells.parquet", columns=["grid_row_u", "grid_col_r"])
     land = land.sample(min(len(land), 400_000), random_state=0)
     lat = land.grid_row_u.to_numpy() * 180 / 2004
     n = np.maximum(1, np.ceil(2 * np.pi * 6378.137 * np.cos(np.radians(lat)) / 10))
