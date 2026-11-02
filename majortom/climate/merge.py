@@ -54,3 +54,39 @@ def merge(root: Path | str, sources: list[str], out: Path | str, kinds: tuple[st
             table.sort_values(KEYS[kind]).to_parquet(target, index=False)
             written += 1
     return written
+
+
+def fill(root: Path | str, sources: list[str], merged: Path | str, kinds: tuple[str, ...] = ("hourly", "daily")) -> int:
+    """Fill a merged folder in place from source folders built later (ERA5-Land south of 57.1°S, docs/CLIMATE.md
+    6.1); returns the number of day files rewritten.
+
+    For each day a fill folder has, its rows are matched to the merged rows on the keys. Where the fill covers more
+    of the cell than the merged values did (its <prefix>_valid is larger, or the merged one is missing), its columns
+    replace the merged ones; other rows are left as they are. A fill column the merged files lack is an error:
+    a fill adds values, not columns.
+    """
+    root, merged = Path(root), Path(merged)
+    written = 0
+    for kind in kinds:
+        days = sorted({p.relative_to(root / s / kind) for s in sources for p in (root / s / kind).glob("year=*/*.parquet")})
+        for day in days:
+            target = merged / kind / day
+            table = pd.read_parquet(target)
+            before = {c: table[c].copy() for c in table.columns if c.endswith("_valid")}   # as merged, per prefix
+            for s in sources:
+                if not (root / s / kind / day).exists():
+                    continue
+                part = pd.read_parquet(root / s / kind / day)
+                cols = [c for c in part.columns if c not in KEYS[kind]]
+                if missing := sorted(set(cols) - set(table.columns)):
+                    raise ValueError(f"{s}/{kind}/{day}: columns not in the merged files: {missing}")
+                valid = next(c for c in cols if c.endswith("_valid"))
+                joined = table[KEYS[kind]].merge(part, on=KEYS[kind], how="left")       # the merged rows' order
+                better = (joined[valid].notna() & (before[valid].isna() | (joined[valid] > before[valid]))).to_numpy()
+                for c in cols:
+                    table.loc[better, c] = joined.loc[better, c].to_numpy()
+            tmp = target.with_name(target.name + ".tmp")
+            table.to_parquet(tmp, index=False)
+            tmp.replace(target)
+            written += 1
+    return written

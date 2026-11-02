@@ -88,6 +88,8 @@ def main(argv: list[str] | None = None) -> int:
     join.add_argument("--root", type=Path, required=True, help="the folder holding one folder per source")
     join.add_argument("--sources", nargs="+", required=True, help="source folder names, e.g. era5 cams cpc s5p")
     join.add_argument("--out", type=Path, required=True)
+    join.add_argument("--fill", action="store_true",
+                      help="update the merged folder --out in place from --sources (ERA5-Land south of 57.1°S)")
     gauge = sub.add_parser("gauges", help="add cpc_gauges (rain gauges near each cell) to a CPC monthly build")
     gauge.add_argument("--cpc", type=Path, required=True, help="the CPC-Monthly build folder (cells.parquet, series/)")
     gauge.add_argument("--raw", type=Path, required=True, help="CPC's raw daily files, one folder per year")
@@ -123,8 +125,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{add_gauges(args.cpc, args.raw, args.workers)} monthly files have cpc_gauges", flush=True)
         return 0
     if args.command == "merge":
-        from .merge import merge
-        print(f"{merge(args.root, args.sources, args.out)} day files written", flush=True)
+        from .merge import fill, merge
+        if args.fill:
+            print(f"{fill(args.root, args.sources, args.out)} day files filled", flush=True)
+        else:
+            print(f"{merge(args.root, args.sources, args.out)} day files written", flush=True)
         return 0
     if getattr(args, "cache", None):
         os.environ["MAJORTOM_CLIMATE_CACHE"] = str(args.cache)

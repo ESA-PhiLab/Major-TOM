@@ -300,6 +300,20 @@ def _era5_land_monthly_all() -> Source:
 SOURCES["era5-land-monthly-all"] = _era5_land_monthly_all()
 
 
+def _era5_land_cds_south() -> Source:
+    """ERA5-Land hourly south of 57.1°S from the Climate Data Store: the cells Earth Data Hub's copy leaves out
+    (docs/CLIMATE.md 6.1). Same columns and units as era5-land-edh. The grid is the store's 0.1° points from 56.5°S
+    to 90°S (336 rows): cells that straddle 57.1°S are covered whole."""
+    names = SOURCES["era5-land-monthly-all"].variables
+    return Source("era5land", "reanalysis-era5-land", Grid(west=-180.05, north=-56.45, step=0.1, width=3600, height=336),
+                  names, ERA5_LAND_UNITS, step="1h", accumulated=ERA5_LAND_ACCUMULATED, reader="cds_hourly",
+                  options={"url": "https://cds.climate.copernicus.eu/api", "files": {v: v for v in names},
+                           "area": (-56.5, -180.0, -90.0, 180.0), "groups": ERA5_LAND_GROUPS})
+
+
+SOURCES["era5-land-cds-south"] = _era5_land_cds_south()
+
+
 def reader(source: Source):
     return importlib.import_module(f".readers.{source.reader}", __package__)
 
