@@ -102,6 +102,6 @@ no day with differing rows. Merge not started (~93 GB hourly, ~181 GB daily).
 
 ## Look at first
 
-- majortom/release/tables/layout.py:35 (`_write_options`)
+- majortom/release/tables/layout.py:37 (`_write_options`)
 - apps/climate-globe/data.js (`loadCellClimatology`)
 - docs/datasets/climate/README.md (File layout)
