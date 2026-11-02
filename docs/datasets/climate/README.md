@@ -1,7 +1,7 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
 > **Review status:** by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of the top-level README for source.coop `major-tom/climate`.
-> Remove these two notes when publishing. How by_cell/ files are written: added 2026-10-31, not yet reviewed or published; read table re-measured on the new by_cell/ files 2026-10-31 (docs/evidence/climate_bycell_bench.py, the app). By cell and overviews section rewritten 2026-10-31 (measurements from docs/reports/2026-10-30-climate-globe-read-experiments.md). ERA5-Monthly row and figures added 2026-10-30; ERA5-Land-Monthly is added when built. Sizes include by_cell/ and overviews/. File layout section (diagram, settings, sizes, reads) added 2026-11-02, not yet reviewed or published; climatology/ now has a page index.
+> Remove these two notes when publishing. How by_cell/ files are written: added 2026-10-31, not yet reviewed or published; read table re-measured on the new by_cell/ files 2026-10-31 (docs/evidence/climate_bycell_bench.py, the app). By cell and overviews section rewritten 2026-10-31 (measurements from docs/reports/2026-10-30-climate-globe-read-experiments.md). ERA5-Monthly row and figures added 2026-10-30; ERA5Land-Monthly row added 2026-11-02 (draft README). Sizes include by_cell/ and overviews/. File layout section (diagram, settings, sizes, reads) added 2026-11-02, not yet reviewed or published; climatology/ now has a page index.
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 
@@ -19,6 +19,7 @@ Each dataset is a separate folder with its own README.
 | [IMERG-Monthly](https://source.coop/major-tom/climate/IMERG-Monthly) | satellite precipitation and its quality fields | NASA GPM IMERG V07 | 1998–2024 | 0.1° | 5,113,745 (globe) | 5 | 77 GB |
 | [CAMS-Monthly](https://source.coop/major-tom/climate/CAMS-Monthly) | air quality: trace gases, aerosols, particulate matter | Copernicus CAMS EAC4 | 2003–2025 | 0.75° | 5,113,745 (globe) | 19 | 117 GB |
 | [ERA5-Static](https://source.coop/major-tom/climate/ERA5-Static) | fixed surface fields: terrain, land and lake cover, soil and vegetation types | ECMWF ERA5 | — | 0.25° | 5,113,745 (globe) | 16 | 0.1 GB |
+| [ERA5Land-Monthly](https://source.coop/major-tom/climate/ERA5Land-Monthly) | land surface at 0.1°: temperature, soil water and temperature, snow, runoff, evaporation, fluxes, lakes | ECMWF ERA5-Land | 1950–2025 | 0.1° | 1,524,009 (land) | 49 | 470 GB |
 | [ERA5-Monthly](https://source.coop/major-tom/climate/ERA5-Monthly) | weather and land surface: temperature, humidity, wind, pressure, precipitation, radiation, clouds, soil, snow, waves | ECMWF ERA5 | 1940–2025 | 0.25° | 5,113,745 (globe) | 201 | 2.8 TB |
 
 Files are at `https://data.source.coop/major-tom/climate/<dataset>/...`.

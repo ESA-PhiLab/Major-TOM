@@ -5,6 +5,7 @@
       -> Markdown rows | `era5_<name>` | CDS name | units |, ptype left out (dropped at repack: a code has no mean)
 
     python docs/evidence/era5_monthly_variables.py /data/Major-TOM/climate-release/ERA5-Monthly/series/year=2024/07.parquet
+    python docs/evidence/era5_monthly_variables.py <ERA5Land-Monthly monthly file> era5-land-monthly-all     (ERA5-Land)
 """
 from __future__ import annotations
 
@@ -23,17 +24,18 @@ def units(text: str) -> str:
     return text
 
 
-def rows(path: str) -> list[str]:
-    src = SOURCES["era5-monthly-all"]
-    columns = [c for c in pq.read_schema(path).names if c.startswith("era5_") and c != "era5_valid"]
+def rows(path: str, source: str = "era5-monthly-all") -> list[str]:
+    src = SOURCES[source]
+    prefix = f"{src.name}_"
+    columns = [c for c in pq.read_schema(path).names if c.startswith(prefix) and c != f"{prefix}valid"]
     out = []
     for column in columns:
-        short = column.removeprefix("era5_")
+        short = column.removeprefix(prefix)
         out.append(f"| `{column}` | {src.variables[short].replace('_', ' ')} | {units(src.units[short])} |")
     return out
 
 
 if __name__ == "__main__":
-    lines = rows(sys.argv[1])
+    lines = rows(*sys.argv[1:3])
     print(f"{len(lines)} variables", file=sys.stderr)
     print("\n".join(lines))
