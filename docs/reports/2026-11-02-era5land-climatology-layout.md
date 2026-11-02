@@ -96,12 +96,14 @@ no day with differing rows. Merge not started (~93 GB hourly, ~181 GB daily).
 
 - Push the app after the ERA5 overview upload; ERA5 `by_cell/` upload after the build.
 - ERA5-Monthly README: overviews line, `by_cell/` note, climatology layout.
-- Core-Weather merge: sources, order, ERA5-Land gap south of 57.1°S.
+- Core-Weather merge running (job 2177, sources in validation order, ERA5 first); then validation, upload, README.
+- Before merging `refactor/v1`: finalise the apps (Miko, 2026-11-02).
 - Old ERA5-Land copies after the upload: `ERA5Land-Monthly-v2` (255 GB), `ERA5Land-Monthly` v1 (68 GB).
 - Done: `IMERG-Monthly-v2` (31 GB) moved to `/RUBBISH/miko-imerg-v2-build-20261102` (all 324 months equal in rows and column statistics; 1998-01, 2010-06, 2024-12 identical by cell; no extra
   columns).
 - `Core-Weather/cache` (1.9 TB; `era5land/blocks` 1.4 TB, `era5land/monthly` 176 GB, `era5` 213 GB, `cams` 127 GB,
-  `cpc` 29 GB, `s5p` 9 GB): after the merge upload. Rebuilding Core-Weather for new samples would download again.
+  `cpc` 29 GB, `s5p` 9 GB): remove all of it once the Core-Weather upload is verified and tested (Miko, 2026-11-02).
+  Rebuilding Core-Weather for new samples would download again.
 - READMEs for review: top level, CPC, IMERG, CAMS, ERA5-Monthly, ERA5Land-Monthly.
 
 ## Look at first
