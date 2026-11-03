@@ -1,10 +1,12 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** reviewed (Miko, 2026-10-24); draft of the dataset card for Major-TOM/Core-Weather (2026-10-23). ERA5-Land rows, note and credit added 2026-10-26; ERA5 and ERA5-Land rows, Size and Validation updated 2026-10-30 (overnight, from docs/evidence/core_weather_validate.py and a trial merge of four days); reviewed (Miko, 2026-11-02). 2026-11-02, for publishing (not yet reviewed): Reading section with a tested example, daily column names, Copernicus disclaimer, ERA5-Land south note, GitHub links.
+> **Review status:** reviewed (Miko, 2026-10-24); draft of the dataset card for Major-TOM/Core-Weather (2026-10-23). ERA5-Land rows, note and credit added 2026-10-26; ERA5 and ERA5-Land rows, Size and Validation updated 2026-10-30 (overnight, from docs/evidence/core_weather_validate.py and a trial merge of four days); reviewed (Miko, 2026-11-02). 2026-11-02, for publishing (not yet reviewed): Reading section with a tested example, daily column names, Copernicus disclaimer, ERA5-Land south note, GitHub links. 2026-11-03 (not yet reviewed): global map and Examples section with three figures (docs/evidence/core_weather_figures.py).
 
 # Core-Weather
 
 Weather and air quality around every acquisition of the timestamped Major TOM Core datasets (Core-S2L2A, Core-S2L1C, Core-S1RTC): an hourly table for the 24 hours either side of each image, and a daily table for the 30 days either side. Values are means over each 10 km grid cell. Built with `majortom.climate` (`python -m majortom.climate stream`); design in [docs/CLIMATE.md](https://github.com/ESA-PhiLab/Major-TOM/blob/main/docs/CLIMATE.md).
+
+<img src="https://data.source.coop/major-tom/core-weather/figures/temperature-at-acquisition.png" alt="ERA5 2 m temperature in the hour nearest each acquisition, mean per 12 x 12 cells, 2016-2024" width="100%">
 
 ## Tables
 
@@ -35,6 +37,16 @@ hourly = pd.read_parquet(f"{url}/hourly/{day}", filesystem=https, filters=here,
 daily = pd.read_parquet(f"{url}/daily/{day}", filesystem=https, filters=here,
                         columns=["step_d", "era5land_t2m_mean", "cpc_precip", "cams_pm2p5_mean", "s5p_no2"])  # 61 days
 ```
+
+## Examples
+
+One Sentinel-2 acquisition at each of three cells, with the same cell's Sentinel-1 and DEM thumbnails from Major TOM Core. The dashed line is the acquisition (step 0). Figures from `docs/evidence/core_weather_figures.py`.
+
+<img src="https://data.source.coop/major-tom/core-weather/figures/place-loch-lomond.png" alt="Loch Lomond, 2022-12-11: thumbnails, hourly and daily temperature and precipitation" width="100%">
+
+<img src="https://data.source.coop/major-tom/core-weather/figures/place-dolomites.png" alt="Dolomites (Corvara), 2018-08-27: thumbnails, hourly and daily temperature and precipitation" width="100%">
+
+<img src="https://data.source.coop/major-tom/core-weather/figures/place-amazon.png" alt="Amazon (Manaus), 2021-07-31: thumbnails, hourly and daily temperature and precipitation" width="100%">
 
 ## Steps
 
