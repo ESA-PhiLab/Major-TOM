@@ -92,7 +92,8 @@ Workstreams are defined in [docs/STRATEGY.md](docs/STRATEGY.md).
 - [ ] 1 November: resume IMERG in Core-Weather on Earth Engine (256 / 2,976 days; ~130 EECU-hours), after a one-hour calibration against the quota counter
 - [ ] ERA5-Monthly v2 climatology (1991-2020)
 - [ ] Optional: ERA5Land-Monthly with all 49 variables from Earth Data Hub's monthly store (check its chunking on 1 November)
-- [ ] Fill ERA5-Land south of 57.1°S from the Climate Data Store, year by year (docs/CLIMATE.md 6.1; 2016 running since 2026-11-02); then upload Core-Weather to source.coop major-tom/core-weather
+- [x] Core-Weather published to source.coop major-tom/core-weather (2026-11-02, without the ERA5-Land south fill)
+- [ ] Fill ERA5-Land south of 57.1°S from the Climate Data Store (docs/CLIMATE.md 6.1): 2016 running since 2026-11-02, 2018-2024 queued as a chain (fills 2261-2303, about 12-14 days); then re-upload the changed day files
 - [ ] Validate ERA5 groups 3-8 and ERA5-Land groups 2-6; clear the 815 GB download cache after publishing
 - [ ] Merge sources and publish Core-Weather and the monthly datasets: source.coop first, Hugging Face second (Miko, 2026-10-24)
 - [ ] Climate datasets in the Major TOM viewing app (HF Space; final task)
@@ -100,5 +101,7 @@ Workstreams are defined in [docs/STRATEGY.md](docs/STRATEGY.md).
 ## WS10 — Apps (`apps/`, apps/README.md)
 
 - [ ] Core Viewer: layout clean-up (header done locally 2026-11-02; controls, fonts, text prompt, placeholder, acquisition time)
+- [x] Raster Viewer: Core-Weather panel for the shown sample (hourly ±24 h, daily ±30 d; ERA5, CAMS, Sentinel-5P); image always on the map, opaque (2026-11-03, not pushed)
+- [ ] Core-Weather README figures: review, then upload figures/ and the README (2026-11-03)
 - [ ] Raster Viewer: climate panel for the selected cell
 - [ ] Future: text search in the browser (Raster Viewer): SigLIP text encoder in transformers.js; embeddings in an inverted-file index (cluster centres loaded once, Parquet sorted by cluster, nearest clusters read by range request, optional product quantisation); check the exact SigLIP model of Core-S2RGB-SigLIP, its ONNX export and download size
