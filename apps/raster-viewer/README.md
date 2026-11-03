@@ -38,6 +38,11 @@ View menu: the stored thumbnail (default), composites (S2: true colour, false co
 VIIRS Nighttime Light (viirs.js): no thumbnail column; footprints/VIIRS.parquet gives each tile's zip shard, offset and
   size -> one range request -> the GeoTIFF (zstd: decoder added to geotiff.js, fzstd) -> radiance in inferno, log
   0.1-100 nW/cm²/sr (the Core Viewer's scale) -> panel and map, corners from the GeoTIFF's bounds; no downloads
+AlphaEarth Embeddings (aef.js): footprints/AEF.parquet maps each Core-S2L2A cell to the 81.9 km COG tile holding its
+  centre, footprints/AEF-tiles.parquet each tile to its file per year (tge-labs/aef on source.coop; one button per year,
+  the cell's Sentinel-2 year first) -> PCA of the 64 bands in two steps: the whole 160 m level in one request (~10 MB)
+  -> preview (~4.5 s); the 8 bands that best predict the components, at 40 m -> the sharp image (~10 s). The COGs are
+  stored south-up: origin and row direction from each file. View menu: single bands at 10 m. No downloads yet
 Downloads (download.js): the shown band as stored (.tif); every band, the thumbnail and metadata.json (.zip); a
   Python snippet that reads the same row group from Hugging Face
 in the background: the other datasets' footprints once the first is drawn; after a click, the same cell's samples
@@ -57,7 +62,7 @@ in the background: the other datasets' footprints once the first is drawn; after
 | `parquet.js` | range requests for hyparquet, with bytes and time counted; each file's footer read once |
 | `tiles.js`, `labels.js`, `places.json` | copied from the Climate Globe: cells and tiles, place names |
 | `build_index.py` | Core `metadata.parquet` -> `footprints/<name>.parquet` and `footprints/datasets.json` |
-| `footprints/` | built files, not in git: uploaded to the Space once (S2L2A and S2L1C 32.9 MB each, S1RTC 20.6 MB, DEM 14.5 MB, VIIRS 21.5 MB) |
+| `footprints/` | built files, not in git: uploaded to the Space once (S2L2A and S2L1C 32.9 MB each, S1RTC 20.6 MB, DEM 14.5 MB, VIIRS 21.5 MB, AEF 14.3 MB, AEF-tiles 1.8 MB) |
 
 ## Reads
 

@@ -1,29 +1,32 @@
-// AlphaEarth embeddings (tge-labs/aef on source.coop): a cell's window of its yearly COG tile, shown as a PCA of all
-// 64 bands, or one band.
+// AlphaEarth embeddings (tge-labs/aef on source.coop): a cell's window of its yearly COG tile, shown as a PCA of the
+// 64 bands (fast: a coarse PCA first, then sharpened from a few bands), or one band.
 //
 //   footprint row (tile_row, tile_rows) -> footprints/AEF-tiles.parquet, that tile's rows (page index) -> the year's COG
-//   -> geotiff.js over range requests (a counting client: bytes for the loading flag; zstd decoder in zstd.js)
-//      -> the level's image (0: 10 m, 1: 20 m, 2: 40 m) -> the cell's 10,680 m window in the tile's UTM zone, int8
-//         (the COG is band-interleaved: only the tiles under the window, of the bands asked for, are read)
-//   -> PCA: mean and 64 x 64 covariance from up to 50,000 pixels, the three leading components (power iteration
-//      with deflation), every pixel projected, each component stretched 2-98% -> RGB PNG; one band: grey, 2-98%
+//   PCA, in two steps (each source.coop request waits ~0.7 s and few run at once, so requests set the time; measured
+//   at Loch Lomond from cirrus: preview after ~4.5 s, sharpened after ~10 s, 23-27 MB in 16 requests):
+//     1. preview: the whole 160 m level, all 64 bands in one request (~10 MB; the level's tiles are stored together)
+//        -> the cell's window (67 px) -> PCA (three leading components) -> shown at once (onPreview)
+//        the level is kept: other cells of the same tile and year skip this read
+//     2. sharpening: the 8 bands that best predict the three components (forward selection, least squares on the
+//        160 m pixels; R² 0.95-0.98 against the full 64-band PCA, measured at 40 m for three places) -> those bands at
+//        40 m (geotiff.js, only the tiles under the window: one or two per band) -> the fitted mapping -> 267 px
+//   geotiff.js reads in 1 MB blocks: the COG's headers (one per level) in one request, a band's adjacent tiles in one
+//   one band: that band at 10 m, grey, 2-98% stretch
 //   The COGs are stored south-up (row 0 at the tile's southern edge): the origin and the row direction come from the
 //   file's own transform, and rows are flipped so north is up.
 //   Pixels outside the tile (cells at a tile edge) and no-data (-128) are transparent. PCA colours are the cell's
 //   own: the same colour means similar embeddings within a cell, not across cells.
 
-import { fromCustomClient } from 'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/+esm'
+import { fromCustomClient, getDecoder } from 'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/+esm'
 import proj4 from 'https://cdn.jsdelivr.net/npm/proj4@2.12.1/+esm'
 import { compressors, newStats, openFile, parquetRead } from './parquet.js'
 import './zstd.js'
 
-const HALF = 5340, NODATA = -128, FIT = 50_000
+const HALF = 5340, NODATA = -128, FIT = 50_000, OVERVIEW = 4, SHARP = 2, CHOSEN = 8   // levels: 4 = 160 m, 2 = 40 m
 
-export const LEVELS = [[0, '10 m'], [1, '20 m'], [2, '40 m']]
-
-/** The views offered: PCA at 40 m (the default, about 38 MB a cell) and 10 m (about 117 MB), then single bands. */
+/** The views offered: the PCA (default), then single bands. */
 export function aefViews() {
-  return [{ id: 'pca:2', label: 'PCA of 64 bands, 40 m' }, { id: 'pca:0', label: 'PCA of 64 bands, 10 m (~120 MB)' },
+  return [{ id: 'pca', label: 'PCA of 64 bands' },
     ...Array.from({ length: 64 }, (_, b) => ({ id: `band:${b}`, label: `Band A${String(b).padStart(2, '0')}, 10 m` }))]
 }
 
@@ -48,35 +51,107 @@ async function tileRows(info, sample, stats) {
   return rows
 }
 
-/** One view of the cell's window in the sample's year: {src, size, values (one band: for the cursor), corners, stats}. */
-export async function renderAef(info, sample, viewId, stats = newStats()) {
-  const [kind, arg] = viewId.split(':'), level = kind === 'pca' ? Number(arg) : 0
+const overviews = new Map()                    // COG url -> its 160 m level, all bands (two kept: ~16 MB each)
+
+/** One view of the cell's window in the sample's year: {src, size, values (one band: for the cursor), corners, stats}.
+ *  For the PCA, onPreview(view) gets the 160 m image as soon as it is drawn. */
+export async function renderAef(info, sample, viewId, stats = newStats(), onPreview = () => {}) {
   const tile = (await tileRows(info, sample, stats)).find(r => Number(r.year) === sample.year)
   if (!tile) throw new Error(`no AlphaEarth tile for ${sample.year}`)
-  const epsg = Number(tile.epsg)
+  const url = `${info.files}${tile.path}`, epsg = Number(tile.epsg)
   const utm = proj4(`+proj=utm +zone=${epsg % 100}${epsg > 32700 ? ' +south' : ''} +datum=WGS84 +units=m +no_defs`)
   const [cx, cy] = utm.forward([sample.centre_lon, sample.centre_lat])
-  const tiff = await fromCustomClient(countingClient(`${info.files}${tile.path}`, stats))
-  const [, , , left, , dy, , top] = (await tiff.getImage(0)).fileDirectory.ModelTransformation   // dy > 0: south-up
-  const image = await tiff.getImage(level), k = 2 ** level, size = Math.round(2 * HALF / (10 * k))
-  const x0 = Math.round((cx - HALF - left) / (10 * k))
-  const y0 = Math.round(Math.min((cy + HALF - top) / (dy * k), (cy - HALF - top) / (dy * k)))
-  const W = image.getWidth(), H = image.getHeight()
-  const win = [Math.max(x0, 0), Math.max(y0, 0), Math.min(x0 + size, W), Math.min(y0 + size, H)]
-  const samples = kind === 'pca' ? Array.from({ length: image.getSamplesPerPixel() }, (_, b) => b) : [Number(arg)]
-  stats.expected = stats.bytes + expectedBytes(image, win, samples)
-  const read = await image.readRasters({ window: win, samples, interleave: false })
-  stats.phase = kind === 'pca' ? 'PCA' : 'Drawing'
-  const bands = read.map(part => place(part, win, x0, y0, size, dy > 0))   // full window, north up, NODATA outside
-  const rgba = kind === 'pca' ? pcaRgba(bands, size) : greyRgba(bands[0], size)
-  const canvas = new OffscreenCanvas(size, size)
-  canvas.getContext('2d').putImageData(new ImageData(rgba, size, size), 0, 0)
-  const src = URL.createObjectURL(await canvas.convertToBlob({ type: 'image/png' }))
   const corners = [[cx - HALF, cy + HALF], [cx + HALF, cy + HALF], [cx + HALF, cy - HALF], [cx - HALF, cy - HALF]]
     .map(p => utm.inverse(p))
-  stats.read = performance.now() - stats.t0
-  const values = kind === 'band' ? { width: size, values: Float32Array.from(bands[0], v => (v === NODATA ? NaN : v)), unit: '' } : null
-  return { src, size, values, corners, stats }
+  const tiff = await fromCustomClient(countingClient(url, stats), { blockSize: 2 ** 20 })
+  const [, , , left, , dy, , top] = (await tiff.getImage(0)).fileDirectory.ModelTransformation   // dy > 0: south-up
+  const at = level => windowAt(left, top, dy, level, cx, cy)
+  const done = async (rgba, size, values = null) => {
+    const src = await png(rgba, size)
+    stats.read = performance.now() - stats.t0
+    return { src, size, values, corners, stats }
+  }
+
+  if (viewId.startsWith('band:')) {
+    const image = await tiff.getImage(0), w = at(0), b = Number(viewId.split(':')[1])
+    const [band] = await readWindow(image, w, [b], stats, dy > 0)
+    return done(greyRgba(band, w.size), w.size, { width: w.size, values: Float32Array.from(band, v => (v === NODATA ? NaN : v)), unit: '' })
+  }
+
+  stats.phase = 'Overview, 160 m'
+  const overview = await overviewOf(url, tiff, stats), w8 = at(OVERVIEW)
+  const coarse = overview.bands.map(band => cut(band, overview.width, overview.height, w8, dy > 0))
+  const pca = fitPca(coarse, w8.size)
+  if (!pca) return done(new Uint8ClampedArray(w8.size * w8.size * 4), w8.size)
+  onPreview({ ...(await done(rgbOf(pca.scores, pca.valid, w8.size), w8.size)), label: 'PCA of 64 bands, 160 m' })
+
+  stats.phase = `Sharpening: ${CHOSEN} bands at 40 m`
+  const { chosen, weights } = selectBands(coarse, pca, CHOSEN)
+  const image = await tiff.getImage(SHARP), w1 = at(SHARP)
+  const fine = await readWindow(image, w1, chosen, stats, dy > 0)
+  const n = w1.size * w1.size, valid = [], scores = [0, 1, 2].map(() => new Float32Array(n))
+  for (let i = 0; i < n; i++) {
+    if (fine[0][i] === NODATA) continue
+    valid.push(i)
+    for (let k = 0; k < 3; k++) {
+      let s = weights[chosen.length][k]                                        // intercept
+      for (let j = 0; j < chosen.length; j++) s += fine[j][i] * weights[j][k]
+      scores[k][i] = s
+    }
+  }
+  return done(rgbOf(scores, valid, w1.size), w1.size)
+}
+
+/** The cell's window on one level: its size and position in that level's pixels, rows counted as stored. */
+function windowAt(left, top, dy, level, cx, cy) {
+  const k = 2 ** level, size = Math.round(2 * HALF / (10 * k))
+  const x0 = Math.round((cx - HALF - left) / (10 * k))
+  const y0 = Math.round(Math.min((cy + HALF - top) / (dy * k), (cy - HALF - top) / (dy * k)))
+  return { level, size, x0, y0 }
+}
+
+/** The preview level of a COG (160 m), every band, from one request over the level's tiles (stored together), kept. */
+function overviewOf(url, tiff, stats) {
+  if (!overviews.has(url)) {
+    overviews.set(url, (async () => {
+      const image = await tiff.getImage(OVERVIEW), fd = image.fileDirectory, offsets = fd.TileOffsets, counts = fd.TileByteCounts
+      const start = Math.min(...offsets), end = Math.max(...offsets.map((o, i) => o + counts[i]))
+      stats.expected = stats.bytes + (end - start)
+      const r = await fetch(url, { headers: { Range: `bytes=${start}-${end - 1}` } })
+      if (r.status !== 206) throw new Error(`AlphaEarth overview: HTTP ${r.status}`)
+      const data = await r.arrayBuffer()
+      stats.bytes += data.byteLength; stats.requests += 1
+      const decoder = await getDecoder(fd), W = image.getWidth(), H = image.getHeight(), T = fd.TileWidth
+      const across = Math.ceil(W / T), down = Math.ceil(H / fd.TileLength), per = across * down
+      const bands = []
+      for (let b = 0; b < image.getSamplesPerPixel(); b++) {
+        const band = new Int8Array(W * H)
+        for (let r = 0; r < down; r++) {
+          for (let q = 0; q < across; q++) {
+            const t = b * per + r * across + q
+            const raw = new Int8Array(await decoder.decode(fd, data.slice(offsets[t] - start, offsets[t] - start + counts[t])))
+            for (let y = 0; y < T && r * T + y < H; y++) {
+              const w = Math.min(T, W - q * T)
+              band.set(raw.subarray(y * T, y * T + w), (r * T + y) * W + q * T)
+            }
+          }
+        }
+        bands.push(band)
+      }
+      if (overviews.size > 2) overviews.delete(overviews.keys().next().value)
+      return { width: W, height: H, bands }
+    })().catch(e => { overviews.delete(url); throw e }))
+  }
+  return overviews.get(url)
+}
+
+/** The window's pixels of some bands, read through geotiff.js (only the tiles under it), north up. */
+async function readWindow(image, w, samples, stats, flip) {
+  const W = image.getWidth(), H = image.getHeight()
+  const box = [Math.max(w.x0, 0), Math.max(w.y0, 0), Math.min(w.x0 + w.size, W), Math.min(w.y0 + w.size, H)]
+  stats.expected = stats.bytes + expectedBytes(image, box, samples)
+  const parts = await image.readRasters({ window: box, samples, interleave: false })
+  return parts.map(part => place(part, box, w, flip))
 }
 
 /** Compressed bytes of the tiles under the window, for the bands read (planar COG: tiles band by band). */
@@ -92,13 +167,97 @@ function expectedBytes(image, [a, b, c, d], samples) {
   return sum
 }
 
-function place(part, [a, b, c, d], x0, y0, size, flip) {
-  const out = new Int8Array(size * size).fill(NODATA), w = c - a
+/** A read box (part of the window inside the image) placed into the full window, north up, NODATA elsewhere. */
+function place(part, [a, b, c, d], w, flip) {
+  const out = new Int8Array(w.size * w.size).fill(NODATA), width = c - a
   for (let y = b; y < d; y++) {
-    const row = flip ? size - 1 - (y - y0) : y - y0
-    out.set(part.subarray((y - b) * w, (y - b + 1) * w), row * size + (a - x0))
+    const row = flip ? w.size - 1 - (y - w.y0) : y - w.y0
+    out.set(part.subarray((y - b) * width, (y - b + 1) * width), row * w.size + (a - w.x0))
   }
   return out
+}
+
+/** The window cut from a whole level held in memory. */
+function cut(band, W, H, w, flip) {
+  const box = [Math.max(w.x0, 0), Math.max(w.y0, 0), Math.min(w.x0 + w.size, W), Math.min(w.y0 + w.size, H)]
+  const width = box[2] - box[0], part = new Int8Array(Math.max(width, 0) * Math.max(box[3] - box[1], 0))
+  for (let y = box[1]; y < box[3]; y++) part.set(band.subarray(y * W + box[0], y * W + box[2]), (y - box[1]) * width)
+  return place(part, box, w, flip)
+}
+
+/** PCA of the window's bands: {mean, components (3 x 64), scores (3 arrays), valid (pixel indices), fit (indices)}. */
+function fitPca(bands, size) {
+  const n = size * size, B = bands.length, valid = []
+  for (let i = 0; i < n; i++) if (bands[0][i] !== NODATA) valid.push(i)
+  if (valid.length < 2) return null
+  const step = Math.max(1, Math.floor(valid.length / FIT)), fit = valid.filter((_, k) => k % step === 0)
+  const mean = new Float64Array(B), cov = new Float64Array(B * B), x = new Float64Array(B)
+  for (const i of fit) for (let b = 0; b < B; b++) mean[b] += bands[b][i] / fit.length
+  for (const i of fit) {
+    for (let b = 0; b < B; b++) x[b] = bands[b][i] - mean[b]
+    for (let b = 0; b < B; b++) for (let c = b; c < B; c++) cov[b * B + c] += x[b] * x[c]
+  }
+  for (let b = 0; b < B; b++) for (let c = 0; c < b; c++) cov[b * B + c] = cov[c * B + b]
+  const components = leading(cov, B, 3), scores = components.map(() => new Float32Array(n))
+  for (const i of valid) {
+    for (let k = 0; k < 3; k++) {
+      let s = 0
+      for (let b = 0; b < B; b++) s += (bands[b][i] - mean[b]) * components[k][b]
+      scores[k][i] = s
+    }
+  }
+  return { mean, components, scores, valid, fit }
+}
+
+/** The `count` bands that best predict the three components (forward selection on R², least squares with an
+ *  intercept, from the normal equations), and the weights: rows per chosen band, then the intercept; 3 columns. */
+function selectBands(bands, pca, count) {
+  const B = bands.length, I = B, pixels = pca.fit, Y = pca.scores
+  const G = new Float64Array((B + 1) * (B + 1)), XY = Array.from({ length: B + 1 }, () => new Float64Array(3))
+  const value = (b, i) => (b === I ? 1 : bands[b][i])
+  for (const i of pixels) {
+    for (let b = 0; b <= B; b++) {
+      const vb = value(b, i)
+      for (let c = b; c <= B; c++) G[b * (B + 1) + c] += vb * value(c, i)
+      for (let k = 0; k < 3; k++) XY[b][k] += vb * Y[k][i]
+    }
+  }
+  for (let b = 0; b <= B; b++) for (let c = 0; c < b; c++) G[b * (B + 1) + c] = G[c * (B + 1) + b]
+  const explained = set => {                         // sum over components of the fitted values' sum of squares
+    const w = solve(set.map(b => set.map(c => G[b * (B + 1) + c])), set.map(b => [...XY[b]]))
+    if (!w) return [-Infinity, null]
+    let s = 0
+    for (let j = 0; j < set.length; j++) for (let k = 0; k < 3; k++) s += w[j][k] * XY[set[j]][k]
+    return [s, w]
+  }
+  const chosen = []
+  for (let step = 0; step < count; step++) {
+    let best = -1, bestScore = -Infinity
+    for (let b = 0; b < B; b++) {
+      if (chosen.includes(b)) continue
+      const [s] = explained([...chosen, b, I])
+      if (s > bestScore) { bestScore = s; best = b }
+    }
+    chosen.push(best)
+  }
+  return { chosen, weights: explained([...chosen, I])[1] }
+}
+
+/** Solves A W = R (A: m x m, R: m x 3) by Gaussian elimination with partial pivoting; null if singular. */
+function solve(A, R) {
+  const m = A.length, a = A.map((row, i) => [...row, ...R[i]])
+  for (let c = 0; c < m; c++) {
+    let p = c
+    for (let r = c + 1; r < m; r++) if (Math.abs(a[r][c]) > Math.abs(a[p][c])) p = r
+    if (Math.abs(a[p][c]) < 1e-9) return null
+    ;[a[c], a[p]] = [a[p], a[c]]
+    for (let r = 0; r < m; r++) {
+      if (r === c) continue
+      const f = a[r][c] / a[c][c]
+      for (let k = c; k < m + 3; k++) a[r][k] -= f * a[c][k]
+    }
+  }
+  return a.map((row, i) => row.slice(m).map(v => v / a[i][i]))
 }
 
 /** 2nd and 98th percentile of a sample of values. */
@@ -107,6 +266,17 @@ function range(values) {
   if (!v.length) return [0, 1]
   const lo = v[Math.floor(v.length * 0.02)], hi = v[Math.floor(v.length * 0.98)]
   return hi > lo ? [lo, hi] : [lo, lo + 1]
+}
+
+/** Three component images as RGB, each stretched 2-98% over a sample of the valid pixels; the rest transparent. */
+function rgbOf(scores, valid, size) {
+  const out = new Uint8ClampedArray(size * size * 4), step = Math.max(1, Math.floor(valid.length / FIT))
+  const ranges = scores.map(s => range(valid.filter((_, k) => k % step === 0).map(i => s[i])))
+  for (const i of valid) {
+    for (let k = 0; k < 3; k++) out[i * 4 + k] = 255 * Math.min(Math.max((scores[k][i] - ranges[k][0]) / (ranges[k][1] - ranges[k][0]), 0), 1)
+    out[i * 4 + 3] = 255
+  }
+  return out
 }
 
 function greyRgba(band, size) {
@@ -121,35 +291,10 @@ function greyRgba(band, size) {
   return out
 }
 
-/** The three leading principal components of the 64 bands, as RGB; no-data transparent. */
-function pcaRgba(bands, size) {
-  const n = size * size, B = bands.length, valid = []
-  for (let i = 0; i < n; i++) if (bands[0][i] !== NODATA) valid.push(i)
-  const out = new Uint8ClampedArray(n * 4)
-  if (valid.length < 2) return out
-  const step = Math.max(1, Math.floor(valid.length / FIT)), fit = valid.filter((_, k) => k % step === 0)
-  const mean = new Float64Array(B), cov = new Float64Array(B * B), x = new Float64Array(B)
-  for (const i of fit) for (let b = 0; b < B; b++) mean[b] += bands[b][i] / fit.length
-  for (const i of fit) {
-    for (let b = 0; b < B; b++) x[b] = bands[b][i] - mean[b]
-    for (let b = 0; b < B; b++) for (let c = b; c < B; c++) cov[b * B + c] += x[b] * x[c]
-  }
-  for (let b = 0; b < B; b++) for (let c = 0; c < b; c++) cov[b * B + c] = cov[c * B + b]
-  const comps = leading(cov, B, 3)
-  const proj = comps.map(() => new Float32Array(n))
-  for (const i of valid) {
-    for (let k = 0; k < 3; k++) {
-      let s = 0
-      for (let b = 0; b < B; b++) s += (bands[b][i] - mean[b]) * comps[k][b]
-      proj[k][i] = s
-    }
-  }
-  const ranges = proj.map(p => range(fit.map(i => p[i])))
-  for (const i of valid) {
-    for (let k = 0; k < 3; k++) out[i * 4 + k] = 255 * Math.min(Math.max((proj[k][i] - ranges[k][0]) / (ranges[k][1] - ranges[k][0]), 0), 1)
-    out[i * 4 + 3] = 255
-  }
-  return out
+async function png(rgba, size) {
+  const canvas = new OffscreenCanvas(size, size)
+  canvas.getContext('2d').putImageData(new ImageData(rgba, size, size), 0, 0)
+  return URL.createObjectURL(await canvas.convertToBlob({ type: 'image/png' }))
 }
 
 /** The `count` leading eigenvectors of a symmetric B x B matrix: power iteration, deflating after each. Signs are

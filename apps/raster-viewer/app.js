@@ -278,7 +278,7 @@ function thumbnailOf(name, sample) {
   const info = state.datasets[name], key = `${name}/${sampleKey(sample)}`, fresh = !thumbs.has(key)
   if (fresh) {
     const stats = newStats()
-    const load = info.kind === 'viirs' ? loadViirs(info, sample, stats) : info.kind === 'aef' ? renderAef(info, sample, 'pca:2', stats)
+    const load = info.kind === 'viirs' ? loadViirs(info, sample, stats) : info.kind === 'aef' ? renderAef(info, sample, 'pca', stats, view => stats.onPreview?.(view))
       : loadThumbnail(info, sample)
     thumbs.set(key, { promise: load.catch(e => { thumbs.delete(key); throw e }), stats })
   }
@@ -352,6 +352,13 @@ async function choose(i) {
   try {
     const [loading, fresh, stats] = thumbnailOf(state.name, sample)
     const stop = fresh && info.kind === 'aef' ? followLoad(`AlphaEarth ${sample.year} · ${pick.cell.name} · 64 bands`, stats) : () => {}
+    stats.onPreview = view => {                                        // AlphaEarth: the 160 m PCA while 40 m loads
+      stop()
+      if (ticket !== pick.ticket) return
+      pick.shown = { ...view, sample: { ...sample, corners: view.corners } }
+      showThumbnail(view.src); showOnMap()
+      $('pick-stats').textContent = `${view.label} · sharpening to 40 m…`
+    }
     const t = await loading.finally(stop)
     if (ticket !== pick.ticket) return
     const label = { viirs: 'Radiance', aef: aefViews()[0].label }[info.kind] ?? 'Thumbnail'

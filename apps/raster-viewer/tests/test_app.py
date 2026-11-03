@@ -121,12 +121,13 @@ def test_viirs_tile(page):
 
 
 def test_alphaearth_pca(page):
-    """AlphaEarth: one button per year, the Sentinel-2 year chosen; the 40 m PCA of all 64 bands; a band view at 10 m."""
+    """AlphaEarth: one button per year, the Sentinel-2 year chosen; the PCA (160 m, then 40 m from 8 bands); a band view."""
     fields = thumbnail(page, "AEF")
     assert page.locator("#choices button").count() == 9                             # 2017-2025
     assert page.text_content("#choices button[aria-pressed=true]") == "2022"         # the cell's Sentinel-2 year
     assert fields["Year"].startswith("2022 (annual embedding)")
-    assert page.evaluate("document.getElementById('thumb').naturalWidth") == 267     # 10,680 m at 40 m
+    page.wait_for_function("document.getElementById('pick-stats').textContent.startsWith('PCA of 64 bands:')", timeout=120_000)
+    page.wait_for_function("document.getElementById('thumb').naturalWidth === 267")   # sharpened to 40 m
     stats = page.text_content("#pick-stats")
     print("AEF PCA:", stats)
     assert page.evaluate("Boolean(globe.getLayer('sample'))")
