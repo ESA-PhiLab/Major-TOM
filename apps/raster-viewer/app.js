@@ -2,7 +2,8 @@
 //
 //   dataset (panel) -> footprints/<name>.parquet, two position columns (footprints.js) -> mask on the cell array
 //     -> coverage tiles drawn in the browser (tiles.js) -> globe
-//   datasets with a kind (VIIRS) have no thumbnail column: their tile is read and coloured instead (viirs.js)
+//   datasets with a kind have no thumbnail column: VIIRS tiles are read and coloured (viirs.js); AlphaEarth windows
+//     are read from the yearly COG and shown as a PCA of the 64 bands (aef.js), one choice button per year
 //   click -> cell -> its samples (footprint rows, page index) -> image file on Hugging Face, one row group,
 //     thumbnail column (samples.js) -> panel
 //   cursor -> cell under it -> outline + name, position, whether it has a sample
@@ -21,11 +22,12 @@ import { bandNames, render, views } from './bands.js'
 import { newStats } from './parquet.js'
 import { loadWeather, weatherRows } from './weather.js'
 import { loadViirs } from './viirs.js'
+import { aefViews, renderAef } from './aef.js'
 import { downloadAll, downloadBand, downloadViirs, pythonSnippet, viirsSnippet } from './download.js'
 import { cellAt, cellIndex, renderTile } from './tiles.js'
 
 const $ = id => document.getElementById(id)
-const COLOURS = { S2L2A: [57, 181, 74], S2L1C: [0, 113, 188], S1RTC: [241, 90, 36], DEM: [180, 140, 90], VIIRS: [126, 87, 194] }
+const COLOURS = { S2L2A: [57, 181, 74], S2L1C: [0, 113, 188], S1RTC: [241, 90, 36], DEM: [180, 140, 90], VIIRS: [126, 87, 194], AEF: [32, 150, 150] }
 
 const state = { name: null, info: null, datasets: null, coverage: null, version: 0, loading: 0 }
 
@@ -255,22 +257,39 @@ const thumbs = new Map()                                  // "<dataset>/<part>/<
 
 function samplesOf(name, row, col) {
   const key = `${name}/${row}/${col}`
-  if (!lookups.has(key)) lookups.set(key, samplesAt(name, row, col).catch(e => { lookups.delete(key); throw e }))
+  if (!lookups.has(key)) lookups.set(key, samplesAt(name, row, col).then(rows => byYear(name, rows)).catch(e => { lookups.delete(key); throw e }))
   return lookups.get(key)
 }
+
+/** AlphaEarth: the cell's one footprint row as one sample per year (cellYear: its Sentinel-2 year, the default). */
+function byYear(name, rows) {
+  const info = state.datasets[name]
+  if (info.kind !== 'aef' || !rows.length) return rows
+  const [first, last] = info.years
+  return Array.from({ length: last - first + 1 }, (_, k) => ({ ...rows[0], year: first + k, cellYear: rows[0].year }))
+}
+
+/** A sample's key, unique within its dataset. */
+const sampleKey = s => (s.part !== undefined ? `${s.part}/${s.parquet_row}` : s.shard ? `${s.shard}/${s.offset}`
+  : `${s.grid_row_u}/${s.grid_col_r}/${s.year}`)
+
+/** The first image of a sample, read once: [promise, fresh, stats]. Thumbnail (Core), tile (VIIRS) or PCA (AlphaEarth). */
 function thumbnailOf(name, sample) {
-  const info = state.datasets[name], viirs = info.kind === 'viirs'
-  const key = viirs ? `${name}/${sample.shard}/${sample.offset}` : `${name}/${sample.part}/${sample.parquet_row}`
-  const fresh = !thumbs.has(key), load = viirs ? loadViirs(info, sample, newStats()) : loadThumbnail(info, sample)
-  if (fresh) thumbs.set(key, load.catch(e => { thumbs.delete(key); throw e }))
-  return [thumbs.get(key), fresh]
+  const info = state.datasets[name], key = `${name}/${sampleKey(sample)}`, fresh = !thumbs.has(key)
+  if (fresh) {
+    const stats = newStats()
+    const load = info.kind === 'viirs' ? loadViirs(info, sample, stats) : info.kind === 'aef' ? renderAef(info, sample, 'pca:2', stats)
+      : loadThumbnail(info, sample)
+    thumbs.set(key, { promise: load.catch(e => { thumbs.delete(key); throw e }), stats })
+  }
+  return [thumbs.get(key).promise, fresh, thumbs.get(key).stats]
 }
 
 /** The selected cell in every other dataset, in the panel's order, after the shown one. */
 async function prefetchCell(cell) {
   for (const name of Object.keys(state.datasets)) {
     if (pick.cell !== cell) return                         // another cell was picked
-    if (name === state.name) continue
+    if (name === state.name || state.datasets[name].kind === 'aef') continue   // AlphaEarth: tens of MB, only on request
     try {
       const samples = await samplesOf(name, cell.row, cell.col)
       if (samples.length) await thumbnailOf(name, samples[0])[0]
@@ -320,7 +339,7 @@ async function pickCell() {
       return b
     }))
   }
-  choose(0)
+  choose(Math.max(0, samples.findIndex(s => s.cellYear !== undefined && s.year === s.cellYear)))
 }
 
 async function choose(i) {
@@ -329,17 +348,21 @@ async function choose(i) {
   for (const [k, b] of [...$('choices').children].entries()) b.setAttribute('aria-pressed', String(k === i))
   meta(sample, null, info)
   showWeather(sample, ticket)
-  showThumbnail(null, 'Loading the thumbnail…')
+  showThumbnail(null, info.kind === 'aef' ? 'Reading the 64 bands…' : 'Loading the thumbnail…')
   try {
-    const [loading, fresh] = thumbnailOf(state.name, sample), t = await loading
+    const [loading, fresh, stats] = thumbnailOf(state.name, sample)
+    const stop = fresh && info.kind === 'aef' ? followLoad(`AlphaEarth ${sample.year} · ${pick.cell.name} · 64 bands`, stats) : () => {}
+    const t = await loading.finally(stop)
     if (ticket !== pick.ticket) return
-    const placed = t.corners ? { ...sample, corners: t.corners } : sample, label = info.kind === 'viirs' ? 'Radiance' : 'Thumbnail'
+    const label = { viirs: 'Radiance', aef: aefViews()[0].label }[info.kind] ?? 'Thumbnail'
+    const placed = t.corners ? { ...sample, corners: t.corners } : sample
     pick.thumbnail = { ...t, sample: placed }
     pick.shown = { src: t.src, values: t.values ?? null, size: t.size, sample: placed, label }
     showThumbnail(t.src)
     showOnMap()
     meta(sample, t.productId, info)
-    if (info.kind) updateDownloads()                                    // no band menu: the tile is one band
+    if (info.kind === 'aef') aefMenu(label)
+    else if (info.kind) updateDownloads()                               // no band menu: the tile is one band
     else buildViews(name, info, sample, ticket)
     $('pick-stats').textContent = `${label}: ${kb(t.stats.bytes)} in ${reqs(t.stats.requests)} · ${secs(t.stats.read)}` +
       (fresh ? '' : ' (loaded before)')
@@ -430,16 +453,30 @@ async function buildViews(name, info, sample, ticket) {
   } catch { /* no menu: the thumbnail stays */ }
 }
 
+/** AlphaEarth's View menu: the PCA shown (40 m), PCA at 10 m, each band. No downloads yet: they read Core files. */
+function aefMenu(label) {
+  pick.views = aefViews().slice(1)
+  $('view').replaceChildren(new Option(label, 'thumbnail'), ...pick.views.map(v => new Option(v.label, v.id)))
+  $('view').value = 'thumbnail'; $('view-row').hidden = false
+  $('download-actions').hidden = true
+}
+
 $('view').addEventListener('change', () => showView($('view').value))
 
 async function showView(id) {
   const t = pick.thumbnail, ticket = ++pick.viewTicket
   if (!t) return
-  if (id === 'thumbnail') { pick.shown = { src: t.src, values: null, sample: t.sample, label: 'Thumbnail' }; refreshShown(); return }
-  const view = pick.views.find(v => v.id === id), key = `${state.name}/${t.sample.part}/${t.sample.parquet_row}/${id}`
+  if (id === 'thumbnail') {
+    pick.shown = { src: t.src, values: t.values ?? null, size: t.size, sample: t.sample, label: $('view').options[0].text }
+    refreshShown(); return
+  }
+  const view = pick.views.find(v => v.id === id), key = `${state.name}/${sampleKey(t.sample)}/${id}`
   $('pick-stats').textContent = `Loading ${view.label}…`
   const fresh = !renders.has(key), stats = newStats()
-  if (fresh) renders.set(key, render(state.info, t.sample, view, stats).catch(e => { renders.delete(key); throw e }))
+  if (fresh) {
+    const job = state.info.kind === 'aef' ? renderAef(state.info, t.sample, id, stats) : render(state.info, t.sample, view, stats)
+    renders.set(key, job.catch(e => { renders.delete(key); throw e }))
+  }
   const stop = fresh ? followLoad(`${view.label} · ${pick.cell.name}`, stats) : () => {}
   try {
     const r = await renders.get(key).finally(stop)
@@ -585,7 +622,10 @@ function meta(sample, productId, info) {
   if (sample.cloud_cover !== undefined && sample.cloud_cover !== null) rows.push(['Cloud cover', `${sample.cloud_cover.toFixed(1)}%`])
   if (sample.orbit_state) rows.push(['Orbit', sample.orbit_state])
   if (productId) rows.push(['Product', productId])
-  if (info.kind === 'viirs') {
+  if (info.kind === 'aef') {
+    rows.push(['Year', `${sample.year} (annual embedding)${sample.year === sample.cellYear ? ', the Sentinel-2 year' : ''}`])
+    rows.push(['Source', `<a href="${info.link}" target="_blank" rel="noopener">tge-labs/aef</a>, CC-BY 4.0`])
+  } else if (info.kind === 'viirs') {
     rows.push(['Year', `${sample.year} (annual median)`])
     rows.push(['File', `<a href="${info.files.replace('/resolve/', '/blob/')}${sample.shard}" target="_blank" rel="noopener">${sample.shard.split('/').pop()}</a>, bytes ${sample.offset.toLocaleString('en')} + ${sample.size.toLocaleString('en')}`])
   } else {

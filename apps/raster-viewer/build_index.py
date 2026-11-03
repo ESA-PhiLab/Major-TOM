@@ -14,6 +14,13 @@
       -> footprints/VIIRS.parquet: grid_row_u, grid_col_r, year, shard, offset, size, sorted by cell; the app reads a
          tile with one range request into its zip shard (viirs.js)
 
+    AlphaEarth (tge-labs/aef on source.coop): aef_index.parquet, one row per COG tile and year (81,920 m UTM squares,
+    the same 34,266 squares every year) + the Core-S2L2A cells
+      -> footprints/AEF.parquet: per cell grid_row_u, grid_col_r, centre_lat, centre_lon, year (its Sentinel-2 year,
+         within 2017-2025), tile_row, tile_rows: where its tile's rows are in AEF-tiles.parquet; the tile holding the
+         cell centre, in the cell's own UTM zone where there is one
+      -> footprints/AEF-tiles.parquet: tile, year, epsg, west, north, path: one row per tile and year, by tile
+
     python build_index.py /data/Major-TOM <out folder> [name ...]   (Slurm, .venv311; names: rebuild only those)
 """
 from __future__ import annotations
@@ -33,6 +40,8 @@ DATASETS = {"S2L2A": "Sentinel-2 L2A", "S2L1C": "Sentinel-2 L1C", "S1RTC": "Sent
 EXTRA = ["timestamp", "cloud_cover", "orbit_state"]                      # kept where a dataset has them
 ROW_GROUP = 65_536
 VIIRS = "https://huggingface.co/datasets/Major-TOM/Core-VIIRS-Nighttime-Light/resolve/main/"
+AEF = "https://data.source.coop/tge-labs/aef/v1/annual/"
+AEF_TILE = 81_920                                            # metres: every AlphaEarth COG
 
 
 def index(metadata: Path, name: str) -> tuple[pa.Table, str]:
@@ -83,6 +92,54 @@ def viirs() -> pa.Table:
     return out.sort_by([("grid_row_u", "ascending"), ("grid_col_r", "ascending"), ("year", "ascending")])
 
 
+def aef(core: Path) -> tuple[pa.Table, pa.Table]:
+    """AlphaEarth: the cell table (Core-S2L2A cells -> the tile holding each centre) and the tile table."""
+    import pandas as pd
+    from pyproj import Transformer
+
+    with fsspec.open(f"{AEF}aef_index.parquet", "rb", block_size=2**24) as f:
+        idx = pq.read_table(f, columns=["path", "year", "crs", "utm_west", "utm_south"]).to_pandas()
+    idx["epsg"] = idx.crs.str.split(":").str[-1].astype(int)
+    idx["path"] = idx.path.str.replace("s3://us-west-2.opendata.source.coop/tge-labs/aef/v1/annual/", "", regex=False)
+    squares = idx.drop_duplicates(["epsg", "utm_west", "utm_south"])[["epsg", "utm_west", "utm_south"]]
+    squares = squares.sort_values(["epsg", "utm_south", "utm_west"]).reset_index(drop=True)
+    squares["tile"] = np.arange(len(squares), dtype=np.int32)
+    tiles = idx.merge(squares, on=["epsg", "utm_west", "utm_south"]).sort_values(["tile", "year"]).reset_index(drop=True)
+
+    cells = pq.read_table(core / "Core-S2L2A" / "metadata.parquet",
+                          columns=["grid_row_u", "grid_col_r", "centre_lat", "centre_lon", "crs", "timestamp"]).to_pandas()
+    cells["own"] = epsg(cells.crs.tolist()).astype(int)
+    cells["tile"] = -1
+    for own_zone_first in (True, False):                     # a cell near a zone edge may lie in a neighbour's square
+        for code, group in squares.groupby("epsg"):
+            pick = (cells.tile < 0) & ((cells.own == code) if own_zone_first else (abs(cells.own - code) == 1))
+            if not pick.any():
+                continue
+            x, y = Transformer.from_crs(4326, int(code), always_xy=True).transform(
+                cells.centre_lon[pick].to_numpy(), cells.centre_lat[pick].to_numpy())
+            west, south = group.utm_west.to_numpy(), group.utm_south.to_numpy()
+            inside = ((x[:, None] >= west) & (x[:, None] < west + AEF_TILE) &
+                      (y[:, None] >= south) & (y[:, None] < south + AEF_TILE))
+            hit = inside.any(1)
+            cells.loc[cells.index[pick][hit], "tile"] = group.tile.to_numpy()[inside[hit].argmax(1)]
+    cells = cells[cells.tile >= 0]
+    first = tiles.reset_index().groupby("tile")["index"].agg(["min", "count"])
+    year = cells.timestamp.str[:4].astype(int).clip(2017, 2025)
+    cell_table = pa.table({"grid_row_u": pa.array(cells.grid_row_u.to_numpy(np.int16)),
+                           "grid_col_r": pa.array(cells.grid_col_r.to_numpy(np.int16)),
+                           "centre_lat": pa.array(cells.centre_lat.to_numpy(np.float32)),
+                           "centre_lon": pa.array(cells.centre_lon.to_numpy(np.float32)),
+                           "year": pa.array(year.to_numpy(np.int16)),
+                           "tile_row": pa.array(first.loc[cells.tile, "min"].to_numpy(np.int32)),
+                           "tile_rows": pa.array(first.loc[cells.tile, "count"].to_numpy(np.int16))})
+    tile_table = pa.table({"tile": pa.array(tiles.tile.to_numpy(np.int32)), "year": pa.array(tiles.year.to_numpy(np.int16)),
+                           "epsg": pa.array(tiles.epsg.to_numpy(np.int32)),
+                           "west": pa.array(tiles.utm_west.to_numpy(np.float64)),
+                           "north": pa.array((tiles.utm_south + AEF_TILE).to_numpy(np.float64)),
+                           "path": pa.array(tiles.path.tolist())})
+    return cell_table.sort_by([("grid_row_u", "ascending"), ("grid_col_r", "ascending")]), tile_table
+
+
 def write(table: pa.Table, path: Path) -> None:
     keys = ["grid_row_u", "grid_col_r", "orbit_state", "epsg", "shard"]
     pq.write_table(table, path, row_group_size=ROW_GROUP, compression="zstd", write_statistics=True,
@@ -94,8 +151,13 @@ def main(core: str, out: str, *only: str) -> None:
     core, out = Path(core), Path(out)
     out.mkdir(parents=True, exist_ok=True)
     listing = json.loads((out / "datasets.json").read_text()) if only else {}
-    for name in only or [*DATASETS, "VIIRS"]:
-        if name == "VIIRS":
+    for name in only or [*DATASETS, "VIIRS", "AEF"]:
+        if name == "AEF":
+            table, tile_table = aef(core)
+            write(tile_table, out / "AEF-tiles.parquet")
+            entry = {"label": "AlphaEarth Embeddings", "kind": "aef", "files": AEF, "tiles": "AEF-tiles.parquet",
+                     "years": [2017, 2025], "link": "https://source.coop/tge-labs/aef"}
+        elif name == "VIIRS":
             table = viirs()
             entry = {"label": "VIIRS Nighttime Light", "kind": "viirs", "files": VIIRS,
                      "link": "https://huggingface.co/datasets/Major-TOM/Core-VIIRS-Nighttime-Light"}
@@ -105,7 +167,7 @@ def main(core: str, out: str, *only: str) -> None:
         write(table, out / f"{name}.parquet")
         listing[name] = {**entry, "samples": table.num_rows, "columns": table.column_names}
         print(f"{name}: {table.num_rows:,} samples -> {(out / f'{name}.parquet').stat().st_size / 1e6:.1f} MB", flush=True)
-    order = [*DATASETS, "VIIRS"]
+    order = [*DATASETS, "VIIRS", "AEF"]
     listing = {k: listing[k] for k in sorted(listing, key=order.index)}
     (out / "datasets.json").write_text(json.dumps(listing, indent=1) + "\n")
 

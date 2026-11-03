@@ -1,23 +1,15 @@
 // VIIRS Nighttime Light tiles (Major-TOM/Core-VIIRS-Nighttime-Light), read from their zip shards and coloured here.
 //
 //   footprint row (shard, offset, size) -> one range request: the tile's GeoTIFF, stored uncompressed in the zip
-//     -> geotiff.js (zstd tiles: decoder registered below; geotiff.js 2.1.3 has none) -> radiance, nW/cm²/sr
+//     -> geotiff.js (zstd tiles: decoder in zstd.js) -> radiance, nW/cm²/sr
 //     -> log scale 0.1-100 in inferno, the Core Viewer's fixed scale, so tiles compare -> PNG
 //   the GeoTIFF bytes are kept: the download is the tile as stored
 //   corners from the GeoTIFF's own bounds and UTM zone: VIIRS tiles are 1,056 px at 10 m on the v2 grid, not the
 //   Core images' 10,680 m squares
 
-import { addDecoder, BaseDecoder, fromArrayBuffer } from 'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/+esm'
-import { decompress } from 'https://cdn.jsdelivr.net/npm/fzstd@0.1.1/+esm'
+import { fromArrayBuffer } from 'https://cdn.jsdelivr.net/npm/geotiff@2.1.3/+esm'
 import proj4 from 'https://cdn.jsdelivr.net/npm/proj4@2.12.1/+esm'
-
-class ZstdDecoder extends BaseDecoder {
-  decodeBlock(buffer) {
-    const out = decompress(new Uint8Array(buffer))
-    return out.buffer.slice(out.byteOffset, out.byteOffset + out.byteLength)
-  }
-}
-addDecoder(50000, () => ZstdDecoder)
+import './zstd.js'
 
 // matplotlib's inferno at nine stops
 const INFERNO = [[0, 0, 4], [31, 12, 72], [85, 15, 109], [136, 34, 106], [186, 54, 85], [227, 89, 51], [249, 140, 10],

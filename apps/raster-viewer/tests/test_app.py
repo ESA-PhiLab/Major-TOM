@@ -120,6 +120,22 @@ def test_viirs_tile(page):
     assert page.evaluate("globe.getPaintProperty('sample', 'raster-opacity')") == 1
 
 
+def test_alphaearth_pca(page):
+    """AlphaEarth: one button per year, the Sentinel-2 year chosen; the 40 m PCA of all 64 bands; a band view at 10 m."""
+    fields = thumbnail(page, "AEF")
+    assert page.locator("#choices button").count() == 9                             # 2017-2025
+    assert page.text_content("#choices button[aria-pressed=true]") == "2022"         # the cell's Sentinel-2 year
+    assert fields["Year"].startswith("2022 (annual embedding)")
+    assert page.evaluate("document.getElementById('thumb').naturalWidth") == 267     # 10,680 m at 40 m
+    stats = page.text_content("#pick-stats")
+    print("AEF PCA:", stats)
+    assert page.evaluate("Boolean(globe.getLayer('sample'))")
+    page.select_option("#view", "band:0")
+    page.wait_for_function("document.getElementById('pick-stats').textContent.startsWith('Band A00')", timeout=120_000)
+    assert page.evaluate("document.getElementById('thumb').naturalWidth") == 1068
+    print("AEF band:", page.text_content("#pick-stats"))
+
+
 def test_cursor_reports_coverage(page):
     page.wait_for_function("document.body.dataset.loaded === 'S2L2A'", timeout=120_000)
     page.evaluate(f"globe.jumpTo({{center: [{LOCH_LOMOND[0]}, {LOCH_LOMOND[1]}], zoom: 6}})")

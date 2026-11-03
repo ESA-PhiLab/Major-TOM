@@ -30,7 +30,7 @@ panel: dataset
   -> app.js:        MapLibre globe; cursor shows the cell and whether it has a sample
 click a cell -> its footprint rows (page index) -> the image file on Hugging Face (one row group per sample)
   -> samples.js: that row group's thumbnail column -> panel, with acquisition time, cloud cover or orbit, product
-the shown image: Open (full window, zoom and pan) or Show on map (over its footprint, opacity slider): every image
+the shown image: Enlarge (full window, zoom and pan) and always on the map over its footprint, opaque: every image
   is 10,680 m square in its UTM zone, centred on the sample's centre_lat, centre_lon, so corners need no band read
 View menu: the stored thumbnail (default), composites (S2: true colour, false colour, SWIR, one stretch for the three
   bands; S1: VV, VH, VV/VH in dB; DEM: elevation in colour) and every band (grey, 2-98% stretch, value under the
