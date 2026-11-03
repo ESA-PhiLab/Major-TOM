@@ -44,7 +44,7 @@ maplibregl.addProtocol('mt', async params => {
 })
 
 const map = new maplibregl.Map({
-  container: 'map', center: [12, 22], zoom: innerWidth < 820 ? 1.3 : 2.25, attributionControl: false, maxZoom: 12,
+  container: 'map', center: [12, 22], zoom: innerWidth < 820 ? 1.3 : 2.25, attributionControl: false, maxZoom: 13,
   style: {
     version: 8, projection: { type: 'globe' },
     sky: { 'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 0.6, 4, 0.3, 7, 0] },
