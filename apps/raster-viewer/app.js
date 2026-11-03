@@ -26,6 +26,7 @@ import { aefCell, aefViews, aefWindow, renderAef } from './aef.js'
 import { aefSnippet, downloadAefTiff, downloadAll, downloadBand, downloadImage, downloadViirs, pythonSnippet, viirsSnippet }
   from './download.js'
 import { cellAt, cellIndex, renderTile } from './tiles.js'
+import './zstd.js'          // also here: on the private Space a module is served only if its referer carries the token, as app.js's does
 
 const $ = id => document.getElementById(id)
 const COLOURS = { S2L2A: [57, 181, 74], S2L1C: [0, 113, 188], S1RTC: [241, 90, 36], DEM: [180, 140, 90], VIIRS: [126, 87, 194], AEF: [32, 150, 150] }

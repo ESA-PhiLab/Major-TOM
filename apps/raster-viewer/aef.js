@@ -32,15 +32,17 @@ export function aefViews() {
     ...Array.from({ length: 64 }, (_, b) => ({ id: `band:${b}`, label: `Band A${String(b).padStart(2, '0')}, 10 m` }))]
 }
 
-/** A geotiff.js client that counts what it reads into `stats`. */
+/** A geotiff.js client that counts what it reads into `client.stats`: the read under way, set again by openCog. */
 function countingClient(url, stats) {
-  return {
+  const client = {
+    stats,
     async request({ headers, signal } = {}) {
       const r = await fetch(url, { headers, signal }), data = await r.arrayBuffer()
-      stats.bytes += data.byteLength; stats.requests += 1
+      client.stats.bytes += data.byteLength; client.stats.requests += 1
       return { ok: r.ok, status: r.status, getHeader: name => r.headers.get(name), getData: async () => data }
     },
   }
+  return client
 }
 
 /** One tile's rows (one per year): {year, epsg, west, north, path}. */
@@ -69,18 +71,25 @@ export async function aefCell(info, sample, stats = newStats()) {
   return { epsg, cx, cy, corners, urls: tiles.map(x => `${info.files}${x.path}`) }
 }
 
-const opened = new Map()                       // COG url -> {tiff, left, top, dy}
+const opened = new Map()                       // COG url -> {tiff, client, left, top, dy}, most recently used last
+const KEEP = 4                                 // COGs kept open; older ones are dropped with their block cache
 
-/** A COG, opened once (its headers in one 1 MB block), with its origin and row direction. */
-function openCog(url, stats) {
-  if (!opened.has(url)) {
+/** A COG, opened once (its headers in one 1 MB block), with its origin and row direction; its reads are counted
+ *  into `stats` from now on. At most KEEP stay open, each caching at most 16 blocks (16 MB). */
+async function openCog(url, stats) {
+  if (opened.has(url)) { const c = opened.get(url); opened.delete(url); opened.set(url, c) }
+  else {
     opened.set(url, (async () => {
-      const tiff = await fromCustomClient(countingClient(url, stats), { blockSize: 2 ** 20 })
+      const client = countingClient(url, stats)
+      const tiff = await fromCustomClient(client, { blockSize: 2 ** 20, cacheSize: 16 })
       const [, , , left, , dy, , top] = (await tiff.getImage(0)).fileDirectory.ModelTransformation   // dy > 0: south-up
-      return { url, tiff, left, top, dy }
+      return { url, tiff, client, left, top, dy }
     })().catch(e => { opened.delete(url); throw e }))
+    while (opened.size > KEEP) opened.delete(opened.keys().next().value)
   }
-  return opened.get(url)
+  const cog = await opened.get(url)
+  cog.client.stats = stats
+  return cog
 }
 
 /** Every tile's part of the window, joined: one Int8Array per band (NODATA where no tile covers). */
