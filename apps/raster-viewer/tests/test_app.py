@@ -106,8 +106,15 @@ def test_viirs_tile(page):
     """VIIRS: the tile from its zip shard (one range request, zstd GeoTIFF), coloured, on the map by its own corners."""
     fields = thumbnail(page, "VIIRS")
     assert fields["Year"].endswith("(annual median)") and ".zip" in fields["File"]
-    assert page.locator("#download-actions").is_hidden() and page.locator("#view-row").is_hidden()
-    assert page.locator("#weather").is_hidden()
+    assert page.locator("#view-row").is_hidden() and page.locator("#dl-all").is_hidden()
+    assert page.text_content("#dl-band") == "Download tile (.tif)"
+    with page.expect_download() as d:
+        page.click("#dl-band")
+    assert d.value.suggested_filename.startswith("624U_29L_VIIRS_") and d.value.suggested_filename.endswith(".tif")
+    page.click("#dl-python")
+    assert "f.seek(" in page.evaluate("window.lastSnippet")
+    page.wait_for_function("document.getElementById('wx-stats').textContent.startsWith('Core-Weather:')", timeout=60_000)
+    assert page.text_content("#wx-from").startswith("At the cell's Sentinel-2 L2A acquisition")   # VIIRS has none of its own
     corners = page.evaluate("sampleCorners()")
     assert all(abs(lon - LOCH_LOMOND[0]) < 0.2 and abs(lat - LOCH_LOMOND[1]) < 0.1 for lon, lat in corners)
     assert page.evaluate("globe.getPaintProperty('sample', 'raster-opacity')") == 1

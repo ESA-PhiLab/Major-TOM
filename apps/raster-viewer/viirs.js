@@ -3,6 +3,7 @@
 //   footprint row (shard, offset, size) -> one range request: the tile's GeoTIFF, stored uncompressed in the zip
 //     -> geotiff.js (zstd tiles: decoder registered below; geotiff.js 2.1.3 has none) -> radiance, nW/cm²/sr
 //     -> log scale 0.1-100 in inferno, the Core Viewer's fixed scale, so tiles compare -> PNG
+//   the GeoTIFF bytes are kept: the download is the tile as stored
 //   corners from the GeoTIFF's own bounds and UTM zone: VIIRS tiles are 1,056 px at 10 m on the v2 grid, not the
 //   Core images' 10,680 m squares
 
@@ -28,7 +29,7 @@ function inferno(t) {
   return INFERNO[k].map((c, i) => c + u * (INFERNO[k + 1][i] - c))
 }
 
-/** The sample's tile: {src (PNG object URL), size, values (radiance, for the cursor), corners, stats}. */
+/** The sample's tile: {src (PNG object URL), size, values (radiance, for the cursor), corners, bytes (the GeoTIFF), stats}. */
 export async function loadViirs(info, sample, stats) {
   const r = await fetch(`${info.files}${sample.shard}`, { headers: { Range: `bytes=${sample.offset}-${sample.offset + sample.size - 1}` } })
   if (r.status !== 206) throw new Error(`${sample.shard}: HTTP ${r.status}, not a byte range`)
@@ -49,5 +50,5 @@ export async function loadViirs(info, sample, stats) {
   const utm = proj4(`+proj=utm +zone=${epsg % 100}${epsg > 32700 ? ' +south' : ''} +datum=WGS84 +units=m +no_defs`)
   const corners = [[west, north], [east, north], [east, south], [west, south]].map(p => utm.inverse(p))
   stats.read = performance.now() - stats.t0
-  return { src, size, values: { width: size, values, unit: 'nW/cm²/sr' }, corners, stats }
+  return { src, size, values: { width: size, values, unit: 'nW/cm²/sr' }, corners, bytes: new Uint8Array(buffer), stats }
 }

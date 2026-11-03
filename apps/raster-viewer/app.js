@@ -21,7 +21,7 @@ import { bandNames, render, views } from './bands.js'
 import { newStats } from './parquet.js'
 import { loadWeather, weatherRows } from './weather.js'
 import { loadViirs } from './viirs.js'
-import { downloadAll, downloadBand, pythonSnippet } from './download.js'
+import { downloadAll, downloadBand, downloadViirs, pythonSnippet, viirsSnippet } from './download.js'
 import { cellAt, cellIndex, renderTile } from './tiles.js'
 
 const $ = id => document.getElementById(id)
@@ -339,7 +339,7 @@ async function choose(i) {
     showThumbnail(t.src)
     showOnMap()
     meta(sample, t.productId, info)
-    if (info.kind) $('download-actions').hidden = true                  // downloads read the Core image files
+    if (info.kind) updateDownloads()                                    // no band menu: the tile is one band
     else buildViews(name, info, sample, ticket)
     $('pick-stats').textContent = `${label}: ${kb(t.stats.bytes)} in ${reqs(t.stats.requests)} · ${secs(t.stats.read)}` +
       (fresh ? '' : ' (loaded before)')
@@ -389,13 +389,21 @@ window.sampleCorners = () => (pick.shown ? corners(pick.shown.sample) : null)   
 
 const WEATHER_DATASETS = ['S2L2A', 'S2L1C', 'S1RTC']                   // Core-Weather has rows for these three
 
-/** The sample's hourly and daily weather in the panel; nothing for datasets or samples without an acquisition time. */
+/** The sample's hourly and daily weather in the panel. Datasets without an acquisition time of their own (DEM, VIIRS
+ *  annual medians) show the weather at the cell's Sentinel-2 L2A acquisition, and say so. */
 async function showWeather(sample, ticket) {
-  $('weather').hidden = !(sample.timestamp && WEATHER_DATASETS.includes(state.name))
+  let at = sample, from = ''
+  if (!(sample.timestamp && WEATHER_DATASETS.includes(state.name))) {
+    const s2 = await samplesOf('S2L2A', pick.cell.row, pick.cell.col).catch(() => [])
+    if (ticket !== pick.ticket) return
+    at = s2[0]; from = at?.timestamp ? `At the cell's Sentinel-2 L2A acquisition, ${when(at.timestamp)}` : ''
+  }
+  $('weather').hidden = !at?.timestamp
   if ($('weather').hidden) return
+  $('wx-from').textContent = from; $('wx-from').hidden = !from
   $('wx-hourly').replaceChildren(); $('wx-daily').replaceChildren(); $('wx-stats').textContent = 'Loading Core-Weather…'
   try {
-    const w = await loadWeather(pick.cell.name, sample.timestamp)
+    const w = await loadWeather(pick.cell.name, at.timestamp)
     if (ticket !== pick.ticket) return
     $('wx-hourly').replaceChildren(...weatherRows(w.hourly, 'hourly'))
     $('wx-daily').replaceChildren(...weatherRows(w.daily, 'daily'))
@@ -468,6 +476,13 @@ function refreshShown() {
 const shownBand = () => (pick.shown && pick.bands.includes(pick.shown.label) ? pick.shown.label : null)
 
 function updateDownloads() {
+  const viirs = state.info?.kind === 'viirs'
+  $('dl-all').hidden = viirs
+  if (viirs) {
+    $('dl-band').disabled = false; $('dl-band').textContent = 'Download tile (.tif)'
+    $('dl-band').title = 'The tile as stored: a GeoTIFF, radiance in nW/cm²/sr'
+    return
+  }
   const band = shownBand()
   $('dl-band').disabled = !band
   $('dl-band').textContent = band ? `Download ${band} (.tif)` : 'Download band (.tif)'
@@ -486,8 +501,14 @@ async function downloading(button, job) {
   } finally { button.textContent = label; updateDownloads() }
 }
 
-$('dl-band').addEventListener('click', () => downloading($('dl-band'),
-  () => downloadBand(state.info, state.name, pick.cell.name, pick.thumbnail.sample, shownBand())))
+$('dl-band').addEventListener('click', () => {
+  if (state.info.kind === 'viirs') {
+    downloadViirs(pick.cell.name, pick.thumbnail.sample, pick.thumbnail.bytes)
+    $('pick-stats').textContent = `Downloaded: ${kb(pick.thumbnail.bytes.length)}, read before`
+    return
+  }
+  downloading($('dl-band'), () => downloadBand(state.info, state.name, pick.cell.name, pick.thumbnail.sample, shownBand()))
+})
 $('dl-all').addEventListener('click', () => downloading($('dl-all'), async () => {
   const stats = newStats(), stop = followLoad(`All bands · ${pick.cell.name} · for download`, stats)
   try {
@@ -496,7 +517,8 @@ $('dl-all').addEventListener('click', () => downloading($('dl-all'), async () =>
   } finally { stop() }
 }))
 $('dl-python').addEventListener('click', async () => {
-  const code = pythonSnippet(state.info, state.name, pick.cell.name, pick.thumbnail.sample, pick.bands.length ? pick.bands : ['thumbnail'])
+  const code = state.info.kind === 'viirs' ? viirsSnippet(state.info, pick.cell.name, pick.thumbnail.sample)
+    : pythonSnippet(state.info, state.name, pick.cell.name, pick.thumbnail.sample, pick.bands.length ? pick.bands : ['thumbnail'])
   window.lastSnippet = code                                                         // for automated checks
   try { await navigator.clipboard.writeText(code); $('pick-stats').textContent = 'Python copied to the clipboard' }
   catch { window.prompt('Python that reads this sample:', code) }

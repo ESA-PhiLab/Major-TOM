@@ -3,6 +3,7 @@
 //   one band   -> <cell>_<dataset>_<time>_<band>.tif
 //   all bands  -> <cell>_<dataset>_<time>.zip: every band's .tif, the thumbnail, metadata.json (where it came from)
 //   Python     -> a snippet that reads the same row group from Hugging Face (copied to the clipboard)
+//   VIIRS      -> the tile's GeoTIFF as stored in its zip shard (already read); Python reads the same byte range
 
 import { zipSync } from 'https://cdn.jsdelivr.net/npm/fflate@0.8.2/+esm'
 import { bandNames, readBands } from './bands.js'
@@ -52,5 +53,22 @@ with fsspec.open(url, "rb") as f:                      # reads only the parts of
     row = pq.ParquetFile(f).read_row_group(${sample.parquet_row}, columns=${JSON.stringify(bands)})
 # ${cell}, Major-TOM/Core-${name}: each band is a GeoTIFF, e.g.
 # from rasterio.io import MemoryFile; MemoryFile(row["${bands[0]}"][0].as_py()).open().read(1)
+`
+}
+
+/** A VIIRS tile's GeoTIFF, as stored in its zip shard (the bytes the panel already read). */
+export function downloadViirs(cell, sample, bytes) {
+  save(new Blob([bytes], { type: 'image/tiff' }), `${cell}_VIIRS_${sample.year}.tif`)
+}
+
+/** Python that reads the same VIIRS tile: its byte range of the zip shard, opened as a GeoTIFF. */
+export function viirsSnippet(info, cell, sample) {
+  return `import fsspec
+from rasterio.io import MemoryFile
+
+url = "${info.files}${sample.shard}"
+with fsspec.open(url, "rb") as f:                      # one range request: the tile is stored uncompressed in the zip
+    f.seek(${sample.offset}); tile = f.read(${sample.size})
+radiance = MemoryFile(tile).open().read(1)             # ${cell}, ${sample.year}: nW/cm²/sr, 10 m, float32
 `
 }
