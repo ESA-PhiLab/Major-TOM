@@ -22,8 +22,9 @@ import { bandNames, render, views } from './bands.js'
 import { newStats } from './parquet.js'
 import { loadWeather, weatherRows } from './weather.js'
 import { loadViirs } from './viirs.js'
-import { aefViews, renderAef } from './aef.js'
-import { downloadAll, downloadBand, downloadViirs, pythonSnippet, viirsSnippet } from './download.js'
+import { aefCell, aefViews, aefWindow, renderAef } from './aef.js'
+import { aefSnippet, downloadAefTiff, downloadAll, downloadBand, downloadImage, downloadViirs, pythonSnippet, viirsSnippet }
+  from './download.js'
 import { cellAt, cellIndex, renderTile } from './tiles.js'
 
 const $ = id => document.getElementById(id)
@@ -353,13 +354,13 @@ async function choose(i) {
     const [loading, fresh, stats] = thumbnailOf(state.name, sample)
     const stop = fresh && info.kind === 'aef' ? followLoad(`AlphaEarth ${sample.year} · ${pick.cell.name} · 64 bands`, stats) : () => {}
     let unbadge = () => {}
-    stats.onPreview = view => {                                        // AlphaEarth: the 160 m PCA while 40 m loads
+    stats.onPreview = view => {                                        // AlphaEarth: the 160 m PCA while 10 m loads
       stop()
       if (ticket !== pick.ticket) return
       pick.shown = { ...view, sample: { ...sample, corners: view.corners } }
       showThumbnail(view.src); showOnMap()
-      unbadge = sharpening('Sharpening to 40 m', stats)
-      $('pick-stats').textContent = `${view.label} · sharpening to 40 m…`
+      unbadge = loadingBadge('Loading high-res (10 m)', stats)
+      $('pick-stats').textContent = `${view.label} · loading high-res (10 m)…`
     }
     const t = await loading.finally(() => { stop(); unbadge() })
     if (ticket !== pick.ticket) return
@@ -381,9 +382,9 @@ async function choose(i) {
   }
 }
 
-/** The badge over a preview while its sharper version loads: the share of its bytes so far. Returns the function
+/** The badge over a preview while its high-res version loads: the share of its bytes so far. Returns the function
  *  that ends it. */
-function sharpening(text, stats) {
+function loadingBadge(text, stats) {
   const base = stats.bytes, badge = $('thumb-badge')
   const update = () => {
     const share = stats.expected > base ? Math.min(99, Math.round(100 * (stats.bytes - base) / (stats.expected - base))) : 0
@@ -395,7 +396,7 @@ function sharpening(text, stats) {
 }
 
 function showThumbnail(src, note = '') {
-  $('thumb-badge').hidden = true                                        // a new image: no sharpening under way for it
+  $('thumb-badge').hidden = true                                        // a new image: no high-res load under way for it
   $('thumb').hidden = !src
   $('image-actions').hidden = !src
   $('download-actions').hidden = !src
@@ -476,12 +477,12 @@ async function buildViews(name, info, sample, ticket) {
   } catch { /* no menu: the thumbnail stays */ }
 }
 
-/** AlphaEarth's View menu: the PCA shown (40 m), PCA at 10 m, each band. No downloads yet: they read Core files. */
+/** AlphaEarth's View menu: the PCA shown, then each band at 10 m. */
 function aefMenu(label) {
   pick.views = aefViews().slice(1)
   $('view').replaceChildren(new Option(label, 'thumbnail'), ...pick.views.map(v => new Option(v.label, v.id)))
   $('view').value = 'thumbnail'; $('view-row').hidden = false
-  $('download-actions').hidden = true
+  updateDownloads()
 }
 
 $('view').addEventListener('change', () => showView($('view').value))
@@ -538,6 +539,16 @@ const shownBand = () => (pick.shown && pick.bands.includes(pick.shown.label) ? p
 function updateDownloads() {
   const viirs = state.info?.kind === 'viirs'
   $('dl-all').hidden = viirs
+  $('dl-all').textContent = 'All bands (.zip)'
+  if (state.info?.kind === 'aef') {                       // the shown image, or the shown band; all 64 bands at 10 m
+    const band = pick.shown?.window
+    $('dl-band').disabled = !pick.shown
+    $('dl-band').textContent = band ? 'Download band (.tif)' : 'Download image (.png)'
+    $('dl-band').title = band ? 'The band at 10 m: a GeoTIFF, int8, north up' : 'The image as shown'
+    $('dl-all').disabled = false; $('dl-all').textContent = 'All 64 bands (.tif)'
+    $('dl-all').title = 'Every band at 10 m: a GeoTIFF of about 73 MB; reads about 120 MB'
+    return
+  }
   if (viirs) {
     $('dl-band').disabled = false; $('dl-band').textContent = 'Download tile (.tif)'
     $('dl-band').title = 'The tile as stored: a GeoTIFF, radiance in nW/cm²/sr'
@@ -561,7 +572,16 @@ async function downloading(button, job) {
   } finally { button.textContent = label; updateDownloads() }
 }
 
-$('dl-band').addEventListener('click', () => {
+const aefName = (sample, what) => `${pick.cell.name}_AEF_${sample.year}_${what}`
+
+$('dl-band').addEventListener('click', async () => {
+  if (state.info.kind === 'aef') {
+    const s = pick.thumbnail.sample, w = pick.shown.window
+    if (w) downloadAefTiff(w, `${aefName(s, pick.shown.label.split(',')[0].replace('Band ', ''))}.tif`)
+    else await downloadImage(pick.shown.src, `${aefName(s, 'pca')}.png`)
+    $('pick-stats').textContent = 'Downloaded: from what is shown, nothing read'
+    return
+  }
   if (state.info.kind === 'viirs') {
     downloadViirs(pick.cell.name, pick.thumbnail.sample, pick.thumbnail.bytes)
     $('pick-stats').textContent = `Downloaded: ${kb(pick.thumbnail.bytes.length)}, read before`
@@ -571,13 +591,22 @@ $('dl-band').addEventListener('click', () => {
 })
 $('dl-all').addEventListener('click', () => downloading($('dl-all'), async () => {
   const stats = newStats(), stop = followLoad(`All bands · ${pick.cell.name} · for download`, stats)
+  if (state.info.kind === 'aef') {
+    try {
+      const s = pick.thumbnail.sample, w = await aefWindow(state.info, s, 0, Array.from({ length: 64 }, (_, b) => b), stats)
+      downloadAefTiff(w, `${aefName(s, 'A00-A63')}.tif`)
+      stats.read = performance.now() - stats.t0
+      return stats
+    } finally { stop() }
+  }
   try {
     return await downloadAll(state.info, state.name, pick.cell.name, pick.thumbnail.sample, pick.thumbnail.src,
       pick.thumbnail.productId, stats)
   } finally { stop() }
 }))
 $('dl-python').addEventListener('click', async () => {
-  const code = state.info.kind === 'viirs' ? viirsSnippet(state.info, pick.cell.name, pick.thumbnail.sample)
+  const code = state.info.kind === 'aef' ? aefSnippet(pick.cell.name, pick.thumbnail.sample, await aefCell(state.info, pick.thumbnail.sample))
+    : state.info.kind === 'viirs' ? viirsSnippet(state.info, pick.cell.name, pick.thumbnail.sample)
     : pythonSnippet(state.info, state.name, pick.cell.name, pick.thumbnail.sample, pick.bands.length ? pick.bands : ['thumbnail'])
   window.lastSnippet = code                                                         // for automated checks
   try { await navigator.clipboard.writeText(code); $('pick-stats').textContent = 'Python copied to the clipboard' }

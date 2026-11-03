@@ -17,7 +17,9 @@
     AlphaEarth (tge-labs/aef on source.coop): aef_index.parquet, one row per COG tile and year (81,920 m UTM squares,
     the same 34,266 squares every year) + the Core-S2L2A cells
       -> footprints/AEF.parquet: per cell grid_row_u, grid_col_r, centre_lat, centre_lon, year (its Sentinel-2 year,
-         within 2017-2025), tile_row, tile_rows: where its tile's rows are in AEF-tiles.parquet; the tile holding the
+         within 2017-2025), tile_row, tile_rows: lists, one entry per tile its 10,680 m window touches (the tile
+         holding the centre first, then those under the window's corners in the same UTM zone; a zone's tiles share
+         one 81,920 m grid): where that tile's rows are in AEF-tiles.parquet; the tile holding the
          cell centre, in the cell's own UTM zone where there is one
       -> footprints/AEF-tiles.parquet: tile, year, epsg, west, north, path: one row per tile and year, by tile
 
@@ -122,16 +124,35 @@ def aef(core: Path) -> tuple[pa.Table, pa.Table]:
                       (y[:, None] >= south) & (y[:, None] < south + AEF_TILE))
             hit = inside.any(1)
             cells.loc[cells.index[pick][hit], "tile"] = group.tile.to_numpy()[inside[hit].argmax(1)]
-    cells = cells[cells.tile >= 0]
+    cells = cells[cells.tile >= 0].reset_index(drop=True)
     first = tiles.reset_index().groupby("tile")["index"].agg(["min", "count"])
+    lookup = {(e, w, s): k for e, w, s, k in squares[["epsg", "utm_west", "utm_south", "tile"]].itertuples(index=False)}
+    parts = [[k] for k in cells.tile]                         # tiles of each cell's window, its own first
+    own = squares.set_index("tile").loc[cells.tile]
+    for code in np.unique(own.epsg):
+        rows = np.flatnonzero(own.epsg.to_numpy() == code)
+        x, y = Transformer.from_crs(4326, int(code), always_xy=True).transform(
+            cells.centre_lon.to_numpy()[rows], cells.centre_lat.to_numpy()[rows])
+        w0, s0 = own.utm_west.to_numpy()[rows], own.utm_south.to_numpy()[rows]
+        for dx in (-5340, 5340):
+            for dy in (-5340, 5340):
+                west = w0 + np.floor((x + dx - w0) / AEF_TILE) * AEF_TILE
+                south = s0 + np.floor((y + dy - s0) / AEF_TILE) * AEF_TILE
+                for r, wv, sv in zip(rows[(west != w0) | (south != s0)], west[(west != w0) | (south != s0)],
+                                     south[(west != w0) | (south != s0)]):
+                    k = lookup.get((int(code), float(wv), float(sv)))
+                    if k is not None and k not in parts[r]:
+                        parts[r].append(k)
     year = cells.timestamp.str[:4].astype(int).clip(2017, 2025)
     cell_table = pa.table({"grid_row_u": pa.array(cells.grid_row_u.to_numpy(np.int16)),
                            "grid_col_r": pa.array(cells.grid_col_r.to_numpy(np.int16)),
                            "centre_lat": pa.array(cells.centre_lat.to_numpy(np.float32)),
                            "centre_lon": pa.array(cells.centre_lon.to_numpy(np.float32)),
                            "year": pa.array(year.to_numpy(np.int16)),
-                           "tile_row": pa.array(first.loc[cells.tile, "min"].to_numpy(np.int32)),
-                           "tile_rows": pa.array(first.loc[cells.tile, "count"].to_numpy(np.int16))})
+                           "tile_row": pa.array([[int(first.at[k, "min"]) for k in ks] for ks in parts], pa.list_(pa.int32())),
+                           "tile_rows": pa.array([[int(first.at[k, "count"]) for k in ks] for ks in parts], pa.list_(pa.int16()))})
+    counts = np.bincount([len(ks) for ks in parts])
+    print("AEF tiles per cell window:", {n: int(c) for n, c in enumerate(counts) if c}, flush=True)
     tile_table = pa.table({"tile": pa.array(tiles.tile.to_numpy(np.int32)), "year": pa.array(tiles.year.to_numpy(np.int16)),
                            "epsg": pa.array(tiles.epsg.to_numpy(np.int32)),
                            "west": pa.array(tiles.utm_west.to_numpy(np.float64)),

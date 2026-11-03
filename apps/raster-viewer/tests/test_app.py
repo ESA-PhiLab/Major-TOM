@@ -121,16 +121,16 @@ def test_viirs_tile(page):
 
 
 def test_alphaearth_pca(page):
-    """AlphaEarth: one button per year, the Sentinel-2 year chosen; the PCA (160 m, then 40 m from 8 bands); a band view."""
+    """AlphaEarth: one button per year, the Sentinel-2 year chosen; the PCA (160 m, then 10 m from 8 bands); downloads; a band view."""
     fields = thumbnail(page, "AEF")
     assert page.locator("#choices button").count() == 9                             # 2017-2025
     assert page.text_content("#choices button[aria-pressed=true]") == "2022"         # the cell's Sentinel-2 year
     assert fields["Year"].startswith("2022 (annual embedding)")
-    page.wait_for_function("!document.getElementById('thumb-badge').hidden", timeout=60_000)   # preview shown, sharpening
-    assert page.text_content("#thumb-badge-text").startswith("Sharpening to 40 m")
-    page.wait_for_function("document.getElementById('pick-stats').textContent.startsWith('PCA of 64 bands:')", timeout=120_000)
+    page.wait_for_function("!document.getElementById('thumb-badge').hidden", timeout=60_000)   # preview, high-res loading
+    assert page.text_content("#thumb-badge-text").startswith("Loading high-res (10 m)")
+    page.wait_for_function("document.getElementById('pick-stats').textContent.startsWith('PCA proxy of 64 bands, 10 m:')", timeout=120_000)
     assert page.locator("#thumb-badge").is_hidden()
-    page.wait_for_function("document.getElementById('thumb').naturalWidth === 267")   # sharpened to 40 m
+    page.wait_for_function("document.getElementById('thumb').naturalWidth === 1068")  # high-res: 10 m
     stats = page.text_content("#pick-stats")
     print("AEF PCA:", stats)
     assert page.evaluate("Boolean(globe.getLayer('sample'))")
@@ -138,6 +138,19 @@ def test_alphaearth_pca(page):
     page.wait_for_function("document.getElementById('pick-stats').textContent.startsWith('Band A00')", timeout=120_000)
     assert page.evaluate("document.getElementById('thumb').naturalWidth") == 1068
     print("AEF band:", page.text_content("#pick-stats"))
+    assert page.text_content("#dl-band") == "Download band (.tif)"
+    with page.expect_download() as d:
+        page.click("#dl-band")
+    path = d.value.path()
+    assert d.value.suggested_filename == "624U_29L_AEF_2022_A00.tif"
+    import rasterio
+    with rasterio.open(path) as src:                                                 # the GeoTIFF written in the browser
+        assert (src.count, src.width, src.dtypes[0], src.crs.to_epsg(), src.nodata) == (1, 1068, "int8", 32630, -128)
+        assert abs(src.transform.c - (401429 - 5340)) < 10 and src.transform.e == -10   # west edge, north up
+    page.click("#dl-python")
+    page.wait_for_function("window.lastSnippet?.includes('embedding = np.where')", timeout=30_000)
+    snippet = page.evaluate("window.lastSnippet")
+    print(snippet)
 
 
 def test_cursor_reports_coverage(page):

@@ -38,11 +38,13 @@ View menu: the stored thumbnail (default), composites (S2: true colour, false co
 VIIRS Nighttime Light (viirs.js): no thumbnail column; footprints/VIIRS.parquet gives each tile's zip shard, offset and
   size -> one range request -> the GeoTIFF (zstd: decoder added to geotiff.js, fzstd) -> radiance in inferno, log
   0.1-100 nW/cm²/sr (the Core Viewer's scale) -> panel and map, corners from the GeoTIFF's bounds; no downloads
-AlphaEarth Embeddings (aef.js): footprints/AEF.parquet maps each Core-S2L2A cell to the 81.9 km COG tile holding its
-  centre, footprints/AEF-tiles.parquet each tile to its file per year (tge-labs/aef on source.coop; one button per year,
+AlphaEarth Embeddings (aef.js): footprints/AEF.parquet maps each Core-S2L2A cell to the 81.9 km COG tiles under its
+  window, footprints/AEF-tiles.parquet each tile to its file per year (tge-labs/aef on source.coop; one button per year,
   the cell's Sentinel-2 year first) -> PCA of the 64 bands in two steps: the whole 160 m level in one request (~10 MB)
-  -> preview (~4.5 s); the 8 bands that best predict the components, at 40 m -> the sharp image (~10 s). The COGs are
-  stored south-up: origin and row direction from each file. View menu: single bands at 10 m. No downloads yet
+  -> preview (~4.5 s), an exact PCA at 160 m; the 8 bands that best predict the components, at 10 m -> a PCA
+  proxy at 10 m (~15 s). A cell's window is joined from every tile it touches (24.6% need two to four). The COGs are
+  stored south-up: origin and row direction from each file. View menu: single bands at 10 m. Downloads: the shown
+  image (.png), the shown band or all 64 at 10 m (GeoTIFF written in the browser), Python (rasterio.merge)
 Downloads (download.js): the shown band as stored (.tif); every band, the thumbnail and metadata.json (.zip); a
   Python snippet that reads the same row group from Hugging Face
 in the background: the other datasets' footprints once the first is drawn; after a click, the same cell's samples
