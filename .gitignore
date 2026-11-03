@@ -174,3 +174,6 @@ docs/evidence/*.csv
 !majortom/build/credentials.py
 *-sa.json
 *.pem
+
+# local screenshots for review (not published)
+screenshots/

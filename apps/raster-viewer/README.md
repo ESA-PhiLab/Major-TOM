@@ -85,3 +85,9 @@ pytest -m network                                                           # se
 ```
 
 The page needs a server that answers HTTP range requests (the tests' server does; `python -m http.server` does not).
+
+## Credit
+
+Developed by [Mikolaj Czerkawski](https://github.com/mikonvergence), [Asterisk Labs](https://asterisk.coop), as part of
+[Earth Compress](https://asterisk.coop/project-pages/earth-compress.html), an ARIA-funded project jointly led with the
+National Oceanography Centre.

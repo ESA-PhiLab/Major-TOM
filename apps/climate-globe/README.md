@@ -64,3 +64,9 @@ the images are not in git.
 ## Measurements
 
 [docs/reports/2026-10-30-climate-globe-read-experiments.md](../../docs/reports/2026-10-30-climate-globe-read-experiments.md).
+
+## Credit
+
+Developed by [Mikolaj Czerkawski](https://github.com/mikonvergence), [Asterisk Labs](https://asterisk.coop), as part of
+[Earth Compress](https://asterisk.coop/project-pages/earth-compress.html), an ARIA-funded project jointly led with the
+National Oceanography Centre.

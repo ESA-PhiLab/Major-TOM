@@ -6,7 +6,7 @@
 <title>Major TOM Climate Globe</title>
 <link rel="icon" href="mt-climate-icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=League+Spartan:wght@500&family=Source+Sans+3:wght@400;600;700&display=swap">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.css">
 <style>
   :root {
@@ -122,6 +122,15 @@
   dt { color: var(--ink-3); }
   dd { margin: 0; font-family: var(--mono); font-size: 13px; text-align: right; overflow-wrap: anywhere; }
   .source { font-size: 12px; color: var(--ink-3); padding: 12px 18px 18px; }
+  .credit { display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: var(--ink-3); padding: 14px 18px 20px;
+    border-top: 1px solid var(--line); }
+  .credit p { margin: 0; }
+  .credit a { color: var(--ink-2); }
+  #asterisk { position: absolute; left: 14px; bottom: 14px; z-index: 2; display: flex; align-items: center; gap: 6px;
+    font: 500 17px/1 'League Spartan', sans-serif; color: #000; text-decoration: none; }
+  #asterisk img { height: 24px; }                     /* text at 0.7 x the mark, as on asterisk.coop */
+  #asterisk .by { font: 12px var(--sans); color: var(--ink-3); margin-right: 2px; }
+  #asterisk:hover { color: #492ae8; }
   .source a { color: var(--mt-blue); }
 
   .maplibregl-ctrl-attrib { font-family: var(--sans); }
@@ -156,6 +165,8 @@
   <div id="map-wrap">
     <div id="map"></div>
     <div id="places" class="places" aria-hidden="true"></div>
+    <a id="asterisk" href="https://asterisk.coop" target="_blank" rel="noopener">
+      <span class="by">made by</span><img src="asterisk-mark.svg" alt="">asterisk labs</a>
     <div id="status"></div>
     <div id="loader" role="status" aria-live="polite" hidden>
       <!-- the Major TOM Climate flag (mt-climate-icon.svg): its 20 bars light up as the data arrives -->
@@ -263,6 +274,13 @@
 
     <div class="source">Reads <span id="source-base"></span> · dataset
       <a id="dataset-link" href="https://source.coop/major-tom/climate">major-tom/climate</a></div>
+    <div class="credit">
+      <a href="https://asterisk.coop/project-pages/earth-compress.html" target="_blank" rel="noopener">
+        <img src="earth-compress.svg" alt="Earth Compress" height="28"></a>
+      <p>Developed by <a href="https://github.com/mikonvergence" target="_blank" rel="noopener">Mikolaj Czerkawski</a>,
+        <a href="https://asterisk.coop" target="_blank" rel="noopener">Asterisk Labs</a>, as part of Earth Compress, an
+        ARIA-funded project jointly led with the National Oceanography Centre.</p>
+    </div>
   </aside>
 </main>
 

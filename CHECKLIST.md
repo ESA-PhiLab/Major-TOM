@@ -97,9 +97,11 @@ Workstreams are defined in [docs/STRATEGY.md](docs/STRATEGY.md).
 - [ ] Validate ERA5 groups 3-8 and ERA5-Land groups 2-6; clear the 815 GB download cache after publishing
 - [ ] Merge sources and publish Core-Weather and the monthly datasets: source.coop first, Hugging Face second (Miko, 2026-10-24)
 - [ ] Climate datasets in the Major TOM viewing app (HF Space; final task)
+- [ ] Intro animation for Major TOM Climate and Core-Weather: the logo builds first, then examples of the data animated (time series drawn month by month, global maps filling in); requested 2026-11-03
 
 ## WS10 — Apps (`apps/`, apps/README.md)
 
+- [x] Asterisk Labs logo (map corner, links to asterisk.coop) and Earth Compress credit in the Raster Viewer and Climate Globe (2026-11-03, deployed)
 - [ ] Core Viewer: layout clean-up (header done locally 2026-11-02; controls, fonts, text prompt, placeholder, acquisition time)
 - [x] Raster Viewer: Core-Weather panel for the shown sample (hourly ±24 h, daily ±30 d; ERA5, CAMS, Sentinel-5P); image always on the map, opaque (2026-11-03, not pushed)
 - [ ] Core-Weather README figures: review, then upload figures/ and the README (2026-11-03)

@@ -1,5 +1,6 @@
 # Log
 
+- 2026-11-03 Raster Viewer and Climate Globe: "made by asterisk labs" in the map corner (mark and League Spartan, as asterisk.coop), Earth Compress credit in the panel and READMEs; intro animation task added to CHECKLIST.md
 - 2026-11-03 Raster Viewer fix: private Space served zstd.js with 401 inside the iframe (globe failed to load), now imported from app.js, test_imports.py guards it; AlphaEarth keeps 4 COGs open with 16 MB caches
 - 2026-11-03 Raster Viewer: VIIRS Nighttime Light and AlphaEarth (PCA of 64 bands: 160 m preview in one request, 10 m proxy from 8 bands; windows joined across tiles; downloads); Core Viewer search box no longer redraws the map; refactor/v1 pushed, footprints uploaded to the Space
 - 2026-11-03 Raster Viewer Core-Weather panel (3.3 MB per click, 11 tests pass); Core-Weather README figures (three places, global map); ERA5-Land south fill 2018-2024 chained after 2016 (era5land_south.sh --after); ERA5 by_cell done (job 2178)
