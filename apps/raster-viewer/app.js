@@ -352,14 +352,16 @@ async function choose(i) {
   try {
     const [loading, fresh, stats] = thumbnailOf(state.name, sample)
     const stop = fresh && info.kind === 'aef' ? followLoad(`AlphaEarth ${sample.year} · ${pick.cell.name} · 64 bands`, stats) : () => {}
+    let unbadge = () => {}
     stats.onPreview = view => {                                        // AlphaEarth: the 160 m PCA while 40 m loads
       stop()
       if (ticket !== pick.ticket) return
       pick.shown = { ...view, sample: { ...sample, corners: view.corners } }
       showThumbnail(view.src); showOnMap()
+      unbadge = sharpening('Sharpening to 40 m', stats)
       $('pick-stats').textContent = `${view.label} · sharpening to 40 m…`
     }
-    const t = await loading.finally(stop)
+    const t = await loading.finally(() => { stop(); unbadge() })
     if (ticket !== pick.ticket) return
     const label = { viirs: 'Radiance', aef: aefViews()[0].label }[info.kind] ?? 'Thumbnail'
     const placed = t.corners ? { ...sample, corners: t.corners } : sample
@@ -379,7 +381,21 @@ async function choose(i) {
   }
 }
 
+/** The badge over a preview while its sharper version loads: the share of its bytes so far. Returns the function
+ *  that ends it. */
+function sharpening(text, stats) {
+  const base = stats.bytes, badge = $('thumb-badge')
+  const update = () => {
+    const share = stats.expected > base ? Math.min(99, Math.round(100 * (stats.bytes - base) / (stats.expected - base))) : 0
+    $('thumb-badge-text').textContent = `${text} · ${share}%`
+  }
+  update(); badge.hidden = false
+  const timer = setInterval(update, 150)
+  return () => { clearInterval(timer); badge.hidden = true }
+}
+
 function showThumbnail(src, note = '') {
+  $('thumb-badge').hidden = true                                        // a new image: no sharpening under way for it
   $('thumb').hidden = !src
   $('image-actions').hidden = !src
   $('download-actions').hidden = !src

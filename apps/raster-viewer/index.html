@@ -83,6 +83,12 @@
   #thumb { width: 100%; height: 100%; object-fit: contain; display: block; }
   #thumb[hidden] { display: none; }
   #thumb { cursor: zoom-in; }
+  #thumb-badge { position: absolute; left: 8px; bottom: 8px; display: flex; align-items: center; gap: 7px; padding: 4px 10px 4px 8px;
+    border-radius: 999px; background: rgba(17, 24, 39, .78); color: #fff; font: 12px var(--sans); pointer-events: none; }
+  #thumb-badge[hidden] { display: none; }
+  #thumb-badge .spin { width: 11px; height: 11px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .35);
+    border-top-color: #fff; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .image-actions { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin: -2px 0 10px; font-size: 13px; }
   .image-actions button { font: inherit; padding: 4px 10px; border: 1px solid var(--line); border-radius: 8px;
     background: var(--surface); color: var(--ink); cursor: pointer; }
@@ -200,7 +206,7 @@
       <div class="pick-name"><b id="pick-cell"></b><span id="pick-pos"></span></div>
       <div id="choices"></div>
       <label class="view-row" id="view-row" hidden>View <select id="view" aria-label="Band or composite"></select></label>
-      <div id="thumb-wrap"><img id="thumb" alt="Thumbnail of the selected sample" hidden><span id="thumb-note"></span></div>
+      <div id="thumb-wrap"><img id="thumb" alt="Thumbnail of the selected sample" hidden><span id="thumb-note"></span><div id="thumb-badge" hidden><span class="spin"></span><span id="thumb-badge-text"></span></div></div>
       <div class="image-actions" id="image-actions" hidden>
         <button id="open-image" title="The image in the full window: zoom, pan, value under the cursor">Enlarge</button>
       </div>

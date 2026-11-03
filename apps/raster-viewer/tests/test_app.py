@@ -126,7 +126,10 @@ def test_alphaearth_pca(page):
     assert page.locator("#choices button").count() == 9                             # 2017-2025
     assert page.text_content("#choices button[aria-pressed=true]") == "2022"         # the cell's Sentinel-2 year
     assert fields["Year"].startswith("2022 (annual embedding)")
+    page.wait_for_function("!document.getElementById('thumb-badge').hidden", timeout=60_000)   # preview shown, sharpening
+    assert page.text_content("#thumb-badge-text").startswith("Sharpening to 40 m")
     page.wait_for_function("document.getElementById('pick-stats').textContent.startsWith('PCA of 64 bands:')", timeout=120_000)
+    assert page.locator("#thumb-badge").is_hidden()
     page.wait_for_function("document.getElementById('thumb').naturalWidth === 267")   # sharpened to 40 m
     stats = page.text_content("#pick-stats")
     print("AEF PCA:", stats)
