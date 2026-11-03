@@ -152,7 +152,7 @@ def test_weather_at_acquisition(page):
     assert page.locator("#wx-hourly .wx-row").count() == 3 and page.locator("#wx-daily .wx-row").count() == 4
     temperature = page.locator("#wx-hourly .wx-value").first.text_content()
     assert temperature.endswith("°C") and -30 < float(temperature.split()[0]) < 30            # Scotland, any season
-    assert page.locator("#wx-hourly svg path").first.get_attribute("d").count("L") == 48   # 49 hours, no gap
+    assert page.locator("#wx-hourly path.wx-line").first.get_attribute("d").count("L") == 48   # 49 hours, no gap
 
 
 def view(page, view_id, label):

@@ -111,17 +111,26 @@
   #choices button { font: 12px var(--mono); padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px;
     background: var(--surface); color: var(--ink-2); cursor: pointer; }
   #choices button[aria-pressed=true] { border-color: var(--mt-blue); color: var(--mt-blue); background: var(--tint); }
-  #weather { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
-  #weather h3 { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
-  .wx-head { font-size: 12px; color: var(--ink-3); margin: 8px 0 2px; }
-  .wx-row { display: grid; grid-template-columns: 1fr 120px 96px; align-items: center; gap: 8px; font-size: 13px; padding: 2px 0; }
-  .wx-label { color: var(--ink-2); line-height: 1.2; }
-  .wx-label small { display: block; font-size: 11px; color: var(--ink-3); }
-  .wx-value { font: 12px var(--mono); text-align: right; white-space: nowrap; }
-  .wx-spark { width: 120px; height: 28px; }
-  .wx-spark path { fill: none; stroke: var(--mt-blue); stroke-width: 1.5; stroke-linejoin: round; }
-  .wx-spark .wx-zero { stroke: var(--line); stroke-width: 1; }
-  .wx-spark .wx-now { fill: var(--mt-orange); }
+  #weather { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+  #weather h3 { margin: 0 0 2px; font-size: 15px; font-weight: 600; }
+  .wx-head { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); margin: 14px 0 4px; }
+  .wx-row { margin: 8px 0 0; }
+  .wx-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .wx-label { font-size: 14px; color: var(--ink); }
+  .wx-label small { font-size: 12px; color: var(--ink-3); margin-left: 2px; }
+  .wx-value { font: 500 14px var(--mono); white-space: nowrap; }
+  .wx-value small { font-size: 11px; color: var(--ink-3); font-weight: 400; }
+  .wx-chart { display: block; width: 100%; height: auto; margin-top: 2px; overflow: visible; }
+  .wx-line { fill: none; stroke: var(--mt-blue); stroke-width: 1.6; stroke-linejoin: round; }
+  .wx-area { fill: var(--mt-blue); opacity: .08; }
+  .wx-bars rect { fill: var(--mt-blue); }
+  .wx-dots circle { fill: var(--mt-blue); }
+  .wx-base { stroke: var(--line); }
+  .wx-zero { stroke: var(--mt-orange); stroke-width: 1; stroke-dasharray: 2 2; }
+  .wx-now { fill: var(--mt-orange); stroke: var(--surface); stroke-width: 1.5; }
+  .wx-tick { font: 10px var(--mono); fill: var(--ink-3); text-anchor: end; }
+  .wx-none { font: 11px var(--sans); fill: var(--ink-3); text-anchor: middle; }
+  .wx-axis { display: flex; justify-content: space-between; font: 10px var(--mono); color: var(--ink-3); margin: 4px 40px 0 0; padding-top: 3px; border-top: 1px solid var(--line); }
   .tiny { font: 11px/1.4 var(--mono); color: var(--ink-3); min-height: 1em; margin-top: 8px; }
   dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; margin: 0; font-size: 14px; }
   dt { color: var(--ink-3); }
@@ -204,10 +213,10 @@
       <div class="tiny" id="pick-stats"></div>
       <div id="weather" hidden>
         <h3>Weather at acquisition</h3>
-        <div class="wx-head">Hourly, ±24 h</div><div id="wx-hourly"></div>
-        <div class="wx-head">Daily, ±30 days</div><div id="wx-daily"></div>
+        <div class="wx-head">Hourly · 24 hours either side</div><div id="wx-hourly"></div>
+        <div class="wx-head">Daily · 30 days either side</div><div id="wx-daily"></div>
         <div class="tiny" id="wx-stats"></div>
-        <p class="note">Cell means from Core-Weather on source.coop; the dot is the acquisition (step 0).</p>
+        <p class="note">Means over the 10 km cell, from Core-Weather on source.coop. Orange: the acquisition.</p>
       </div>
     </section>
 
