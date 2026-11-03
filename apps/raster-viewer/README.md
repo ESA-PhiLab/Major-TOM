@@ -35,6 +35,9 @@ the shown image: Open (full window, zoom and pan) or Show on map (over its footp
 View menu: the stored thumbnail (default), composites (S2: true colour, false colour, SWIR, one stretch for the three
   bands; S1: VV, VH, VV/VH in dB; DEM: elevation in colour) and every band (grey, 2-98% stretch, value under the
   cursor in the full window) -> bands.js: the band columns (LZW GeoTIFFs) of the sample's row group, geotiff.js
+VIIRS Nighttime Light (viirs.js): no thumbnail column; footprints/VIIRS.parquet gives each tile's zip shard, offset and
+  size -> one range request -> the GeoTIFF (zstd: decoder added to geotiff.js, fzstd) -> radiance in inferno, log
+  0.1-100 nW/cm²/sr (the Core Viewer's scale) -> panel and map, corners from the GeoTIFF's bounds; no downloads
 Downloads (download.js): the shown band as stored (.tif); every band, the thumbnail and metadata.json (.zip); a
   Python snippet that reads the same row group from Hugging Face
 in the background: the other datasets' footprints once the first is drawn; after a click, the same cell's samples
@@ -54,7 +57,7 @@ in the background: the other datasets' footprints once the first is drawn; after
 | `parquet.js` | range requests for hyparquet, with bytes and time counted; each file's footer read once |
 | `tiles.js`, `labels.js`, `places.json` | copied from the Climate Globe: cells and tiles, place names |
 | `build_index.py` | Core `metadata.parquet` -> `footprints/<name>.parquet` and `footprints/datasets.json` |
-| `footprints/` | built files, not in git: uploaded to the Space once (S2L2A and S2L1C 32.9 MB each, S1RTC 20.6 MB, DEM 14.5 MB) |
+| `footprints/` | built files, not in git: uploaded to the Space once (S2L2A and S2L1C 32.9 MB each, S1RTC 20.6 MB, DEM 14.5 MB, VIIRS 21.5 MB) |
 
 ## Reads
 

@@ -2,6 +2,7 @@
 //
 //   dataset (panel) -> footprints/<name>.parquet, two position columns (footprints.js) -> mask on the cell array
 //     -> coverage tiles drawn in the browser (tiles.js) -> globe
+//   datasets with a kind (VIIRS) have no thumbnail column: their tile is read and coloured instead (viirs.js)
 //   click -> cell -> its samples (footprint rows, page index) -> image file on Hugging Face, one row group,
 //     thumbnail column (samples.js) -> panel
 //   cursor -> cell under it -> outline + name, position, whether it has a sample
@@ -19,11 +20,12 @@ import { imageUrl, loadThumbnail } from './samples.js'
 import { bandNames, render, views } from './bands.js'
 import { newStats } from './parquet.js'
 import { loadWeather, weatherRows } from './weather.js'
+import { loadViirs } from './viirs.js'
 import { downloadAll, downloadBand, pythonSnippet } from './download.js'
 import { cellAt, cellIndex, renderTile } from './tiles.js'
 
 const $ = id => document.getElementById(id)
-const COLOURS = { S2L2A: [57, 181, 74], S2L1C: [0, 113, 188], S1RTC: [241, 90, 36], DEM: [180, 140, 90] }
+const COLOURS = { S2L2A: [57, 181, 74], S2L1C: [0, 113, 188], S1RTC: [241, 90, 36], DEM: [180, 140, 90], VIIRS: [126, 87, 194] }
 
 const state = { name: null, info: null, datasets: null, coverage: null, version: 0, loading: 0 }
 
@@ -206,8 +208,9 @@ async function setDataset(name, datasets) {
   const ticket = ++state.loading, info = datasets[name]
   state.name = name; state.info = info; state.coverage = null
   document.querySelector(`input[name=dataset][value="${name}"]`).checked = true
-  $('dataset-link').href = `https://huggingface.co/datasets/Major-TOM/Core-${name}`
-  $('dataset-link').textContent = `huggingface.co/datasets/Major-TOM/Core-${name}`
+  const link = info.link ?? `https://huggingface.co/datasets/Major-TOM/Core-${name}`
+  $('dataset-link').href = link
+  $('dataset-link').textContent = link.replace('https://', '')
   $('status').textContent = ''
   startLoader(`${info.label} · footprints of ${info.samples.toLocaleString('en')} samples`)
   let coverage
@@ -256,8 +259,10 @@ function samplesOf(name, row, col) {
   return lookups.get(key)
 }
 function thumbnailOf(name, sample) {
-  const key = `${name}/${sample.part}/${sample.parquet_row}`, fresh = !thumbs.has(key)
-  if (fresh) thumbs.set(key, loadThumbnail(state.datasets[name], sample).catch(e => { thumbs.delete(key); throw e }))
+  const info = state.datasets[name], viirs = info.kind === 'viirs'
+  const key = viirs ? `${name}/${sample.shard}/${sample.offset}` : `${name}/${sample.part}/${sample.parquet_row}`
+  const fresh = !thumbs.has(key), load = viirs ? loadViirs(info, sample, newStats()) : loadThumbnail(info, sample)
+  if (fresh) thumbs.set(key, load.catch(e => { thumbs.delete(key); throw e }))
   return [thumbs.get(key), fresh]
 }
 
@@ -310,7 +315,7 @@ async function pickCell() {
   if (samples.length > 1) {
     $('choices').replaceChildren(...samples.map((s, i) => {
       const b = document.createElement('button')
-      b.textContent = s.timestamp ? when(s.timestamp) : `sample ${i + 1}`
+      b.textContent = s.timestamp ? when(s.timestamp) : s.year ? String(s.year) : `sample ${i + 1}`
       b.addEventListener('click', () => choose(i))
       return b
     }))
@@ -328,13 +333,15 @@ async function choose(i) {
   try {
     const [loading, fresh] = thumbnailOf(state.name, sample), t = await loading
     if (ticket !== pick.ticket) return
-    pick.thumbnail = { ...t, sample }
-    pick.shown = { src: t.src, values: null, sample, label: 'Thumbnail' }
+    const placed = t.corners ? { ...sample, corners: t.corners } : sample, label = info.kind === 'viirs' ? 'Radiance' : 'Thumbnail'
+    pick.thumbnail = { ...t, sample: placed }
+    pick.shown = { src: t.src, values: t.values ?? null, size: t.size, sample: placed, label }
     showThumbnail(t.src)
     showOnMap()
     meta(sample, t.productId, info)
-    buildViews(name, info, sample, ticket)
-    $('pick-stats').textContent = `Thumbnail: ${kb(t.stats.bytes)} in ${reqs(t.stats.requests)} · ${secs(t.stats.read)}` +
+    if (info.kind) $('download-actions').hidden = true                  // downloads read the Core image files
+    else buildViews(name, info, sample, ticket)
+    $('pick-stats').textContent = `${label}: ${kb(t.stats.bytes)} in ${reqs(t.stats.requests)} · ${secs(t.stats.read)}` +
       (fresh ? '' : ' (loaded before)')
     prefetchCell(pick.cell)
   } catch (error) {
@@ -359,6 +366,7 @@ const HALF = 5340
 
 /** Corners of a sample's image, [lon, lat], from top left clockwise (as MapLibre's image source wants them). */
 function corners(s) {
+  if (s.corners) return s.corners                                      // VIIRS: from the GeoTIFF's own bounds
   const zone = s.epsg % 100, south = s.epsg > 32700
   const utm = proj4(`+proj=utm +zone=${zone}${south ? ' +south' : ''} +datum=WGS84 +units=m +no_defs`)
   const [x, y] = utm.forward([s.centre_lon, s.centre_lat])
@@ -555,7 +563,12 @@ function meta(sample, productId, info) {
   if (sample.cloud_cover !== undefined && sample.cloud_cover !== null) rows.push(['Cloud cover', `${sample.cloud_cover.toFixed(1)}%`])
   if (sample.orbit_state) rows.push(['Orbit', sample.orbit_state])
   if (productId) rows.push(['Product', productId])
-  const url = imageUrl(info, sample.part)
-  rows.push(['File', `<a href="${url.replace('/resolve/', '/blob/')}" target="_blank" rel="noopener">part_${String(sample.part).padStart(5, '0')}</a>, row ${sample.parquet_row}`])
+  if (info.kind === 'viirs') {
+    rows.push(['Year', `${sample.year} (annual median)`])
+    rows.push(['File', `<a href="${info.files.replace('/resolve/', '/blob/')}${sample.shard}" target="_blank" rel="noopener">${sample.shard.split('/').pop()}</a>, bytes ${sample.offset.toLocaleString('en')} + ${sample.size.toLocaleString('en')}`])
+  } else {
+    const url = imageUrl(info, sample.part)
+    rows.push(['File', `<a href="${url.replace('/resolve/', '/blob/')}" target="_blank" rel="noopener">part_${String(sample.part).padStart(5, '0')}</a>, row ${sample.parquet_row}`])
+  }
   $('pick-meta').innerHTML = rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')
 }

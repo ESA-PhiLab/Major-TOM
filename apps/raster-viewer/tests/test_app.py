@@ -102,6 +102,17 @@ def test_s1rtc_and_dem_thumbnails(page):
     assert "File" in thumbnail(page, "DEM")
 
 
+def test_viirs_tile(page):
+    """VIIRS: the tile from its zip shard (one range request, zstd GeoTIFF), coloured, on the map by its own corners."""
+    fields = thumbnail(page, "VIIRS")
+    assert fields["Year"].endswith("(annual median)") and ".zip" in fields["File"]
+    assert page.locator("#download-actions").is_hidden() and page.locator("#view-row").is_hidden()
+    assert page.locator("#weather").is_hidden()
+    corners = page.evaluate("sampleCorners()")
+    assert all(abs(lon - LOCH_LOMOND[0]) < 0.2 and abs(lat - LOCH_LOMOND[1]) < 0.1 for lon, lat in corners)
+    assert page.evaluate("globe.getPaintProperty('sample', 'raster-opacity')") == 1
+
+
 def test_cursor_reports_coverage(page):
     page.wait_for_function("document.body.dataset.loaded === 'S2L2A'", timeout=120_000)
     page.evaluate(f"globe.jumpTo({{center: [{LOCH_LOMOND[0]}, {LOCH_LOMOND[1]}], zoom: 6}})")
