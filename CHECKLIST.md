@@ -103,5 +103,6 @@ Workstreams are defined in [docs/STRATEGY.md](docs/STRATEGY.md).
 - [ ] Core Viewer: layout clean-up (header done locally 2026-11-02; controls, fonts, text prompt, placeholder, acquisition time)
 - [x] Raster Viewer: Core-Weather panel for the shown sample (hourly ±24 h, daily ±30 d; ERA5, CAMS, Sentinel-5P); image always on the map, opaque (2026-11-03, not pushed)
 - [ ] Core-Weather README figures: review, then upload figures/ and the README (2026-11-03)
+- [x] Raster Viewer: VIIRS Nighttime Light and AlphaEarth embeddings, with downloads (2026-11-03, deployed)
 - [ ] Raster Viewer: climate panel for the selected cell
 - [ ] Future: text search in the browser (Raster Viewer): SigLIP text encoder in transformers.js; embeddings in an inverted-file index (cluster centres loaded once, Parquet sorted by cluster, nearest clusters read by range request, optional product quantisation); check the exact SigLIP model of Core-S2RGB-SigLIP, its ONNX export and download size
