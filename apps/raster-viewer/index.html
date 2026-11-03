@@ -111,6 +111,17 @@
   #choices button { font: 12px var(--mono); padding: 3px 8px; border: 1px solid var(--line); border-radius: 999px;
     background: var(--surface); color: var(--ink-2); cursor: pointer; }
   #choices button[aria-pressed=true] { border-color: var(--mt-blue); color: var(--mt-blue); background: var(--tint); }
+  #weather { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+  #weather h3 { margin: 0 0 6px; font-size: 14px; font-weight: 600; }
+  .wx-head { font-size: 12px; color: var(--ink-3); margin: 8px 0 2px; }
+  .wx-row { display: grid; grid-template-columns: 1fr 120px 96px; align-items: center; gap: 8px; font-size: 13px; padding: 2px 0; }
+  .wx-label { color: var(--ink-2); line-height: 1.2; }
+  .wx-label small { display: block; font-size: 11px; color: var(--ink-3); }
+  .wx-value { font: 12px var(--mono); text-align: right; white-space: nowrap; }
+  .wx-spark { width: 120px; height: 28px; }
+  .wx-spark path { fill: none; stroke: var(--mt-blue); stroke-width: 1.5; stroke-linejoin: round; }
+  .wx-spark .wx-zero { stroke: var(--line); stroke-width: 1; }
+  .wx-spark .wx-now { fill: var(--mt-orange); }
   .tiny { font: 11px/1.4 var(--mono); color: var(--ink-3); min-height: 1em; margin-top: 8px; }
   dl { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; margin: 0; font-size: 14px; }
   dt { color: var(--ink-3); }
@@ -183,8 +194,6 @@
       <div id="thumb-wrap"><img id="thumb" alt="Thumbnail of the selected sample" hidden><span id="thumb-note"></span></div>
       <div class="image-actions" id="image-actions" hidden>
         <button id="open-image">Open</button>
-        <label><input type="checkbox" id="on-map"> Show on map</label>
-        <label>Opacity <input type="range" id="opacity" min="0" max="100" value="100" aria-label="Opacity on the map"></label>
       </div>
       <div class="image-actions" id="download-actions" hidden>
         <button id="dl-band" title="The shown band as stored: a GeoTIFF">Download band (.tif)</button>
@@ -193,6 +202,13 @@
       </div>
       <dl id="pick-meta"></dl>
       <div class="tiny" id="pick-stats"></div>
+      <div id="weather" hidden>
+        <h3>Weather at acquisition</h3>
+        <div class="wx-head">Hourly, ±24 h</div><div id="wx-hourly"></div>
+        <div class="wx-head">Daily, ±30 days</div><div id="wx-daily"></div>
+        <div class="tiny" id="wx-stats"></div>
+        <p class="note">Cell means from Core-Weather on source.coop; the dot is the acquisition (step 0).</p>
+      </div>
     </section>
 
     <section>

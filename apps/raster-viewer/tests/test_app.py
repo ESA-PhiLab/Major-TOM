@@ -137,15 +137,22 @@ GEOTIFF_CORNERS = [[-4.672272, 56.140694], [-4.500466, 56.1429], [-4.49674, 56.0
 
 def test_show_the_image_on_the_map(page):
     thumbnail(page, "S2L2A")
-    page.check("#on-map")
-    assert page.evaluate("Boolean(globe.getLayer('sample'))")
+    assert page.evaluate("Boolean(globe.getLayer('sample'))")                       # always on the map, opaque
+    assert page.evaluate("globe.getPaintProperty('sample', 'raster-opacity')") == 1
     corners = page.evaluate("sampleCorners()")
     for (lon, lat), (lon0, lat0) in zip(corners, GEOTIFF_CORNERS):
         assert abs(lon - lon0) < 2e-5 and abs(lat - lat0) < 2e-5                         # under 2 m
-    page.fill("#opacity", "40"); page.dispatch_event("#opacity", "input")
-    assert page.evaluate("globe.getPaintProperty('sample', 'raster-opacity')") == 0.4
     page.click("#pick-clear")
     assert not page.evaluate("Boolean(globe.getLayer('sample'))")
+
+
+def test_weather_at_acquisition(page):
+    thumbnail(page, "S2L2A")
+    page.wait_for_function("document.getElementById('wx-stats').textContent.startsWith('Core-Weather:')", timeout=60_000)
+    assert page.locator("#wx-hourly .wx-row").count() == 3 and page.locator("#wx-daily .wx-row").count() == 4
+    temperature = page.locator("#wx-hourly .wx-value").first.text_content()
+    assert temperature.endswith("°C") and -30 < float(temperature.split()[0]) < 30            # Scotland, any season
+    assert page.locator("#wx-hourly svg path").first.get_attribute("d").count("L") == 48   # 49 hours, no gap
 
 
 def view(page, view_id, label):
@@ -163,7 +170,6 @@ def test_bands_and_composites(page):
     assert view(page, "rgb:B04,B03,B02", "True colour") == 1068
     assert view(page, "B01", "B01") == 178                                          # 60 m band at its own size
     assert view(page, "rgb:B12,B8A,B04", "SWIR") == 1068                            # 20 m and 10 m bands together
-    page.check("#on-map")
     assert page.evaluate("Boolean(globe.getLayer('sample'))")                       # the shown view on the map
     view(page, "B04", "B04")                                                         # a single band: values
     page.click("#open-image"); page.mouse.move(700, 450)

@@ -6,7 +6,8 @@
 //     thumbnail column (samples.js) -> panel
 //   cursor -> cell under it -> outline + name, position, whether it has a sample
 //   the shown image (the stored thumbnail, or a band or composite decoded from the image file, bands.js)
-//     -> full window (zoom, pan, value under the cursor) or on the map over its footprint (corners from its UTM centre)
+//     -> full window (zoom, pan, value under the cursor) and on the map over its footprint (corners from its UTM centre)
+//   the sample's acquisition -> Core-Weather on source.coop, ±24 h and ±30 d (weather.js) -> charts in the panel
 //     -> downloads of the bands as stored (download.js)
 
 import * as maplibregl from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.mjs'
@@ -17,6 +18,7 @@ import { placeLabels } from './labels.js'
 import { imageUrl, loadThumbnail } from './samples.js'
 import { bandNames, render, views } from './bands.js'
 import { newStats } from './parquet.js'
+import { loadWeather, weatherRows } from './weather.js'
 import { downloadAll, downloadBand, pythonSnippet } from './download.js'
 import { cellAt, cellIndex, renderTile } from './tiles.js'
 
@@ -294,7 +296,7 @@ async function pickCell() {
   const ticket = ++pick.ticket, { row, col } = pick.cell, name = state.name
   pick.samples = []; pick.thumbnail = null; pick.shown = null; pick.viewTicket++
   showThumbnail(null, 'Looking up the cell…'); showOnMap()
-  $('choices').replaceChildren(); $('pick-meta').replaceChildren(); $('pick-stats').textContent = ''
+  $('choices').replaceChildren(); $('pick-meta').replaceChildren(); $('pick-stats').textContent = ''; $('weather').hidden = true
   let samples
   try {
     samples = await samplesOf(name, row, col)
@@ -321,6 +323,7 @@ async function choose(i) {
   pick.chosen = i; pick.shown = null; pick.bands = []; pick.views = []; pick.viewTicket++
   for (const [k, b] of [...$('choices').children].entries()) b.setAttribute('aria-pressed', String(k === i))
   meta(sample, null, info)
+  showWeather(sample, ticket)
   showThumbnail(null, 'Loading the thumbnail…')
   try {
     const [loading, fresh] = thumbnailOf(state.name, sample), t = await loading
@@ -362,21 +365,38 @@ function corners(s) {
   return [[x - HALF, y + HALF], [x + HALF, y + HALF], [x + HALF, y - HALF], [x - HALF, y - HALF]].map(p => utm.inverse(p))
 }
 
-/** The shown image over its footprint when "Show on map" is ticked; otherwise none. */
+/** The shown image over its footprint, opaque, while a cell is selected. */
 function showOnMap() {
-  const t = pick.shown, on = $('on-map').checked && t && pick.cell
+  const t = pick.shown, on = t && pick.cell
   if (map.getLayer('sample')) map.removeLayer('sample')
   if (map.getSource('sample')) map.removeSource('sample')
   if (!on) return
   map.addSource('sample', { type: 'image', url: t.src, coordinates: corners(t.sample) })
   map.addLayer({ id: 'sample', type: 'raster', source: 'sample',
-    paint: { 'raster-opacity': Number($('opacity').value) / 100, 'raster-fade-duration': 0 } }, 'coast')
+    paint: { 'raster-opacity': 1, 'raster-fade-duration': 0 } }, 'coast')
 }
-$('on-map').addEventListener('change', showOnMap)
-$('opacity').addEventListener('input', () => {
-  if (map.getLayer('sample')) map.setPaintProperty('sample', 'raster-opacity', Number($('opacity').value) / 100)
-})
 window.sampleCorners = () => (pick.shown ? corners(pick.shown.sample) : null)             // for automated checks
+
+// ---- Core-Weather at the acquisition --------------------------------------------------------------------------
+
+const WEATHER_DATASETS = ['S2L2A', 'S2L1C', 'S1RTC']                   // Core-Weather has rows for these three
+
+/** The sample's hourly and daily weather in the panel; nothing for datasets or samples without an acquisition time. */
+async function showWeather(sample, ticket) {
+  $('weather').hidden = !(sample.timestamp && WEATHER_DATASETS.includes(state.name))
+  if ($('weather').hidden) return
+  $('wx-hourly').replaceChildren(); $('wx-daily').replaceChildren(); $('wx-stats').textContent = 'Loading Core-Weather…'
+  try {
+    const w = await loadWeather(pick.cell.name, sample.timestamp)
+    if (ticket !== pick.ticket) return
+    $('wx-hourly').replaceChildren(...weatherRows(w.hourly, 'hourly'))
+    $('wx-daily').replaceChildren(...weatherRows(w.daily, 'daily'))
+    $('wx-stats').textContent = (w.hourly || w.daily ? '' : 'No Core-Weather row for this acquisition · ') +
+      `Core-Weather: ${kb(w.stats.bytes)} in ${reqs(w.stats.requests)} · ${secs(w.stats.read)}`
+  } catch (error) {
+    if (ticket === pick.ticket) $('wx-stats').textContent = `Could not load Core-Weather: ${error.message}`
+  }
+}
 
 // ---- views: the stored thumbnail, composites and single bands ------------------------------------------------
 //   the menu lists the image file's band columns; a chosen view is decoded once and kept (renders)
