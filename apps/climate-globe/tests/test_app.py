@@ -6,7 +6,8 @@
       -> keys (left/right change the month, not the map), cursor off the globe, place names from zoom 5
       -> previews of the four layers (skipped where images/ is absent: the images are not in git)
       -> ERA5: the variable list (scales.json), July normals from climatology_overviews/, another variable
-      -> ERA5 at Loch Lomond: the whole by_cell/ series of era5_t2m (1,032 months), against values in the files
+      -> ERA5 at Loch Lomond: the whole by_cell/ series of era5_t2m (1,032 months), against values in the files;
+         its 10-year window, moved by the ‹ button and by dragging; °C labels beside kelvin
 
     cd apps/climate-globe && pytest -m network        (needs `pip install pytest playwright && playwright install chromium`)
 """
@@ -165,3 +166,16 @@ def test_era5_series_by_cell(page):
     assert len(series) == 1032
     assert series[0] == pytest.approx(271.4074, abs=1e-3)         # 1940-01 K, as in series/year=1940/01.parquet
     assert series[792] == pytest.approx(277.2308, abs=1e-3)       # 2006-01
+    shown = lambda: [int(y) for y in page.text_content("#series-window").split("–")]   # noqa: E731
+    first, last = shown()
+    assert last - first == 9                                       # a 10-year window
+    assert "°C" in page.text_content("#chart-series")             # kelvin, also labelled in °C
+    page.click("#series-prev")
+    assert shown()[0] == max(1940, first - 5)
+    box = page.locator("#chart-series").bounding_box()
+    y = box["y"] + box["height"] / 2
+    page.mouse.move(box["x"] + box["width"] * 0.3, y)
+    page.mouse.down()
+    page.mouse.move(box["x"] + box["width"] * 0.8, y, steps=8)    # drag right: earlier years
+    page.mouse.up()
+    assert shown()[0] < max(1940, first - 5) or shown()[0] == 1940

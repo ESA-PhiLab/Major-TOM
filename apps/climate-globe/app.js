@@ -9,7 +9,7 @@ import * as maplibregl from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dis
 import { feature } from 'https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/+esm'
 import { LAYERS, SOURCE_COOP, cellRow, era5Layer, loadByCellSeries, loadCellClimatology, loadCellSeries,
   loadEra5Variables, loadNormalsOverview, loadOverviewMonth, loadPreview, loadSeries } from './data.js'
-import { lineChart } from './charts.js'
+import { lineChart, plotShare } from './charts.js'
 import { placeLabels } from './labels.js'
 import { drawBar, makeScale } from './scales.js'
 import { cellAt, gridField, imageField, renderTile } from './tiles.js'
@@ -193,7 +193,8 @@ function stopLoader() {
 //     series (on request): every monthly file, footer + the chunk holding the cell -> chart fills in as they arrive
 
 const INITIALS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D']
-const pick = { cell: null, layer: null, clim: null, series: null, job: null, ticket: 0 }
+const pick = { cell: null, layer: null, clim: null, series: null, job: null, ticket: 0, view: null, marked: null }
+const WINDOW = 10, STEP = 5                     // the series chart shows 10 years; ‹ › move it by 5
 
 const outline = ([w, s, e, n]) => ({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [[[w, s], [e, s], [e, n], [w, n], [w, s]]] } })
 const kb = bytes => (bytes >= 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.round(bytes / 1e3)} KB`)
@@ -218,11 +219,14 @@ $('pick-clear').addEventListener('click', () => {
 async function pickLayer() {
   const layer = state.layer, { row, col } = pick.cell, ticket = ++pick.ticket
   stopSeries()
-  pick.layer = layer.id; pick.layerObj = layer; pick.clim = null; pick.series = null
+  pick.layer = layer.id; pick.layerObj = layer; pick.clim = null; pick.series = null; pick.view = null; pick.marked = null
+  $('series-nav').hidden = true
   $('clim-title').textContent = `${layer.name} (${layer.source.split(',')[0]}), normal ${layer.normal}: mean ± 1 std, ${layer.unit}`
   $('clim-stats').textContent = 'Loading…'
   $('chart-clim').replaceChildren()
-  $('series-title').textContent = `Every month, ${layer.series[0]}–${layer.series[1]}`
+  const long = layer.series[1] + 1 - layer.series[0] > WINDOW
+  const unit = layer.unit === 'K' ? 'K (°C on the right)' : layer.unit
+  $('series-title').textContent = `Every month, ${layer.series[0]}–${layer.series[1]}, ${unit}${long ? ' · drag sideways for other years' : ''}`
   $('chart-series').hidden = true
   $('series-stats').textContent = ''
   const months = (layer.series[1] - layer.series[0] + 1) * 12
@@ -308,13 +312,52 @@ function drawPick() {
       hi: mean.map((m, i) => m + std[i]), xRange: [0.5, 12.5], xTicks: INITIALS.map((t, i) => [i + 1, t]), marker: month - 1 })
   }
   if (pick.series) {
-    const [a, b] = layer.series, decades = []
-    for (let y = Math.ceil(a / 10) * 10; y <= b; y += 10) decades.push([y, String(y)])
+    const [a, b] = layer.series, span = b + 1 - a, win = Math.min(WINDOW, span)
+    const marker = year === null ? -1 : (year - a) * 12 + month - 1
+    const markYear = a + (marker + 0.5) / 12
+    if (pick.view === null) pick.view = year === null ? span - win : clamp(year + 1 - win, 0, span - win)
+    else if (marker !== pick.marked && marker >= 0 && (markYear < a + pick.view || markYear > a + pick.view + win))
+      pick.view = clamp(Math.floor(markYear - win / 2), 0, span - win)       // the globe's month moved out of view
+    pick.marked = marker
+    const from = a + pick.view, to = from + win, every = win > 12 ? 10 : 2, yearTicks = []
+    for (let y = Math.ceil(from / every) * every; y < to; y += every) yearTicks.push([y, String(y)])
     lineChart($('chart-series'), {
-      x: pick.series.map((_, k) => a + (k + 0.5) / 12), y: pick.series, xRange: [a, b + 1], xTicks: decades,
-      marker: year === null ? -1 : (year - a) * 12 + month - 1 })
+      x: pick.series.map((_, k) => a + (k + 0.5) / 12), y: pick.series, xRange: [from, to], xTicks: yearTicks,
+      marker, yAll: pick.series, celsius: layer.unit === 'K' })
+    $('series-nav').hidden = win === span
+    $('series-window').textContent = `${Math.round(from)}–${Math.round(to) - 1}`
+    $('series-prev').disabled = pick.view <= 0
+    $('series-next').disabled = pick.view >= span - win
   }
 }
+
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v))
+
+/** Move the series window by `years` (fractional while dragging), within the series. */
+function moveSeries(years) {
+  const [a, b] = pick.layerObj.series, span = b + 1 - a
+  pick.view = clamp(pick.view + years, 0, span - Math.min(WINDOW, span))
+  drawPick()
+}
+
+$('series-prev').addEventListener('click', () => { pick.view = Math.round(pick.view); moveSeries(-STEP) })
+$('series-next').addEventListener('click', () => { pick.view = Math.round(pick.view); moveSeries(STEP) })
+
+/** Drag or swipe sideways on the series chart: pixels -> years. Vertical swipes still scroll the panel. */
+let drag = null
+const seriesChart = $('chart-series')
+seriesChart.addEventListener('pointerdown', e => {
+  if (!pick.series || pick.view === null) return
+  drag = { x: e.clientX, perYear: seriesChart.getBoundingClientRect().width * plotShare(pick.layerObj.unit === 'K') / WINDOW }
+  seriesChart.setPointerCapture(e.pointerId)
+})
+seriesChart.addEventListener('pointermove', e => {
+  if (!drag) return
+  const years = (drag.x - e.clientX) / drag.perYear
+  drag.x = e.clientX
+  moveSeries(years)
+})
+for (const end of ['pointerup', 'pointercancel']) seriesChart.addEventListener(end, () => { drag = null })
 
 // ---- time --------------------------------------------------------------------------------------------------
 

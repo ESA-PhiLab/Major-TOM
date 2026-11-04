@@ -1,5 +1,6 @@
 # Log
 
+- 2026-11-04 Climate Globe series chart: 10-year window moved by drag or ‹ ›, y-axis fitted to the values (0 only for amounts), °C labels for kelvin
 - 2026-11-04 Grid cell counts: formulas and Climate 5,113,745; Spatial-Reference-Grid 5,091,140 (no rows beyond 85°, row-end cells at 180°); index 5,055,204 (80°S–84°N, both row ends) (`docs/evidence/grid_cell_counts.py`)
 - 2026-11-04 Climate places figure: Sentinel-2 L2A thumbnail of each place's cell above the charts; uploaded to source.coop; contrast stretch shared in core_weather_figures.py
 - 2026-11-04 App READMEs and checklist brought up to date (Core Viewer README, Raster Viewer modules and private-Space imports, deployment and tests)

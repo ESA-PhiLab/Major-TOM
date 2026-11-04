@@ -112,6 +112,12 @@
   .chart .line { fill: none; stroke: var(--mt-blue); stroke-width: 1.5; stroke-linejoin: round; }
   .chart .band { fill: var(--mt-blue); fill-opacity: .14; }
   .chart .marker { fill: var(--mt-orange); stroke: var(--surface); stroke-width: 1.5; }
+  #chart-series { touch-action: pan-y; cursor: grab; user-select: none; }
+  #chart-series:active { cursor: grabbing; }
+  .series-nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin: 2px 0 4px; }
+  .series-nav[hidden] { display: none; }
+  .series-nav .tiny { text-align: center; }
+  .step:disabled { opacity: .45; cursor: not-allowed; border-color: var(--line); color: inherit; }
   .chart .empty { font: 12px var(--sans); fill: var(--ink-3); text-anchor: middle; }
   .tiny { font: 11px/1.4 var(--mono); color: var(--ink-3); min-height: 1em; }
   .action { font: inherit; font-size: 13px; width: 100%; margin: 6px 0 4px; padding: 6px 10px; border: 1px solid var(--line);
@@ -246,6 +252,11 @@
       <div class="tiny" id="clim-stats"></div>
       <div class="chart-title" id="series-title"></div>
       <svg id="chart-series" class="chart" role="img" aria-label="Every month of the selected cell" hidden></svg>
+      <div class="series-nav" id="series-nav" hidden>
+        <button id="series-prev" class="step" aria-label="Earlier years">‹</button>
+        <span class="tiny" id="series-window"></span>
+        <button id="series-next" class="step" aria-label="Later years">›</button>
+      </div>
       <button id="series-load" class="action"></button>
       <div class="tiny" id="series-stats"></div>
       <button id="series-monthly" class="action secondary" hidden></button>
