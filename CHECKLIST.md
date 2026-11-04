@@ -1,6 +1,7 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** unreviewed
+> **Review status:** unreviewed. Changed 2026-11-04, not yet reviewed: Core Viewer layout ticked, weather panel marked
+> pushed, ERA5-Land south fill timing.
 
 # Checklist
 
@@ -93,7 +94,7 @@ Workstreams are defined in [docs/STRATEGY.md](docs/STRATEGY.md).
 - [ ] ERA5-Monthly v2 climatology (1991-2020)
 - [ ] Optional: ERA5Land-Monthly with all 49 variables from Earth Data Hub's monthly store (check its chunking on 1 November)
 - [x] Core-Weather published to source.coop major-tom/core-weather (2026-11-02, without the ERA5-Land south fill)
-- [ ] Fill ERA5-Land south of 57.1°S from the Climate Data Store (docs/CLIMATE.md 6.1): 2016 running since 2026-11-02, 2018-2024 queued as a chain (fills 2261-2303, about 12-14 days); then re-upload the changed day files
+- [ ] Fill ERA5-Land south of 57.1°S from the Climate Data Store (docs/CLIMATE.md 6.1): 2016 done; 2018 running (jobs 2397-2402 since 2026-11-03, fill 2261); 2019-2024 queued in sequence (to job 2303): 2.5-4.5 days per year for 2019-2023, under 1 day for 2024; chain ends about 22 Nov 2026; then re-upload about 3,200 changed day files
 - [ ] Validate ERA5 groups 3-8 and ERA5-Land groups 2-6; clear the 815 GB download cache after publishing
 - [ ] Merge sources and publish Core-Weather and the monthly datasets: source.coop first, Hugging Face second (Miko, 2026-10-24)
 - [ ] Climate datasets in the Major TOM viewing app (HF Space; final task)
@@ -102,8 +103,8 @@ Workstreams are defined in [docs/STRATEGY.md](docs/STRATEGY.md).
 ## WS10 — Apps (`apps/`, apps/README.md)
 
 - [x] Asterisk Labs logo (map corner, links to asterisk.coop) and Earth Compress credit in the Raster Viewer and Climate Globe (2026-11-03, deployed)
-- [ ] Core Viewer: layout clean-up (header done locally 2026-11-02; controls, fonts, text prompt, placeholder, acquisition time)
-- [x] Raster Viewer: Core-Weather panel for the shown sample (hourly ±24 h, daily ±30 d; ERA5, CAMS, Sentinel-5P); image always on the map, opaque (2026-11-03, not pushed)
+- [x] Core Viewer: layout clean-up: header, controls, fonts, text prompt, placeholder, acquisition time (b1a22d6, 2026-11-03, pushed)
+- [x] Raster Viewer: Core-Weather panel for the shown sample (hourly ±24 h, daily ±30 d; ERA5, CAMS, Sentinel-5P); image always on the map, opaque (2026-11-03, d0733a5, pushed to origin/refactor/v1)
 - [ ] Core-Weather README figures: review, then upload figures/ and the README (2026-11-03)
 - [x] Raster Viewer: VIIRS Nighttime Light and AlphaEarth embeddings, with downloads (2026-11-03, deployed)
 - [ ] Raster Viewer: climate panel for the selected cell

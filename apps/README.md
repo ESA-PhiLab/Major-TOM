@@ -1,6 +1,7 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** draft for review, 2026-11-02.
+> **Review status:** not yet reviewed. First version 2026-11-02. Changed 2026-11-04: Raster Viewer and Climate Globe
+> descriptions, Spaces and their SDKs, deployment, tests per app.
 
 # Apps
 
@@ -10,9 +11,9 @@ the installable `majortom` package.
 
 | Folder | Space | What it shows | How it runs |
 |---|---|---|---|
-| `viewer/` | [MajorTOM-Core-Viewer](https://huggingface.co/spaces/Major-TOM/MajorTOM-Core-Viewer) | one Core sample at the map centre or found by a text prompt (SigLIP); Sentinel-2, Sentinel-1, DEM, AlphaEarth, VIIRS | Python server (Solara, Docker) |
-| `climate-globe/` | [MajorTOM-Climate-Globe](https://huggingface.co/spaces/Major-TOM/MajorTOM-Climate-Globe) | Major TOM Climate (CPC, IMERG, CAMS, ERA5) on a 3D globe: monthly maps, normals, a cell's whole series | static page, reads source.coop |
-| `raster-viewer/` | [MajorTOM-Raster-Viewer](https://huggingface.co/spaces/Major-TOM/MajorTOM-Raster-Viewer) (private) | where each Core dataset has samples, on a 3D globe; the thumbnail of the sample in a clicked cell | static page, reads Hugging Face |
+| `viewer/` | [MajorTOM-Core-Viewer](https://huggingface.co/spaces/Major-TOM/MajorTOM-Core-Viewer) | one Core sample at the map centre or found by a text prompt (SigLIP); Sentinel-2, Sentinel-1, DEM, AlphaEarth, VIIRS | Python server (Solara, Docker Space) |
+| `climate-globe/` | [MajorTOM-Climate-Globe](https://huggingface.co/spaces/Major-TOM/MajorTOM-Climate-Globe) (private) | Major TOM Climate (CPC, IMERG, CAMS, ERA5) on a 3D globe: monthly maps, normals, a cell's whole series from `by_cell/` (ERA5-Monthly included since 15d5a93, 2026-11-04) | static Space, reads source.coop |
+| `raster-viewer/` | [MajorTOM-Raster-Viewer](https://huggingface.co/spaces/Major-TOM/MajorTOM-Raster-Viewer) (private) | where each Core dataset has samples, on a 3D globe; the sample in a clicked cell (thumbnail, bands, composites, downloads); VIIRS Nighttime Light tiles; AlphaEarth embeddings as a PCA; Core-Weather at the acquisition (hourly ±24 h, daily ±30 d) | static Space, reads Hugging Face and source.coop |
 
 ## Static apps
 
@@ -30,16 +31,29 @@ Each app's README (its Space card) lists its files, flow and measured reads.
 
 ## Deployment
 
-`.github/workflows/apps-spaces.yml`: a push that changes a folder uploads that folder to its Space (files added or
-replaced, none deleted; tests and caches left out). Files that are not in git stay in the Space once uploaded:
-`viewer/helpers/*.parquet` (search index) and `raster-viewer/footprints/` (built by `build_index.py`).
+`.github/workflows/apps-spaces.yml` runs on pushes to `main` and `refactor/v1` that touch `apps/**`, and by hand
+("Run workflow", which uploads every app). Each app whose folder changed is uploaded to its Space (files added or
+replaced, none deleted; `tests/`, `pytest.ini`, `__pycache__/` and `.gitignore` left out):
+
+| Folder | Space | SDK |
+|---|---|---|
+| `apps/viewer` | `Major-TOM/MajorTOM-Core-Viewer` | Docker (Solara) |
+| `apps/climate-globe` | `Major-TOM/MajorTOM-Climate-Globe` (private) | static |
+| `apps/raster-viewer` | `Major-TOM/MajorTOM-Raster-Viewer` (private) | static |
+
+The token is `HF_TOKEN` in the GitHub environment `hf-space`. Files that are not in git stay in the Space once uploaded:
+`viewer/helpers/*.parquet` (local copies of the four Core metadata files) and `raster-viewer/footprints/` (built by `build_index.py`).
 
 ## Tests
 
-```
-cd apps/climate-globe && pytest -m network        # headless Chromium (Playwright), reads source.coop
-cd apps/raster-viewer && pytest -m network        # reads Hugging Face; needs footprints/ built
-```
+| App | Test files | Command |
+|---|---|---|
+| `viewer/` | none | - |
+| `climate-globe/` | `tests/test_app.py` (7 tests: headless Chromium, Playwright; reads source.coop) | `cd apps/climate-globe && pytest -m network` |
+| `raster-viewer/` | `tests/test_app.py` (13 tests: headless Chromium; reads Hugging Face and source.coop; needs `footprints/` built) | `cd apps/raster-viewer && pytest -m network` |
+| `raster-viewer/` | `tests/test_imports.py` (1 test: every local module is imported by `app.js`; no network) | `cd apps/raster-viewer && pytest tests/test_imports.py` |
 
-`.github/workflows/apps-tests.yml` runs the Climate Globe's on GitHub. The Raster Viewer's need `footprints/`, which
-is not in git, so they run where it is built.
+`climate-globe/` and `raster-viewer/` each have their own `pytest.ini` (test path `tests`, marker `network`).
+`.github/workflows/apps-tests.yml` runs the Climate Globe's tests on GitHub, on pushes and pull requests that touch
+`apps/climate-globe/**`. The Raster Viewer's browser tests need `footprints/`, which is not in git, so they run where
+it is built.

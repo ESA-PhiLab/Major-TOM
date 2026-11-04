@@ -10,7 +10,8 @@ short_description: Major TOM Climate datasets on a 3D globe, from source.coop
 
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** draft for review, 2026-10-30. Space created (private), not yet deployed.
+> **Review status:** not yet reviewed. First version 2026-10-30. Changed 2026-11-04: deployment status (private
+> Space, synced by `.github/workflows/apps-spaces.yml`); ERA5 series read from `by_cell/` (commit 15d5a93).
 
 # Major TOM Climate Globe
 
@@ -25,7 +26,8 @@ panel: layer, source, month
   -> tiles.js: map tiles drawn in the browser, each pixel coloured by the Major TOM cell under it
   -> app.js:   MapLibre globe; neighbouring months loaded ahead; cursor shows the cell and its value;
               place names from zoom 5 (labels.js)
-click a cell -> its monthly normals (one climatology file) and, on request, its whole series (by_cell/)
+click a cell -> its monthly normals (one climatology file) and, on request, its whole series (by_cell/; every layer,
+  ERA5 included: one variable, 1,032 months for 1940-2025)
 ```
 
 ## Files
