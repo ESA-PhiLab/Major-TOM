@@ -1,5 +1,8 @@
 # Log
 
+- 2026-11-04 Grid cell counts: formulas and Climate 5,113,745; Spatial-Reference-Grid 5,091,140 (no rows beyond 85°, row-end cells at 180°); index 5,055,204 (80°S–84°N, both row ends) (`docs/evidence/grid_cell_counts.py`)
+- 2026-11-04 Climate places figure: Sentinel-2 L2A thumbnail of each place's cell above the charts; uploaded to source.coop; contrast stretch shared in core_weather_figures.py
+- 2026-11-04 App READMEs and checklist brought up to date (Core Viewer README, Raster Viewer modules and private-Space imports, deployment and tests)
 - 2026-11-04 Climate and ERA5-Monthly READMEs: by_cell/ published, ERA5 5.17 TB, measured one-cell read (12 requests, 23.2 MB, 3.3 s for one variable); uploaded to source.coop
 - 2026-11-04 ERA5-Monthly by_cell/ uploaded to source.coop (20 bands, 2,141 GB, verified); publish retries 10 times per file with waits capped at 10 min (source.coop 520s outlasted 6 tries)
 - 2026-11-04 Intro animation v2: flag filled cell by cell (observations, then the fill, smooth timing) then into the logo, zoom into real Major TOM cells at Loch Lomond, six-globe normals (294 variables), two dataset acts, sources with emojis, live read, size and access with icon; palette checks run; square and wide, 66 s -> [report](docs/reports/2026-11-04-intro-animation-v2.md)
