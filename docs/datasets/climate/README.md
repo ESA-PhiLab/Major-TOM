@@ -1,7 +1,7 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
 > **Review status:** reviewed (Miko) and published 2026-11-02 (File layout, ERA5Land-Monthly row). Earlier: by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of the top-level README for source.coop `major-tom/climate`.
-> Remove these two notes when publishing. How by_cell/ files are written: added 2026-10-31, not yet reviewed or published; read table re-measured on the new by_cell/ files 2026-10-31 (docs/evidence/climate_bycell_bench.py, the app). By cell and overviews section rewritten 2026-10-31 (measurements from docs/reports/2026-10-30-climate-globe-read-experiments.md). ERA5-Monthly row and figures added 2026-10-30; ERA5Land-Monthly row added 2026-11-02 (draft README). Sizes include by_cell/ and overviews/. File layout section (diagram, settings, sizes, reads) added 2026-11-02, not yet reviewed or published; climatology/ now has a page index.
+> Remove these two notes when publishing. How by_cell/ files are written: added 2026-10-31, not yet reviewed or published; read table re-measured on the new by_cell/ files 2026-10-31 (docs/evidence/climate_bycell_bench.py, the app). By cell and overviews section rewritten 2026-10-31 (measurements from docs/reports/2026-10-30-climate-globe-read-experiments.md). ERA5-Monthly row and figures added 2026-10-30; ERA5Land-Monthly row added 2026-11-02 (draft README). Sizes include by_cell/ and overviews/. File layout section (diagram, settings, sizes, reads) added 2026-11-02, not yet reviewed or published; climatology/ now has a page index. 2026-11-04 (not yet reviewed): ERA5-Monthly by_cell/ published; ERA5 size, by_cell rows and the ERA5 reading paragraph updated with a measured read.
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 
@@ -20,7 +20,7 @@ Each dataset is a separate folder with its own README.
 | [CAMS-Monthly](https://source.coop/major-tom/climate/CAMS-Monthly) | air quality: trace gases, aerosols, particulate matter | Copernicus CAMS EAC4 | 2003–2025 | 0.75° | 5,113,745 (globe) | 19 | 110.9 GB |
 | [ERA5-Static](https://source.coop/major-tom/climate/ERA5-Static) | fixed surface fields: terrain, land and lake cover, soil and vegetation types | ECMWF ERA5 | — | 0.25° | 5,113,745 (globe) | 16 | 0.12 GB |
 | [ERA5Land-Monthly](https://source.coop/major-tom/climate/ERA5Land-Monthly) | land surface at 0.1°: temperature, soil water and temperature, snow, runoff, evaporation, fluxes, lakes | ECMWF ERA5-Land | 1950–2025 | 0.1° | 1,524,009 (land) | 49 | 469.8 GB |
-| [ERA5-Monthly](https://source.coop/major-tom/climate/ERA5-Monthly) | weather and land surface: temperature, humidity, wind, pressure, precipitation, radiation, clouds, soil, snow, waves | ECMWF ERA5 | 1940–2025 | 0.25° | 5,113,745 (globe) | 201 | 3.03 TB (`by_cell/` being built) |
+| [ERA5-Monthly](https://source.coop/major-tom/climate/ERA5-Monthly) | weather and land surface: temperature, humidity, wind, pressure, precipitation, radiation, clouds, soil, snow, waves | ECMWF ERA5 | 1940–2025 | 0.25° | 5,113,745 (globe) | 201 | 5.17 TB |
 
 Files are at `https://data.source.coop/major-tom/climate/<dataset>/...`.
 
@@ -51,7 +51,7 @@ Every monthly dataset has the same parts:
 | `cells.parquet` | cell | `grid_cell`, `grid_row_u`, `grid_col_r`: the cells with data, in the order every file uses |
 | `series/year=YYYY/MM.parquet` | cell and month | `grid_cell`, `grid_row_u`, `grid_col_r`, `year`, `month`, `<source>_<variable>`, `<source>_valid` (share of the cell with data) |
 | `climatology/band=NN.parquet` | cell and calendar month | `grid_cell`, `grid_row_u`, `grid_col_r`, `month`, `<variable>_mean`, `<variable>_std` (spread across years), `n_years` |
-| `by_cell/band=NN.parquet` | cell and month | as `series/`, but each cell's months together: rows by cell, then `year`, `month` (CPC, IMERG, CAMS) |
+| `by_cell/band=NN.parquet` | cell and month | as `series/`, but each cell's months together: rows by cell, then `year`, `month` |
 | `overviews/year=YYYY/MM.parquet` | block of 4 × 4 cells and month | `block_row`, `block_col`, `n_cells`, each variable's mean: a whole-globe map from one file, reading one column |
 | `climatology_overviews/MM.parquet` | block of 4 × 4 cells and calendar month | `block_row`, `block_col`, `n_cells`, each variable's normal (block mean of `<variable>_mean`): a whole-globe map of a month's normal from one small file |
 
@@ -119,7 +119,7 @@ Sizes on source.coop, and the largest footer of a file in each folder:
 |---|---|---|---|---|---|
 | `series/` | 12.4 GB, 0.03 MB | 33.7 GB, 0.10 MB | 55.4 GB, 0.22 MB | 286.6 GB, 0.16 MB | 2,769.9 GB, 1.74 MB |
 | `climatology/` | 0.19 GB, 0.05 MB | 1.41 GB, 0.13 MB | 2.20 GB, 0.39 MB | 4.47 GB, 0.37 MB | 38.0 GB, 3.31 MB |
-| `by_cell/` | 7.46 GB, 0.19 MB | 17.4 GB, 0.53 MB | 44.2 GB, 1.15 MB | 158.7 GB, 1.00 MB | |
+| `by_cell/` | 7.46 GB, 0.19 MB | 17.4 GB, 0.53 MB | 44.2 GB, 1.15 MB | 158.7 GB, 1.00 MB | 2,140.9 GB, 9.18 MB |
 | `overviews/` | 1.16 GB | 1.89 GB | 8.70 GB | 19.8 GB | 221.3 GB |
 | `climatology_overviews/` | 0.03 GB | 0.07 GB | 0.38 GB | 0.27 GB | 2.61 GB |
 
@@ -182,9 +182,10 @@ from the prime meridian are sheared, as the cells are. `n_cells` counts a block'
 the edges of the grid have fewer than 16). The Major TOM Climate Globe app reads these files when the whole globe
 is in view and the monthly files when zoomed in.
 
-ERA5-Monthly's `by_cell/` is being built (2026-11-02). Until it is published, read a place over time from
-`series/`, selecting columns: each of the 1,032 monthly files has a 1.74 MB footer (207 columns), so one cell's record
-of one variable costs 2.96 GB, 1.80 GB of it footers (Loch Lomond, `era5_t2m`, from the files' metadata).
+ERA5-Monthly's `by_cell/` (published 2026-11-04): one cell's record with pandas, as in its README (Loch Lomond,
+band 16, 1,032 months, from source.coop, median of 3 runs): `era5_t2m` alone, 12 requests, 23.2 MB, 3.3 s; all 201
+variables, 24 requests, 523 MB, 16.3 s. From `series/`, the same one-variable record costs 2.96 GB: each of the
+1,032 monthly files has a 1.74 MB footer (207 columns), 1.80 GB in all.
 
 ### Climatology
 
