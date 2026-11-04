@@ -97,7 +97,7 @@ Workstreams are defined in [docs/STRATEGY.md](docs/STRATEGY.md).
 - [ ] Validate ERA5 groups 3-8 and ERA5-Land groups 2-6; clear the 815 GB download cache after publishing
 - [ ] Merge sources and publish Core-Weather and the monthly datasets: source.coop first, Hugging Face second (Miko, 2026-10-24)
 - [ ] Climate datasets in the Major TOM viewing app (HF Space; final task)
-- [ ] Intro animation for Major TOM Climate and Core-Weather: the logo builds first, then examples of the data animated (time series drawn month by month, global maps filling in); requested 2026-11-03
+- [x] Intro animation for Major TOM Climate and Core-Weather: the logo builds first, then examples of the data animated (time series drawn month by month, global maps filling in); requested 2026-11-03, v2 done 2026-11-04 (docs/animations/intro_climate_weather.py, square and wide, 66 s)
 
 ## WS10 — Apps (`apps/`, apps/README.md)
 

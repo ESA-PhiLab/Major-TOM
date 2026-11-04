@@ -1,5 +1,8 @@
 # Log
 
+- 2026-11-04 ERA5-Monthly by_cell/ uploaded to source.coop (20 bands, 2,141 GB, verified); publish retries 10 times per file with waits capped at 10 min (source.coop 520s outlasted 6 tries)
+- 2026-11-04 Intro animation v2: flag filled cell by cell (observations, then the fill, smooth timing) then into the logo, zoom into real Major TOM cells at Loch Lomond, six-globe normals (294 variables), two dataset acts, sources with emojis, live read, size and access with icon; palette checks run; square and wide, 66 s -> [report](docs/reports/2026-11-04-intro-animation-v2.md)
+- 2026-11-03 Intro animation for Major TOM Climate and Core-Weather (1080 x 1080, 45 s; replaced by v2) -> [report](docs/reports/2026-11-03-intro-animation.md)
 - 2026-11-03 Raster Viewer and Climate Globe: "made by asterisk labs" in the map corner (mark and League Spartan, as asterisk.coop), Earth Compress credit in the panel and READMEs; intro animation task added to CHECKLIST.md
 - 2026-11-03 Raster Viewer fix: private Space served zstd.js with 401 inside the iframe (globe failed to load), now imported from app.js, test_imports.py guards it; AlphaEarth keeps 4 COGs open with 16 MB caches
 - 2026-11-03 Raster Viewer: VIIRS Nighttime Light and AlphaEarth (PCA of 64 bands: 160 m preview in one request, 10 m proxy from 8 bands; windows joined across tiles; downloads); Core Viewer search box no longer redraws the map; refactor/v1 pushed, footprints uploaded to the Space
