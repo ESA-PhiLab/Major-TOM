@@ -29,8 +29,7 @@ export const LAYERS = [
     preview: 'images/CAMS-Monthly/pm25/{MM}.png', series: [2003, 2025], normal: '2003–2025', tables: true },
   // one entry for 201 variables: the panel picks the variable (era5Layer); normals from climatology_overviews/
   { id: 'era5', name: 'ERA5', source: 'ERA5, reanalysis', dataset: 'ERA5-Monthly', variables: true, normals: true,
-    series: [1940, 2025], normal: '1991–2020', tables: false,
-    noSeries: 'ERA5 has no by_cell/ copy yet, so its series is not read here.' },
+    series: [1940, 2025], normal: '1991–2020', tables: false, byCell: true },   // by_cell/, no slow comparison (2.96 GB)
 ]
 
 /** ERA5's variables: names, units and colour scales (scales.json, made by build_scales.py). */

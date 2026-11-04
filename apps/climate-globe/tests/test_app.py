@@ -6,6 +6,7 @@
       -> keys (left/right change the month, not the map), cursor off the globe, place names from zoom 5
       -> previews of the four layers (skipped where images/ is absent: the images are not in git)
       -> ERA5: the variable list (scales.json), July normals from climatology_overviews/, another variable
+      -> ERA5 at Loch Lomond: the whole by_cell/ series of era5_t2m (1,032 months), against values in the files
 
     cd apps/climate-globe && pytest -m network        (needs `pip install pytest playwright && playwright install chromium`)
 """
@@ -147,3 +148,20 @@ def test_era5_variables_and_normals(page):
     page.select_option("#variable", "era5_tp")
     loaded(page, "era5:era5_tp/preview")
     assert page.text_content("#status") == ""
+
+
+def test_era5_series_by_cell(page):
+    page.click("text=ERA5, reanalysis")
+    loaded(page, "era5:era5_t2m/preview")
+    page.evaluate(f"globe.jumpTo({{center: [{LOCH_LOMOND[0]}, {LOCH_LOMOND[1]}], zoom: 4}})")
+    page.wait_for_timeout(1000)
+    page.mouse.click(*at(page, *LOCH_LOMOND))
+    page.wait_for_function("document.getElementById('clim-stats').textContent.includes('requests')", timeout=120_000)
+    assert page.text_content("#pick-cell") == "624U_29L"
+    assert page.is_hidden("#series-monthly")                       # no 2.96 GB comparison for ERA5
+    page.click("#series-load")
+    page.wait_for_function("document.getElementById('series-stats').textContent.startsWith('By cell:')", timeout=180_000)
+    series = page.evaluate("pickState().series")
+    assert len(series) == 1032
+    assert series[0] == pytest.approx(271.4074, abs=1e-3)         # 1940-01 K, as in series/year=1940/01.parquet
+    assert series[792] == pytest.approx(277.2308, abs=1e-3)       # 2006-01

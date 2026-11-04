@@ -251,7 +251,7 @@ function stopSeries() {
 /** The selected cell's every month from the dataset's by_cell file: one row group, a few requests. */
 $('series-load').addEventListener('click', async () => {
   const layer = state.layer, ticket = pick.ticket
-  if (!layer.tables) return monthlySeries($('series-load'), $('series-stats'))
+  if (!layer.tables && !layer.byCell) return monthlySeries($('series-load'), $('series-stats'))
   $('series-load').disabled = true
   $('series-stats').textContent = 'Reading the series…'
   try {
