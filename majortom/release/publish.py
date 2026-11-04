@@ -40,7 +40,7 @@ def _bucket(region: str) -> str:
     """Route B's bucket for an AWS Open Data connection, e.g. eu-central-1.opendata.source.coop."""
     return f"{region}.opendata.source.coop"
 CHUNK = 64 * 1024**2
-TRIES = 6                       # per file, with 10 s, 20 s, 40 s ... between tries (source.coop's proxy answers 5xx)
+TRIES = 10                      # per file, 10 s, 20 s, 40 s ... capped at 10 min between tries (source.coop's proxy answers 5xx for minutes)
 
 
 def _upload(client, path: Path, bucket: str, key: str, config, kind: str) -> None:
@@ -56,7 +56,7 @@ def _upload(client, path: Path, bucket: str, key: str, config, kind: str) -> Non
             if "(403)" in text or "AccessDenied" in text or attempt == TRIES - 1:
                 raise
             print(f"publish: retry {attempt + 1} of {key} after {text[:160]}", flush=True)
-            time.sleep(10 * 2 ** attempt)
+            time.sleep(min(600, 10 * 2 ** attempt))
 
 
 @dataclass
