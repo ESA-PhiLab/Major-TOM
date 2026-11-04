@@ -3,10 +3,10 @@ mapwidget
 solara
 geopandas
 fsspec
-pyarrow
+pyarrow<18
 shapely
 pandas
-numpy
+numpy<2.0.0
 
 torch==2.1.2
 torchvision==0.16.2
@@ -22,3 +22,4 @@ open_clip_torch==2.23.0
 transformers==4.46.3
 scikit-learn
 s3fs
+faiss-gpu-cu12
