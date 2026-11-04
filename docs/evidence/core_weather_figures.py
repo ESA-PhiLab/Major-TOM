@@ -50,6 +50,14 @@ def thumbnail(url: str, row_group: int) -> Image.Image:
     return Image.open(io.BytesIO(t.column("thumbnail")[0].as_py()))
 
 
+def stretch(img: Image.Image) -> Image.Image:
+    """Linear contrast stretch of a thumbnail, the same for all three channels (keeps the colour balance): the
+    0.5th-99.5th percentile of all values to 0-255 (stored thumbnails are flat, e.g. 84-118 of 255 at 625U_30L)."""
+    a = np.asarray(img.convert("RGB"), np.float32)
+    lo, hi = np.percentile(a, 0.5), np.percentile(a, 99.5)
+    return Image.fromarray(np.clip((a - lo) / (hi - lo) * 255, 0, 255).astype(np.uint8))
+
+
 def weather_rows(root: Path, table: str, cell: str, acquired: pd.Timestamp, columns: list[str]) -> pd.DataFrame:
     path = root / table / f"year={acquired:%Y}" / f"{acquired:%Y-%m-%d}.parquet"
     step = "step_h" if table == "hourly" else "step_d"

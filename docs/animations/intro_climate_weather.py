@@ -180,16 +180,6 @@ def shapes() -> None:
 
 # ---------- prep ----------
 
-def _stretch(img):
-    """Linear contrast stretch of a thumbnail, the same for all three channels (keeps the colour balance): the
-    0.5th-99.5th percentile of all values to 0-255 (the stored thumbnails are flat: 84-118 of 255 at this cell)."""
-    from PIL import Image
-
-    a = np.asarray(img.convert("RGB"), np.float32)
-    lo, hi = np.percentile(a, 0.5), np.percentile(a, 99.5)
-    return Image.fromarray(np.clip((a - lo) / (hi - lo) * 255, 0, 255).astype(np.uint8))
-
-
 def _live_read(runs: int = 3) -> dict:
     """Read one cell's CPC series from source.coop with pandas + fsspec, `runs` times, counting HTTP requests and
     response bytes at aiohttp (which fsspec's https filesystem uses)."""
@@ -252,7 +242,7 @@ def prep() -> None:
     import pandas as pd
     import pyarrow.parquet as pq
     from climate_figures import inside_earth
-    from core_weather_figures import thumbnail, weather_rows
+    from core_weather_figures import stretch, thumbnail, weather_rows
     from mpl_toolkits.basemap import Basemap
 
     DATA.mkdir(parents=True, exist_ok=True)
@@ -279,7 +269,7 @@ def prep() -> None:
     # the Core-S2L2A sample, its thumbnail (contrast stretched) and the hourly weather around it
     s2 = pd.read_parquet(CORE / "Core-S2L2A" / "metadata.parquet", filters=[("grid_cell", "=", CELL)]).iloc[0]
     acquired = pd.Timestamp(s2.timestamp)
-    _stretch(thumbnail(s2.parquet_url, int(s2.parquet_row))).save(DATA / "sample-thumbnail.png")
+    stretch(thumbnail(s2.parquet_url, int(s2.parquet_row))).save(DATA / "sample-thumbnail.png")
     hourly = weather_rows(WEATHER, "hourly", CELL, acquired,
                           ["era5_t2m", "era5land_t2m", "era5_tcc", "era5_tp", "imerg_precip"])
     hourly.to_parquet(DATA / "sample-hourly.parquet")

@@ -148,6 +148,7 @@ def map_figure(panels: list[tuple[np.ndarray, str | None]], cmap, norm, ticks: l
 
 
 HOURS_IN = {m: 24 * d for m, d in zip(range(1, 13), [31, 28.25, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31])}
+CORE = Path("/data/Major-TOM")                     # Core-* metadata.parquet, local copies (places thumbnails)
 PLACES = {"Loch Lomond": (624, -29), "Dolomites (Corvara)": (518, 90), "Amazon (Manaus)": (-35, -667)}
 SERIES = ["#2a78d6", "#eb6834", "#1baf7a"]          # categorical slots 1-3: validated all-pairs, light surface
 
@@ -314,14 +315,24 @@ def _axes_style(ax, ylabel: str | None) -> None:
         ax.set_ylabel(ylabel, fontsize=8, color=INK_2)
 
 
-def places(release: Path) -> None:
-    """Monthly precipitation (CPC gauges, IMERG satellites, ERA5 reanalysis) and temperature at the three places."""
-    fig, axes = plt.subplots(2, 3, figsize=(WIDTH_PX / 100, 6.4), dpi=100, facecolor=PAGE, sharex=True, sharey="row",
-                             gridspec_kw=dict(left=0.09, right=0.95, top=0.74, bottom=0.07, hspace=0.42, wspace=0.12))
-    fig.text(0.02, 0.965, "Monthly precipitation and temperature: Loch Lomond, Corvara, Manaus", fontsize=13, fontweight="bold",
-             color=INK, va="top")
-    fig.text(0.02, 0.915, "Monthly normals of precipitation: CPC rain gauges 1991–2020, IMERG satellites 1998–2024, "
-             "ERA5 1991–2020", fontsize=9, color=INK_2, va="top")
+def places(release: Path, core: Path = CORE) -> None:
+    """The Core-S2L2A thumbnail of each place's cell, then its monthly precipitation (CPC gauges, IMERG satellites,
+    ERA5 reanalysis) and temperature. Thumbnails: the cell's sample in <core>/Core-S2L2A/metadata.parquet, its row
+    group read from Hugging Face, contrast stretched. Layout in inches from the top, so the chart rows keep the size
+    they had before the image row."""
+    from PIL import Image
+
+    from core_weather_figures import stretch, thumbnail          # imported here: that module imports this one
+
+    height, charts_top, image_top, image_in = 9.2, 4.45, 1.2, 2.3
+    fig = plt.figure(figsize=(WIDTH_PX / 100, height), dpi=100, facecolor=PAGE)
+    grid = fig.add_gridspec(2, 3, left=0.09, right=0.95, top=1 - charts_top / height, bottom=0.45 / height,
+                            hspace=0.42, wspace=0.12)
+    axes = grid.subplots(sharex=True, sharey="row")
+    fig.text(0.02, 1 - 0.22 / height, "Monthly precipitation and temperature: Loch Lomond, Corvara, Manaus",
+             fontsize=13, fontweight="bold", color=INK, va="top")
+    fig.text(0.02, 1 - 0.54 / height, "Monthly normals of precipitation: CPC rain gauges 1991–2020, IMERG satellites "
+             "1998–2024, ERA5 1991–2020", fontsize=9, color=INK_2, va="top")
     for j, (name, (row, col)) in enumerate(PLACES.items()):
         cpc = _cell_normals(release, "CPC-Monthly", ["cpc_precip_mean", "cpc_tmax_mean", "cpc_tmin_mean"], row, col)
         imerg = _cell_normals(release, "IMERG-Monthly", ["imerg_precip_mean"], row, col)
@@ -333,7 +344,16 @@ def places(release: Path) -> None:
         top.plot(imerg.month, rain, color=SERIES[1], linewidth=2, label="IMERG (satellites)")
         top.plot(era5.month, era5_rain, color=SERIES[2], linewidth=2, label="ERA5 (reanalysis)")
         code = f"{abs(row)}{'U' if row >= 0 else 'D'}_{abs(col)}{'R' if col >= 0 else 'L'}"
-        top.set_title(f"{name}\n{code}", fontsize=10, color=INK, loc="left", fontweight="bold")
+        s2 = pd.read_parquet(core / "Core-S2L2A" / "metadata.parquet", filters=[("grid_cell", "=", code)]).iloc[0]
+        img = stretch(thumbnail(s2.parquet_url, int(s2.parquet_row)))
+        img.thumbnail((2 * 100 * image_in, 2 * 100 * image_in), Image.LANCZOS)      # 2x the shown size: smaller SVG
+        x0 = top.get_position().x0
+        pic = fig.add_axes([x0, 1 - (image_top + image_in) / height, image_in / (WIDTH_PX / 100), image_in / height])
+        pic.imshow(img)
+        pic.set_axis_off()
+        pic.set_title(f"{name}\n{code}", fontsize=10, color=INK, loc="left", fontweight="bold")
+        fig.text(x0, 1 - (image_top + image_in + 0.08) / height, f"Sentinel-2 L2A, {pd.Timestamp(s2.timestamp):%Y-%m-%d}",
+                 fontsize=8, color=INK_2, va="top")
         bottom.fill_between(cpc.month, cpc.cpc_tmin_mean, cpc.cpc_tmax_mean, color=SERIES[0], alpha=0.18,
                             linewidth=0)
         bottom.plot(cpc.month, cpc.cpc_tmax_mean, color=SERIES[0], linewidth=2)
@@ -344,10 +364,10 @@ def places(release: Path) -> None:
     axes[1, 2].text(12.2, axes[1, 2].lines[0].get_ydata()[-1], "max", fontsize=8, color=INK_2, va="center")
     axes[1, 2].text(12.2, axes[1, 2].lines[1].get_ydata()[-1], "min", fontsize=8, color=INK_2, va="center")
     handles, labels = axes[0, 0].get_legend_handles_labels()
-    fig.legend(handles, labels, loc="upper left", bbox_to_anchor=(0.015, 0.875), ncol=3, frameon=False, fontsize=8,
-               labelcolor=INK_2, handlelength=1.6)
+    fig.legend(handles, labels, loc="upper left", bbox_to_anchor=(0.015, 1 - 3.95 / height), ncol=3, frameon=False,
+               fontsize=8, labelcolor=INK_2, handlelength=1.6)
     y = axes[1, 0].get_position().y1
-    fig.text(0.09, y + 0.025, "CPC daily maximum (solid) and minimum (dashed) temperature, mean of the month, 1991–2020",
+    fig.text(0.09, y + 0.16 / height, "CPC daily maximum (solid) and minimum (dashed) temperature, mean of the month, 1991–2020",
              fontsize=8, color=INK_2)
     _save_vector(fig, release / "figures" / "places.svg")
     plt.close(fig)
