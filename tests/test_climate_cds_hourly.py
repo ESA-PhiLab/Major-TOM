@@ -49,6 +49,7 @@ def fake_store(tmp_path, monkeypatch):
         return np.full((grid.height, grid.width), 24.0 if hour == 0 else float(hour), np.float32)
 
     monkeypatch.setattr(cds_hourly, "_fetch", fetch)
+    monkeypatch.setattr(cds_hourly, "_mine", set())
     monkeypatch.setattr(cds_hourly, "read_netcdf", read)
     return tmp_path, fetched
 
@@ -65,3 +66,14 @@ def test_older_spans_are_removed_as_the_run_moves_on(fake_store):
         cds_hourly.field(SRC, "t2m", pd.Timestamp(day + "T12"))
     left = sorted(p.name[:13] for p in (root / "era5land" / "hourly").glob("*.nc"))
     assert left == ["2017-01-16_7d", "2017-01-23_7d"] and len(fetched) == 3               # the 9th-15th removed
+
+
+def test_spans_of_other_jobs_are_left_alone(fake_store):
+    root, fetched = fake_store
+    other = root / "era5land" / "hourly" / "2016-12-05_7d_g1_-56.5_-180_-90_180.nc"           # e.g. another year's job
+    other.parent.mkdir(parents=True)
+    other.write_bytes(b"")
+    for day in ["2017-01-10", "2017-01-17", "2017-01-24"]:
+        cds_hourly.field(SRC, "t2m", pd.Timestamp(day + "T12"))
+    left = sorted(p.name[:13] for p in other.parent.glob("*.nc"))
+    assert left == ["2016-12-05_7d", "2017-01-16_7d", "2017-01-23_7d"]                     # only its own removed

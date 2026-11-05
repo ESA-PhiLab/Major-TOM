@@ -9,6 +9,8 @@
 #
 #   bash docs/evidence/era5land_south.sh <year> [--submit [--after <jobid>]]   (years with samples: 2016, 2018-2024)
 #   --after: the six groups start once that job ends (the previous year's fill), whether it succeeded or not
+#   cache: one folder per year. A job deletes its group's span files older than the span it fetched, so two years
+#   sharing a folder delete each other's files (2019 g4 failed this way on 2026-11-05; 2016-2019 used $CW/cache)
 #   memory: groups peaked at 2.7 GB (2018, sstat), the fill at 6.6 GB (2016, sacct); 32 GB each held back other users' jobs
 set -euo pipefail
 REPO=/home/miko/Projects/asterisk/Major-TOM
@@ -30,7 +32,7 @@ ids=()
 for g in 1 2 3 4 5 6; do
   cmd=(sbatch --parsable --cpus-per-task=4 --mem=8G --time=7-00:00:00 $after -J "era5land-south-$YEAR-g$g" ~/slurm-templates/cpu.sbatch
        "$PY" -W ignore -u -m majortom.climate stream --samples $SAMPLES --source era5-land-cds-south
-       --variables ${GROUPS_[$((g - 1))]} --out "$CW/era5land-cds-south-$YEAR-g$g" --cache "$CW/cache" --workers 8 --progress 50000)
+       --variables ${GROUPS_[$((g - 1))]} --out "$CW/era5land-cds-south-$YEAR-g$g" --cache "$CW/cache-south-$YEAR" --workers 8 --progress 50000)
   echo "${cmd[*]}"
   if $submit; then ids+=("$("${cmd[@]}")"); fi
 done

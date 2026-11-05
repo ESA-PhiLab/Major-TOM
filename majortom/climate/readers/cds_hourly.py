@@ -25,6 +25,7 @@ from . import cache_dir, read_netcdf
 from .queue import _fetch
 
 _lock = threading.Lock()
+_mine: set[Path] = set()      # span files this process fetched: the only ones it may remove (other jobs share the folder)
 
 
 def group_of(source, variable: str) -> int:
@@ -62,18 +63,23 @@ def _span_file(source, day: pd.Timestamp, group: int) -> Path:
     if not target.exists():
         folder.mkdir(parents=True, exist_ok=True)
         _fetch(source, request(source, first, last, group), target)
+        with _lock:
+            _mine.add(target)
         _remove_before(folder, group, first - pd.Timedelta(days=1), source)
     return target
 
 
 def _remove_before(folder: Path, group: int, day: pd.Timestamp, source) -> None:
-    """Remove the group's span files that end before `day` (the previous span stays: 00 UTC needs 23 UTC)."""
+    """Remove the group's span files that end before `day` (the previous span stays: 00 UTC needs 23 UTC), only those
+    this process fetched: another job (e.g. another year) may be reading the others. 2026-11-05: a 2020 job removed a
+    2019 job's span file and the 2019 job failed."""
     with _lock:
-        for f in folder.glob(f"*_g{group}_{_tag(source)}.nc"):
+        for f in [f for f in folder.glob(f"*_g{group}_{_tag(source)}.nc") if f in _mine]:
             first = pd.Timestamp(f.name[:10])
             days = int(f.name[11:].split("d_", 1)[0])
             if first + pd.Timedelta(days=days) <= day:
                 f.unlink(missing_ok=True)
+                _mine.discard(f)
 
 
 def _at(source, variable: str, hour: pd.Timestamp) -> np.ndarray:
