@@ -1,5 +1,7 @@
 # Log
 
+- 2026-11-05 Agent skill skills/major-tom/ (SKILL.md; reference/ grid, datasets, build): all five snippets run in a Slurm job (unreviewed)
+- 2026-11-05 CHECKLIST harmonised with the code, LOG and reports; decisions of 2026-11-05; final steps section (56 done, 26 open)
 - 2026-11-05 Core-Weather README: Earth Compress footer as in the climate READMEs; README re-uploaded to source.coop (verified)
 - 2026-11-05 ERA5-Land south fill: jobs remove only span files they fetched, one cache folder per year (a 2020 job removed a 2019 job's file); 2019 g4 rerun, 2020-2024 resubmitted
 - 2026-11-04 Climate Globe series chart: 10-year window moved by drag or ‹ ›, y-axis fitted to the values (0 only for amounts), °C labels for kelvin
