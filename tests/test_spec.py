@@ -59,6 +59,21 @@ def test_cells_in_covers_the_box():
     assert len(cells) == len(set(cells.grid_cell))
 
 
+def test_cells_in_polygon_keeps_only_cells_touching_it():
+    import shapely
+
+    triangle = shapely.Polygon([(-5.0, 55.8), (-4.0, 55.8), (-5.0, 56.4)])
+    box = cells_in(triangle.bounds, d=10)
+    cells = cells_in(triangle, d=10)
+    assert 0 < len(cells) < len(box)
+    assert set(cells.grid_cell) <= set(box.grid_cell)
+    edges = [shapely.box(c.lon, c.lat, c.lon + c.dlon, c.lat + c.dlat)
+             for c in (Cell(int(r), int(k)) for r, k in zip(cells.row, cells.col))]
+    assert all(e.intersects(triangle) for e in edges)
+    assert cell_at(-4.9, 55.85).name in set(cells.grid_cell)        # a point inside the triangle
+    assert cell_at(-4.05, 56.35).name not in set(cells.grid_cell)   # a point in the box, far from the triangle
+
+
 def test_south_pole_cell_is_centred_on_the_pole():
     pole = Cell(-1002, 0, 10)                          # the disc cell at -90 deg (even row count)
     win = window(pole, lattice=60)

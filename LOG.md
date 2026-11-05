@@ -1,5 +1,6 @@
 # Log
 
+- 2026-11-05 cells_in takes a shapely polygon as well as a lon/lat box (cells whose rectangle touches it); test in tests/test_spec.py
 - 2026-11-05 Agent skill skills/major-tom/ (SKILL.md; reference/ grid, datasets, build): all five snippets run in a Slurm job (unreviewed)
 - 2026-11-05 CHECKLIST harmonised with the code, LOG and reports; decisions of 2026-11-05; final steps section (56 done, 26 open)
 - 2026-11-05 Core-Weather README: Earth Compress footer as in the climate READMEs; README re-uploaded to source.coop (verified)

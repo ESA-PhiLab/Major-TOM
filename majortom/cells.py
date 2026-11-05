@@ -94,14 +94,26 @@ def _table(cells: list[Cell]) -> pd.DataFrame:
     })
 
 
-def cells_in(bbox: tuple[float, float, float, float], d: float = 10.0) -> pd.DataFrame:
-    """Every cell that intersects a lon/lat box (west, south, east, north). Does not cross 180°."""
-    west, south, east, north = bbox
+def cells_in(area, d: float = 10.0) -> pd.DataFrame:
+    """Every cell that intersects `area`: a lon/lat box (west, south, east, north) or a shapely geometry in lon/lat
+    (e.g. a polygon from a GeoJSON file). Does not cross 180°.
+
+    For a geometry, the cells of its bounding box are the candidates; those whose lon/lat rectangle intersects the
+    geometry are kept.
+    """
+    box = isinstance(area, (tuple, list))
+    west, south, east, north = area if box else area.bounds
     dlat = 180 / n_rows(d)
     cells = []
     for row in range(math.floor(south / dlat), math.floor(north / dlat) + 1):
         dlon = Cell(row, 0, d).dlon
         cells += [Cell(row, col, d) for col in range(math.floor(west / dlon), math.floor(east / dlon) + 1)]
+    if not box:
+        import shapely
+
+        edges = shapely.box([c.lon for c in cells], [c.lat for c in cells],
+                            [c.lon + c.dlon for c in cells], [c.lat + c.dlat for c in cells])
+        cells = [c for c, hit in zip(cells, shapely.intersects(edges, area)) if hit]
     return _table(cells)
 
 
