@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** reviewed (Miko, 2026-10-24); draft of the dataset card for Major-TOM/Core-Weather (2026-10-23). ERA5-Land rows, note and credit added 2026-10-26; ERA5 and ERA5-Land rows, Size and Validation updated 2026-10-30 (overnight, from docs/evidence/core_weather_validate.py and a trial merge of four days); reviewed (Miko, 2026-11-02). 2026-11-02, for publishing (not yet reviewed): Reading section with a tested example, daily column names, Copernicus disclaimer, ERA5-Land south note, GitHub links. 2026-11-03 (not yet reviewed): global map and Examples section with three figures (docs/evidence/core_weather_figures.py).
+> **Review status:** reviewed (Miko, 2026-10-24); draft of the dataset card for Major-TOM/Core-Weather (2026-10-23). ERA5-Land rows, note and credit added 2026-10-26; ERA5 and ERA5-Land rows, Size and Validation updated 2026-10-30 (overnight, from docs/evidence/core_weather_validate.py and a trial merge of four days); reviewed (Miko, 2026-11-02). 2026-11-02, for publishing (not yet reviewed): Reading section with a tested example, daily column names, Copernicus disclaimer, ERA5-Land south note, GitHub links. 2026-11-03 (not yet reviewed): global map and Examples section with three figures (docs/evidence/core_weather_figures.py). 2026-11-05: Earth Compress footer, as in the climate READMEs.
 
 # Core-Weather
 
@@ -125,3 +125,9 @@ To cite this dataset, cite the Major TOM paper below and the sources listed abov
   doi={10.1109/IGARSS53475.2024.10640760}
 }
 ```
+
+---
+
+<img src="https://data.source.coop/major-tom/climate/brand/earth-compress.svg" alt="Earth Compress" width="200">
+
+Developed by [Asterisk Labs](https://asterisk.coop) as part of [Earth Compress](https://asterisk.coop/project-pages/earth-compress.html), an ARIA-funded project jointly led with the National Oceanography Centre.
