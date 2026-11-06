@@ -79,7 +79,9 @@ explicit imports now, module renames after the merge; CSLC issue posted.
 - [x] Global geocoded complex Sentinel-1 (CSLC): GitHub issue posted (Miko, 2026-11-05); work later
 - [x] COG writer: `majortom/release/cog.py`; tables (parquet) in `majortom/release/tables`
 - [x] v1→v2 crop path: `crop_core_to_v2`, and `download(window="v1")` for samples that line up with Core
-- [ ] Embedding products (Miko, 2026-11-06): AlphaEarth (Earth Engine `GOOGLE/SATELLITE_EMBEDDING/V1/ANNUAL`: one `Collection` entry; or the tge-labs/aef COGs on source.coop: a non-STAC archive, south-up files, int8 values), TESSERA (its own tile distribution: a non-STAC archive; check the format first)
+- [ ] AlphaEarth embeddings as a product, both paths (Miko, 2026-11-06): Earth Engine (`GOOGLE/SATELLITE_EMBEDDING/V1/ANNUAL`, one `Source`) and source.coop (tge-labs/aef COGs: a non-STAC archive, south-up files, int8 values)
+- [ ] TESSERA embeddings as a product (Miko, 2026-11-06): its Zarr archive, a non-STAC archive; versions selectable
+- [ ] OlmoEarth: check for published embedding datasets; if any, add them as a product (Miko, 2026-11-06)
 
 ## WS6 — Cleanup and embedder
 - [ ] Explicit imports (no `import *` in `majortom/__init__.py`, `metadata.py`, `embedder/`)
@@ -89,7 +91,7 @@ explicit imports now, module renames after the merge; CSLC issue posted.
 - [ ] Embedding reproducibility test (Slurm script against the local Core-S2RGB-SigLIP copy and one Core-S2L1C-SSL4EO file; cosine >= 0.999)
 - [ ] Embedder inputs beyond Core rows: `majortom.build` samples (`.npz`) and TACO datasets (Miko, 2026-11-06)
 - [ ] Document `unique_id`: SHA-256 of geometry WKT, timestamp, product_id and the float64 numpy string of the embedding (only its first and last 3 values); 200 of 200 published SigLIP rows reproduce (2026-11-06)
-- [ ] OlmoEarth as an embedder model in `majortom.embedder` (a model, not a published product) (Miko, 2026-11-06)
+- [ ] TESSERA and OlmoEarth as embedder models in `majortom.embedder` (Miko, 2026-11-06)
 - [ ] `faiss-cpu` in the `embed` extra (Miko, 2026-11-06)
 - [x] Notebook moves: old notebooks in `legacy/` with a README (2026-11-06); output stripping: legacy notebooks kept as they were
 
