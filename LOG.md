@@ -1,5 +1,7 @@
 # Log
 
+- 2026-11-06 Collection.example and Collection.preview: one entry per product feeds the product test, the gallery and the entry notebook; offline test requires both; CONTRIBUTING updated; product counts removed from living docs (current list: docs/ARCHIVES.md, catalogue.table())
+- 2026-11-06 CONTEXT.md rewritten (release, climate, apps, published datasets, environments)
 - 2026-11-05 cells_in takes a shapely polygon as well as a lon/lat box (cells whose rectangle touches it); test in tests/test_spec.py
 - 2026-11-05 Agent skill skills/major-tom/ (SKILL.md; reference/ grid, datasets, build): all five snippets run in a Slurm job (unreviewed)
 - 2026-11-05 CHECKLIST harmonised with the code, LOG and reports; decisions of 2026-11-05; final steps section (56 done, 26 open)

@@ -1,6 +1,6 @@
 ---
 name: major-tom
-description: Work with Major TOM, the global 10 km grid and its Earth observation datasets (Core-S2L2A, Core-S2L1C, Core-S1RTC, Core-DEM, embeddings, Core-Weather, the monthly climate datasets). Use when the user wants to find grid cells for points or areas, read Core samples or metadata from Hugging Face, read weather or climate values for cells from source.coop, or build new Major TOM samples from public archives with the majortom package.
+description: Work with Major TOM, the global 10 km grid and its Earth observation datasets (Core-S2L2A, Core-S2L1C, Core-S1RTC, Core-DEM, embeddings, Core-Weather, the monthly climate datasets). Use when the user wants to find grid cells for points or areas, read Core samples or metadata from Hugging Face, read weather or climate values for cells from source.coop, build new Major TOM samples from public archives, or release and publish them as TACO datasets, with the majortom package.
 ---
 
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
@@ -102,7 +102,31 @@ cells = build.cells_from_points(pd.DataFrame({"lon": [-4.6], "lat": [56.1]}), d=
 errors = build.download(cells, "sentinel-2-l2a", "2024-06-01/2024-08-31")   # chips/<collection>/<index>.npz + .json
 ```
 
+The products range from optical (Sentinel-2, Landsat, HLS, MODIS, ASTER, Sentinel-3) to radar (Sentinel-1, ALOS
+PALSAR), elevation, land cover, biomass, water and night lights, and grow with contributions. Never state a count
+from memory; check the installed version: `from majortom.build import catalogue; print(catalogue.table())`
+(products, archives and periods), `majortom.build.collections.COLLECTIONS` (products) and
+`majortom.build.archives.ARCHIVES` (archives). The same table is in docs/ARCHIVES.md section 2.
 Products, archives, credentials and scene choice: [reference/build.md](reference/build.md).
+
+## 6. Release and publish (majortom.release)
+
+Built samples of one product become a TACO dataset (lossless rumi files per pixel-size group, Hilbert order,
+partitions and a `.tacocat` catalogue), then are uploaded.
+
+```python
+from majortom.release import release, read
+from majortom.release.publish import publish
+from pathlib import Path
+path = release(sorted(Path("chips/sentinel-2-l2a").glob("*.npz")), "release/my-s2.zip", id="my-s2",
+               description="...", licenses=["CC-BY-4.0"], providers=["..."])
+publish("release", "source.coop://<account>/<repository>", dry_run=True)     # or "hf://<user>/<repo>"
+```
+
+Published TACO datasets open from their URL with `taco.open_dataset(url)` and SQL: `major-tom/release-test` (one
+dataset per source, e.g. `https://data.source.coop/major-tom/release-test/sentinel-2-l2a/`) and `major-tom/core-dem`.
+File columns are `<group>.rumi::location` / `::header` (group = pixel size, e.g. `10m`); `read(location, header)`
+gives the array, `as_="cog"` a GeoTIFF. Options: [reference/release.md](reference/release.md).
 
 ## Rules
 

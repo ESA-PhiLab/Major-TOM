@@ -39,7 +39,8 @@ One entry in `COLLECTIONS` in `collections.py`. For a product already on Planeta
 
 ```python
 "modis-09q1": Collection(("sur_refl_b01", "sur_refl_b02"), res_m=250,
-                         sources={"planetary-computer": Source("modis-09Q1-061", period=("2000-02-18", None))}),
+                         sources={"planetary-computer": Source("modis-09Q1-061", period=("2000-02-18", None))},
+                         example="2024-06-01/2024-08-31", preview=Preview(band="sur_refl_b02")),
 ```
 
 - **Bands** are the names saved in every sample. If an archive names them differently, its `Source` maps them: `Source("sentinel-2-c1-l2a", {"B04": "red", ...})`. Band `n` of a multi-band file is `"ASSET#n"`.
@@ -49,10 +50,18 @@ One entry in `COLLECTIONS` in `collections.py`. For a product already on Planeta
 - **Clouds:** `clouds=(mask band, function)` if the product has a mask, or `clouds_from="<product>"` to borrow the mask of the same pass (Sentinel-2 L1C and Dynamic World borrow the L2A SCL).
 - **`res_m`** is needed when the product is not in UTM (latitude/longitude, MODIS sinusoidal): the pixel size it is resampled to.
 - **`offset`** only for products whose stored values carry an offset that archives do not all declare (Sentinel-2).
+- **`example`** (required): dates with data at the test cell 624U_29L (Loch Lomond), as passed to `download`;
+  `None` for static products. `tests/test_products.py` builds the product with them, and the entry notebook
+  `00-Major-TOM.ipynb` shows it with them.
+- **`preview`** (required): how one sample is shown in the gallery and the entry notebook: `Preview(rgb=("B04",
+  "B03", "B02"))`, `Preview(band="DEM", cmap="terrain")` or `Preview(classes="map")`; `db="power"` (or `"amplitude"`,
+  `"palsar"`) shows radar backscatter in dB. `tests/test_catalogue.py` fails if either is missing or names a band
+  the product does not have.
 
 For Earth Engine, also add an `EarthEngine` entry to `EARTH_ENGINE`: band names, and which properties hold cloud cover, satellite and tile.
 
-Then add the product's test dates to `DATES` in `tests/test_products.py`, and run `python -m majortom.build.catalogue` to update the table in docs/ARCHIVES.md.
+Then run `python -m majortom.build.catalogue` to update the table in docs/ARCHIVES.md. Nothing else lists products:
+the tests, the gallery and the entry notebook all read `COLLECTIONS`, so do not add the product anywhere else.
 
 ## 4. Add an archive
 
@@ -81,7 +90,9 @@ Then add the product's test dates to `DATES` in `tests/test_products.py`, and ru
 ## 6. Pull request checklist
 
 - [ ] Product or archive entry, with a `period` for each source
-- [ ] Test dates in `tests/test_products.py`; network tests pass for the new pairs
+- [ ] `example` dates and a `preview` on the product (offline tests pass: `uv run pytest -q`)
+- [ ] Network tests pass for the new pairs: `uv run pytest -m network tests/test_products.py -k <product>`
+- [ ] Its row in the gallery looks right (section 5, step 4)
 - [ ] Cross-archive comparison, if the data exist elsewhere
 - [ ] `python -m majortom.build.catalogue` run (the table test fails otherwise)
 - [ ] A setup section in docs/ARCHIVES.md for a new archive

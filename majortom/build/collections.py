@@ -94,6 +94,25 @@ class Source:
 
 
 @dataclass(frozen=True)
+class Preview:
+    """How one sample of a product is shown (docs/evidence/gallery.py, 00-Major-TOM.ipynb): exactly one of
+    three bands as red, green, blue (`rgb`); one band with a matplotlib colour map (`band`, `cmap`); or a band of
+    classes, one colour per class present (`classes`). `db` shows radar backscatter in dB: "power" (10 log10 of
+    linear gamma0), "amplitude" (20 log10 of uncalibrated amplitude) or "palsar" (JAXA: 10 log10(DN²) - 83)."""
+    rgb: tuple[str, str, str] | None = None
+    band: str | None = None
+    cmap: str = "gray"
+    classes: str | None = None
+    db: str | None = None
+
+    def __post_init__(self):
+        if sum(x is not None for x in (self.rgb, self.band, self.classes)) != 1:
+            raise ValueError("Preview needs exactly one of rgb, band, classes")
+        if self.db not in (None, "power", "amplitude", "palsar"):
+            raise ValueError(f"Preview.db must be power, amplitude or palsar, not {self.db!r}")
+
+
+@dataclass(frozen=True)
 class Collection:
     """What the builder needs to know about one collection.
 
@@ -118,6 +137,9 @@ class Collection:
     fill        stored value meaning "no data" in files without a mask (Sentinel-2 L1C: 0 outside the swath)
     period      time covered when `sources` is None (Planetary Computer only); static products: none,
                 their one version is used whatever the dates
+    example     dates with data at the test cell 624U_29L (Loch Lomond), as `datetime` for download(); None for
+                static products. Used by tests/test_products.py, docs/evidence/gallery.py and 00-Major-TOM.ipynb
+    preview     how a sample is shown (Preview)
     """
     assets: tuple[str, ...]
     time: str = "scene"
@@ -132,6 +154,8 @@ class Collection:
     native: bool = True
     fill: float | None = None
     period: tuple[str, str | None] | None = None
+    example: str | None = None
+    preview: Preview | None = None
 
     def source(self, name: str, archive: str) -> Source | None:
         """Where `archive` keeps this product (`name` is the product's name), or None."""
@@ -243,121 +267,158 @@ COLLECTIONS = {
                                           "earth-search": Source("sentinel-2-c1-l2a", S2_EARTH_SEARCH, S2_PERIOD),
                                           "cdse": Source("sentinel-2-l2a", S2_CDSE_L2A, S2_PERIOD),
                                           "earth-engine": Source("COPERNICUS/S2_SR_HARMONIZED",
-                                                                 period=("2017-03-28", None))}),
+                                                                 period=("2017-03-28", None))},
+                                 example="2024-06-01/2024-08-31", preview=Preview(rgb=("B04", "B03", "B02"))),
     "sentinel-2-l1c": Collection(S2_L1C, clouds_from="sentinel-2-l2a", fill=0,
                                  offset=(S2_L1C, declared_or_baseline_offset),
                                  sources={"earth-search": Source("sentinel-2-l1c", S2_EARTH_SEARCH, S2_PERIOD),
                                           "cdse": Source("sentinel-2-l1c", period=S2_PERIOD),
-                                          "earth-engine": Source("COPERNICUS/S2_HARMONIZED", period=S2_PERIOD)}),
+                                          "earth-engine": Source("COPERNICUS/S2_HARMONIZED", period=S2_PERIOD)},
+                                 example="2024-06-01/2024-08-31", preview=Preview(rgb=("B04", "B03", "B02"))),
     "cop-dem-glo-30": Collection(("DEM",), time="static", res_m=30, kind="elevation",
                                  sources={"planetary-computer": Source("cop-dem-glo-30", {"DEM": "data"}),
                                           "earth-search": Source("cop-dem-glo-30", {"DEM": "data"}),
-                                          "cdse": Source("cop-dem-glo-30-dged-cog", {"DEM": "data"})}),
+                                          "cdse": Source("cop-dem-glo-30-dged-cog", {"DEM": "data"})},
+                                 example=None, preview=Preview(band="DEM", cmap="terrain")),
     "landsat-c2-l2": Collection(("blue", "green", "red", "nir08", "swir16", "swir22"), optional=("coastal",),
                                 clouds=("qa_pixel", landsat_clouds),                                  # Landsat 4-9
                                 sources={"planetary-computer": Source("landsat-c2-l2", period=("1982-08-22", None)),
                                          "earth-engine": Source("+".join(f"LANDSAT/{m}/C02/T1_L2" for m in (
-                                             "LT04", "LT05", "LE07", "LC08", "LC09")), period=("1982-08-22", None))}),
+                                             "LT04", "LT05", "LE07", "LC08", "LC09")), period=("1982-08-22", None))},
+                                example="2024-06-01/2024-08-31", preview=Preview(rgb=("red", "green", "blue"))),
     "landsat-c2-l1": Collection(OLI_L1, optional=("B8",), clouds=("qa_pixel", landsat_clouds),       # Landsat 8-9
                                 sources={"earth-engine": Source("LANDSAT/LC08/C02/T1+LANDSAT/LC09/C02/T1",
-                                                                period=("2013-03-18", None))}),
+                                                                period=("2013-03-18", None))},
+                                example="2024-06-01/2024-08-31", preview=Preview(rgb=("B4", "B3", "B2"))),
     "hls2-s30": Collection(("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B10", "B11", "B12"),
                            clouds=("Fmask", hls_clouds),
                            sources={"planetary-computer": Source("hls2-s30", period=("2020-01-01", None)),
                                     "earthdata": Source("LPCLOUD/HLSS30_2.0", period=("2015-11-28", None)),
-                                    "earth-engine": Source("NASA/HLS/HLSS30/v002", period=("2015-11-28", None))}),
+                                    "earth-engine": Source("NASA/HLS/HLSS30/v002", period=("2015-11-28", None))},
+                           example="2024-06-01/2024-08-31", preview=Preview(rgb=("B04", "B03", "B02"))),
     "hls2-l30": Collection(("B01", "B02", "B03", "B04", "B05", "B06", "B07", "B09"), optional=("B10", "B11"),
                            clouds=("Fmask", hls_clouds),                                  # B10, B11: thermal
                            sources={"planetary-computer": Source("hls2-l30", period=("2020-01-01", None)),
                                     "earthdata": Source("LPCLOUD/HLSL30_2.0", period=("2013-04-11", None)),
-                                    "earth-engine": Source("NASA/HLS/HLSL30/v002", period=("2013-04-11", None))}),
+                                    "earth-engine": Source("NASA/HLS/HLSL30/v002", period=("2013-04-11", None))},
+                           example="2024-06-01/2024-08-31", preview=Preview(rgb=("B04", "B03", "B02"))),
     "dynamic-world": Collection(DYNAMIC_WORLD, resampling="nearest", kind="land cover",    # per Sentinel-2 scene
                                 clouds_from="sentinel-2-l2a",                 # it masks clouds: rank by the L2A SCL
                                 sources={"earth-engine": Source("GOOGLE/DYNAMICWORLD/V1",
-                                                                period=("2015-06-27", None))}),
+                                                                period=("2015-06-27", None))},
+                                example="2024-06-01/2024-08-31", preview=Preview(classes="label")),
     # MODIS: sinusoidal grid, so always resampled; Terra (MOD) and Aqua (MYD) together, as on Planetary Computer
     "modis-09a1": Collection(tuple(MODIS_SR), res_m=500,
                              sources={"planetary-computer": Source("modis-09A1-061", period=("2000-02-18", None)),
                                       "earth-engine": Source("MODIS/061/MOD09A1+MODIS/061/MYD09A1",
-                                                             period=("2000-02-18", None))}),
+                                                             period=("2000-02-18", None))},
+                             example="2024-06-01/2024-08-31",
+                             preview=Preview(rgb=("sur_refl_b01", "sur_refl_b04", "sur_refl_b03"))),
     "modis-09q1": Collection(("sur_refl_b01", "sur_refl_b02"), res_m=250,
                              sources={"planetary-computer": Source("modis-09Q1-061", period=("2000-02-18", None)),
                                       "earth-engine": Source("MODIS/061/MOD09Q1+MODIS/061/MYD09Q1",
-                                                             period=("2000-02-18", None))}),
+                                                             period=("2000-02-18", None))},
+                             example="2024-06-01/2024-08-31", preview=Preview(band="sur_refl_b02")),
     "modis-43a4": Collection(NBAR, res_m=500,                       # nadir BRDF-adjusted reflectance, daily
                              sources={"planetary-computer": Source("modis-43A4-061", period=("2000-02-16", None)),
-                                      "earth-engine": Source("MODIS/061/MCD43A4", period=("2000-02-24", None))}),
+                                      "earth-engine": Source("MODIS/061/MCD43A4", period=("2000-02-24", None))},
+                             example="2024-06-01/2024-08-31",
+                             preview=Preview(rgb=("Nadir_Reflectance_Band1", "Nadir_Reflectance_Band4",
+                                                  "Nadir_Reflectance_Band3"))),
     "modis-11a2": Collection(("LST_Day_1km", "LST_Night_1km"), res_m=1000, kind="temperature",   # kelvin x 50
                              sources={"planetary-computer": Source("modis-11A2-061", period=("2000-02-18", None)),
                                       "earth-engine": Source("MODIS/061/MOD11A2+MODIS/061/MYD11A2",
-                                                             period=("2000-02-18", None))}),
+                                                             period=("2000-02-18", None))},
+                             example="2024-06-01/2024-08-31", preview=Preview(band="LST_Day_1km", cmap="inferno")),
     "modis-13q1": Collection(("NDVI", "EVI"), res_m=250,
                              sources={"planetary-computer": Source("modis-13Q1-061", {"NDVI": "250m_16_days_NDVI",
                                                                                       "EVI": "250m_16_days_EVI"},
                                                                    period=("2000-02-18", None)),
                                       "earth-engine": Source("MODIS/061/MOD13Q1+MODIS/061/MYD13Q1",
-                                                             period=("2000-02-18", None))}),
+                                                             period=("2000-02-18", None))},
+                             example="2024-06-01/2024-08-31", preview=Preview(band="NDVI", cmap="YlGn")),
     # ASTER: digital numbers; SWIR failed in 2008, VNIR missing from some Planetary Computer scenes, so optional
     "aster-l1t": Collection(ASTER_TIR, optional=ASTER_VNIR + ASTER_SWIR, native=False,
                             res_m={**{b: 15 for b in ASTER_VNIR}, **{b: 30 for b in ASTER_SWIR},
                                    **{b: 90 for b in ASTER_TIR}},
                             sources={"planetary-computer": Source("aster-l1t", ASTER_PC,
                                                                   ("2000-03-04", "2006-12-31")),
-                                     "earth-engine": Source("ASTER/AST_L1T_003", period=("2000-03-04", None))}),
+                                     "earth-engine": Source("ASTER/AST_L1T_003", period=("2000-03-04", None))},
+                            example="2004-07-01/2004-09-30", preview=Preview(rgb=("B3N", "B02", "B01"))),
     "viirs-dnb-monthly": Collection(("avg_rad", "cf_cvg"), res_m=500, kind="night lights",   # nW/cm2/sr, cloud-free
                                     sources={"earth-engine": Source("NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG",
-                                                                    period=("2014-01-01", None))}),
+                                                                    period=("2014-01-01", None))},
+                                    example="2024-06-01/2024-08-31", preview=Preview(band="avg_rad", cmap="magma")),
     # Sentinel-3 OLCI: swaths; CDSE and Planetary Computer files are netCDF placed by their latitude and longitude
     "sentinel-3-olci-l1": Collection(OLCI, res_m=300, native=False, fill=0,   # top-of-atmosphere radiance
                                      sources={"earth-engine": Source("COPERNICUS/S3/OLCI", period=("2016-10-18", None)),
                                               "cdse": Source("sentinel-3-olci-1-efr-ntc",
                                                              {b: f"{b}Data:{b}" for b in OLCI},
-                                                             period=("2020-04-16", None))}),
+                                                             period=("2020-04-16", None))},
+                                     example="2024-06-01/2024-08-31",
+                                     preview=Preview(rgb=("Oa08_radiance", "Oa06_radiance", "Oa03_radiance"))),
     "sentinel-3-olci-l2-lfr": Collection(("GIFAPAR", "OTCI", "IWV"), res_m=300, native=False,   # land products
                                          sources={"planetary-computer": Source("sentinel-3-olci-lfr-l2-netcdf", LFR,
                                                                                period=("2016-04-25", None)),
                                                   "cdse": Source("sentinel-3-olci-2-lfr-ntc", LFR,
-                                                                 period=("2016-04-25", None))}),
+                                                                 period=("2016-04-25", None))},
+                                         example="2024-06-01/2024-08-31", preview=Preview(band="OTCI", cmap="YlGn")),
     "sentinel-1-rtc": Collection(("vv", "vh"), kind="radar",       # backscatter (gamma0, linear), UTM 10 m; no clouds
-                                 period=("2014-10-10", None)),
+                                 period=("2014-10-10", None),
+                                 example="2024-06-01/2024-08-31", preview=Preview(band="vv", db="power")),
     # raw GRD: amplitude digital numbers, placed with the files' ground control points (no terrain correction)
     "sentinel-1-grd": Collection(("vv", "vh"), kind="radar", res_m=10, native=False,
                                  sources={"planetary-computer": Source("sentinel-1-grd", period=("2014-10-10", None)),
                                           "earth-search": Source("sentinel-1-grd", period=("2014-10-10", None)),
-                                          "cdse": Source("sentinel-1-grd", period=("2014-10-04", None))}),
+                                          "cdse": Source("sentinel-1-grd", period=("2014-10-04", None))},
+                                 example="2024-06-01/2024-08-31", preview=Preview(band="vv", db="amplitude")),
     "sentinel-1-grd-tc": Collection(("vv", "vh"), kind="radar",  # terrain-corrected by Earth Engine; backscatter in dB
-                                    sources={"earth-engine": Source("COPERNICUS/S1_GRD", period=("2014-10-03", None))}),
+                                    sources={"earth-engine": Source("COPERNICUS/S1_GRD", period=("2014-10-03", None))},
+                                    example="2024-06-01/2024-08-31", preview=Preview(band="vv")),
     # OPERA (NASA JPL): analysis-ready products from Sentinel-1 and HLS, UTM 30 m; asset keys found by suffix
     "opera-rtc-s1": Collection(("VV", "VH"), kind="radar",          # gamma0 backscatter, linear; one burst per item
-                               sources={"earthdata": Source("ASF/OPERA_L2_RTC-S1_V1_1", period=("2016-04-14", None))}),
+                               sources={"earthdata": Source("ASF/OPERA_L2_RTC-S1_V1_1", period=("2016-04-14", None))},
+                               example="2024-06-01/2024-08-31", preview=Preview(band="VV", db="power")),
     "opera-dswx-hls": Collection(("WTR", "BWTR", "CONF"), kind="water", resampling="nearest",   # water classes
                                  sources={"earthdata": Source("POCLOUD/OPERA_L3_DSWX-HLS_V1_1.0", DSWX,
-                                                              period=("2016-01-01", None))}),
+                                                              period=("2016-01-01", None))},
+                                 example="2024-06-01/2024-08-31", preview=Preview(classes="WTR")),
     "opera-dswx-s1": Collection(("WTR", "BWTR", "CONF"), kind="water", resampling="nearest",
                                 sources={"earthdata": Source("POCLOUD/OPERA_L3_DSWX-S1_V1_1.0", DSWX,
-                                                             period=("2023-12-01", None))}),
+                                                             period=("2023-12-01", None))},
+                                example="2024-06-01/2024-08-31", preview=Preview(classes="WTR")),
     "opera-dist-alert-hls": Collection(("VEG-DIST-STATUS", "VEG-IND", "VEG-ANOM"), kind="land cover",   # disturbance
                                        resampling="nearest",
                                        sources={"earthdata": Source("LPCLOUD/OPERA_L3_DIST-ALERT-HLS_V1_1",
-                                                                    period=("2023-01-01", None))}),
+                                                                    period=("2023-01-01", None))},
+                                       example="2024-06-01/2024-08-31", preview=Preview(classes="VEG-DIST-STATUS")),
     "alos-palsar-mosaic": Collection(("HH", "HV"), time="yearly", res_m=25, kind="radar",
-                                     period=("2015-01-01", "2021-12-31")),
-    "nasadem": Collection(("elevation",), time="static", res_m=30, kind="elevation"),
-    "alos-dem": Collection(("data",), time="static", res_m=30, kind="elevation"),
+                                     period=("2015-01-01", "2021-12-31"),
+                                     example="2020", preview=Preview(band="HH", db="palsar")),
+    "nasadem": Collection(("elevation",), time="static", res_m=30, kind="elevation",
+                          example=None, preview=Preview(band="elevation", cmap="terrain")),
+    "alos-dem": Collection(("data",), time="static", res_m=30, kind="elevation",
+                           example=None, preview=Preview(band="data", cmap="terrain")),
     "hgb": Collection(("aboveground", "belowground", "aboveground_uncertainty", "belowground_uncertainty"),
-                      time="static", res_m=300, kind="biomass"),
+                      time="static", res_m=300, kind="biomass",
+                      example=None, preview=Preview(band="aboveground", cmap="YlGn")),
     "alos-fnf-mosaic": Collection(("C",), time="yearly", resampling="nearest", res_m=25, kind="land cover",
-                                  period=("2015-01-01", "2020-12-31")),
+                                  period=("2015-01-01", "2020-12-31"),
+                                  example="2020", preview=Preview(classes="C")),
     "esa-worldcover": Collection(("map", "input_quality"), time="yearly", resampling="nearest",
                                  res_m={"map": 10, "input_quality": 60}, kind="land cover",
-                                 period=("2020-01-01", "2021-12-31")),
+                                 period=("2020-01-01", "2021-12-31"),
+                                 example="2021", preview=Preview(classes="map")),
     "io-lulc-annual-v02": Collection(("data",), time="yearly", resampling="nearest", res_m=10, kind="land cover",
-                                     period=("2017-01-01", "2024-01-01")),
+                                     period=("2017-01-01", "2024-01-01"),
+                                     example="2022", preview=Preview(classes="data")),
     "esa-cci-lc": Collection(("lccs_class", "change_count", "observation_count", "current_pixel_state",
                               "processed_flag"), time="yearly", resampling="nearest", res_m=300, kind="land cover",
-                             period=("1992-01-01", "2020-12-31")),
+                             period=("1992-01-01", "2020-12-31"),
+                             example="2020", preview=Preview(classes="lccs_class")),
     "jrc-gsw": Collection(("occurrence", "change", "seasonality", "recurrence", "transitions", "extent"),
-                          time="static", resampling="nearest", res_m=30, kind="water"),
+                          time="static", resampling="nearest", res_m=30, kind="water",
+                          example=None, preview=Preview(band="occurrence", cmap="Blues")),
 }
 
 

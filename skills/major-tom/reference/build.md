@@ -52,6 +52,18 @@ Credentials: `python -m majortom.build.credentials <cdse|earthdata|earth-engine|
 input and writes owner-only files, or set the environment variables it names. Do not ask users to paste keys
 into a chat, and never print them.
 
+## Archives compared
+
+Same processing, same pixels: Sentinel-2 L2A, Landsat L2, HLS and Copernicus DEM samples are identical across the
+archives that hold them, once each sample's `offset` is removed (docs/ARCHIVES.md section 5). Speed (2026-10-22,
+UK server, Sentinel-2 L2A samples per hour): Planetary Computer 1,177, Earth Search 384, Earth Engine 215, CDSE 207
+(docs/reports/2026-10-22-build-speed.md).
+
+## Adding a product or archive
+
+One `Collection` in `majortom/build/collections.py` or one `Archive` in `archives.py`, test dates in
+`tests/test_products.py`, then `python -m majortom.build.catalogue`: CONTRIBUTING.md.
+
 ## Cost
 
 Each sample is a STAC search plus windowed reads of cloud-optimised files: seconds per sample on most archives

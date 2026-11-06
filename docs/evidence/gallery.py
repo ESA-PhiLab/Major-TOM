@@ -28,29 +28,6 @@ from majortom.build.collections import COLLECTIONS                 # noqa: E402
 
 REPORTS = Path(__file__).resolve().parents[2] / "docs" / "reports"
 KINDS = ["optical", "radar", "elevation", "land cover", "temperature", "night lights", "biomass", "water"]
-RGB = {                                                            # red, green, blue per product
-    "sentinel-2-l2a": ("B04", "B03", "B02"), "sentinel-2-l1c": ("B04", "B03", "B02"),
-    "landsat-c2-l2": ("red", "green", "blue"), "landsat-c2-l1": ("B4", "B3", "B2"),
-    "hls2-s30": ("B04", "B03", "B02"), "hls2-l30": ("B04", "B03", "B02"),
-    "modis-09a1": ("sur_refl_b01", "sur_refl_b04", "sur_refl_b03"),
-    "modis-43a4": ("Nadir_Reflectance_Band1", "Nadir_Reflectance_Band4", "Nadir_Reflectance_Band3"),
-    "aster-l1t": ("B3N", "B02", "B01"),                            # false colour: near infrared, red, green
-    "sentinel-3-olci-l1": ("Oa08_radiance", "Oa06_radiance", "Oa03_radiance"),
-}
-ONE = {                                                            # one band and a colour map per product
-    "sentinel-3-olci-l2-lfr": ("OTCI", "YlGn"),                    # OLCI terrestrial chlorophyll index
-    "modis-09q1": ("sur_refl_b02", "gray"), "modis-13q1": ("NDVI", "YlGn"), "modis-11a2": ("LST_Day_1km", "inferno"),
-    "sentinel-1-rtc": ("vv", "gray"), "sentinel-1-grd": ("vv", "gray"), "sentinel-1-grd-tc": ("vv", "gray"),
-    "alos-palsar-mosaic": ("HH", "gray"),
-    "cop-dem-glo-30": ("DEM", "terrain"), "nasadem": ("elevation", "terrain"), "alos-dem": ("data", "terrain"),
-    "opera-rtc-s1": ("VV", "gray"), "hgb": ("aboveground", "YlGn"), "jrc-gsw": ("occurrence", "Blues"),
-    "viirs-dnb-monthly": ("avg_rad", "magma"),
-}
-CLASSES = {"opera-dswx-hls": "WTR", "opera-dswx-s1": "WTR", "opera-dist-alert-hls": "VEG-DIST-STATUS",
-           "dynamic-world": "label", "esa-worldcover": "map", "io-lulc-annual-v02": "data", "esa-cci-lc": "lccs_class",
-           "alos-fnf-mosaic": "C"}
-
-
 def physical(meta: dict, arrays, band: str) -> np.ndarray:
     """Stored values as physical ones: the declared scale and offset (which include any Sentinel-2 offset), else
     the recorded Sentinel-2 offset removed and reflectance x 10 000 undone."""
@@ -62,29 +39,29 @@ def physical(meta: dict, arrays, band: str) -> np.ndarray:
         values = values * (scaling.get("scale") or 1) + (scaling.get("offset") or 0)
     elif offset is not None:                                     # Sentinel-2 without declared scaling
         values = (values - offset) * 0.0001
-    if band.lower() in ("vv", "vh") and meta["collection"] in ("sentinel-1-rtc", "opera-rtc-s1"):   # linear -> dB
+    db = COLLECTIONS[meta["collection"]].preview.db                # radar backscatter in dB (Preview.db)
+    if db == "power":                                              # linear gamma0
         values = 10 * np.log10(np.clip(values, 1e-5, None))
-    elif meta["collection"] == "sentinel-1-grd":                         # amplitude DN -> 20 log10, uncalibrated
+    elif db == "amplitude":                                        # amplitude DN, uncalibrated
         values = 20 * np.log10(np.clip(values, 1, None))
-    if meta["collection"] == "alos-palsar-mosaic":                       # DN -> gamma0 dB (JAXA formula)
+    elif db == "palsar":                                           # DN -> gamma0 dB (JAXA formula)
         values = 10 * np.log10(np.clip(values, 1, None) ** 2) - 83
     return values
 
 
 def image(name: str, meta: dict, arrays) -> tuple[np.ndarray, str | None]:
-    """What to draw for one sample: an RGB stack, a single band with its colour map, or classes."""
-    if name in RGB and all(b in meta["bands"] for b in RGB[name]):
-        return np.dstack([physical(meta, arrays, b) for b in RGB[name]]), None
-    if name in RGB:                                              # optional bands missing (ASTER without VNIR)
+    """What to draw for one sample, from its product's Preview: an RGB stack, one band with its colour map, or
+    classes (one colour per class present)."""
+    view = COLLECTIONS[name].preview
+    if view.rgb and all(b in meta["bands"] for b in view.rgb):
+        return np.dstack([physical(meta, arrays, b) for b in view.rgb]), None
+    if view.rgb:                                                 # optional bands missing (ASTER without VNIR)
         return physical(meta, arrays, meta["bands"][0]), "gray"
-    if name in ONE:
-        band, cmap = ONE[name]
-        return physical(meta, arrays, band), cmap
-    if name in CLASSES:                                          # classes: one colour per class present
-        values = physical(meta, arrays, CLASSES[name])
+    if view.classes:
+        values = physical(meta, arrays, view.classes)
         _, index = np.unique(values, return_inverse=True)
         return index.reshape(values.shape).astype(float), "tab20"
-    return physical(meta, arrays, meta["bands"][0]), "gray"
+    return physical(meta, arrays, view.band), view.cmap
 
 
 def stretch(images: list[np.ndarray]) -> tuple[float, float]:
@@ -119,7 +96,7 @@ def main(samples: Path, date: str) -> Path:
                 shown = np.clip((im - low) / (high - low or 1), 0, 1)
                 ax.imshow(shown if cmap is None else im, cmap=cmap, vmin=None if cmap is None else low,
                           vmax=None if cmap is None else high, interpolation="nearest")
-                note = f"  ({meta['bands'][0]} only)" if name in RGB and cmap == "gray" else ""
+                note = f"  ({meta['bands'][0]} only)" if COLLECTIONS[name].preview.rgb and cmap == "gray" else ""
                 ax.set_title(f"{meta['datetime'][:10]}  {meta['items'][0][-26:]}{note}", fontsize=6)
             else:
                 why = "not in this archive" if COLLECTIONS[name].source(name, archive) is None else "no sample"
