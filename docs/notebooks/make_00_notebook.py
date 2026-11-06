@@ -417,7 +417,7 @@ with cog, cog.open() as src:
 
 md("""### 5.2 A published release
 
-`major-tom/release-test` on source.coop holds one TACO dataset per source (33), each built with `majortom.build` at
+`major-tom/release-test` on source.coop holds one TACO dataset per source, each built with `majortom.build` at
 three cells and released with `majortom.release`. It opens from its URL like the local one: only the catalogue and
 the bytes of the files read are fetched. `majortom:code` is each sample's cell."""),
 code("""url = "https://data.source.coop/major-tom/release-test/sentinel-1-rtc/"

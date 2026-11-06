@@ -8,7 +8,7 @@ from fsspec.parquet import open_parquet_file
 from io import BytesIO
 from PIL import Image
 from rasterio.io import MemoryFile
-from tqdm.notebook import tqdm
+from tqdm.auto import tqdm
 import os
 
 from .sample import *
@@ -77,7 +77,8 @@ def read_row(row, columns=["thumbnail"], georef=False, raw=False):
     Returns:
         data (dict): dictionary with returned data from requested columns
     """
-    with open_parquet_file(row.parquet_url,columns = columns) as f:
+    # row_groups: fetch only this sample; without it fsspec prefetches the columns of every sample in the file
+    with open_parquet_file(row.parquet_url, columns=columns, row_groups=[int(row.parquet_row)]) as f:
         with pq.ParquetFile(f) as pf:
             row_group = pf.read_row_group(row.parquet_row, columns=columns)
 

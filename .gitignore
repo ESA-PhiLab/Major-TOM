@@ -177,3 +177,10 @@ docs/evidence/*.csv
 
 # local screenshots for review (not published)
 screenshots/
+
+# Notebook outputs (00-Major-TOM, 01-PyTorch-Training write these in the working folder)
+/chips/
+/chips-*/
+/products/
+/release/
+/core/
