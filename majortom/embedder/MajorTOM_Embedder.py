@@ -4,8 +4,8 @@ import hashlib
 from rasterio.io import MemoryFile
 
 from .grid_cell_fragment import *
+from .inputs import Image, from_core_row, from_sample, from_taco
 from .models import *
-import cv2
 
 class MajorTOM_Embedder(torch.nn.Module):
     """
@@ -91,101 +91,84 @@ class MajorTOM_Embedder(torch.nn.Module):
 
         Returns:
             str: A SHA256 checksum of the concatenated input parameters.
+
+        The embedding enters as numpy's string of the float64 array, which numpy abbreviates for more than 1,000
+        values (only the first and last 3 are written). The published Core embeddings reproduce this way
+        (200 of 200 Core-S2RGB-SigLIP rows checked, 2026-11-06): recompute with the stored embedding cast to float64.
         """
+        embedding = np.asarray(embedding, dtype=np.float64)
         combined = f"{geometry}_{timestamp}_{product_id}_{embedding}"
         checksum = hashlib.sha256(combined.encode()).hexdigest()
         return checksum
 
-    def _read_image(self, row):
-        """
-        Reads and processes the image bands for a given row, performs optional upsampling 
-        if the resolution is mismatched, and returns the image data, footprint, and CRS.
-
-        Args:
-            row (pandas.Series): The input row containing the image bands.
-
-        Returns:
-            torch.Tensor: A tensor containing the stacked image bands.
-            shapely.geometry: The footprint of the image.
-            rasterio.crs.CRS: The CRS of the image.
-        """
-
-        # Read the file
-        img = []
-        for band in self.embedder.bands:
-            with MemoryFile(row[band][0].as_py()) as mem_f:
-                with mem_f.open(driver='GTiff') as f:
-                    crs = f.crs
-                    footprint = box(*f.bounds)
-                    img.append(f.read()[0])
-
-        # optional upsampling
-        shapes = [layer.shape for layer in img]
-        if any([el!=shapes[0] for el in shapes]): # if any resolution mismatch
-            h, w = max([el[0] for el in shapes]), max([el[1] for el in shapes]) # maximum size
-            for layer_idx, layer in enumerate(img):
-                if layer.shape != (h,w):
-                    img[layer_idx] = cv2.resize(layer, (h,w), interpolation=cv2.INTER_NEAREST)
-        img = torch.from_numpy(np.stack(img,-1).astype(np.float32))
-
-        return img, footprint, crs
-        
-
     def forward(self, row, row_meta, device='cuda'):
         """
-        Forward pass of the model: Reads the image, fragments it, computes embeddings 
-        for each fragment, and returns a GeoDataFrame with the spatial metadata and 
-        embeddings.
+        Embeds one Core sample: a row group of a Core image Parquet file and its metadata row.
 
         Args:
-            row (pandas.Series): The input row containing the image data.
-            row_meta (pandas.Series): Metadata associated with the row (e.g., timestamp, product_id).
-            device (str): The device to run the model on ('cpu' or 'cuda'). Default is 'cuda'.
+            row (pyarrow.Table): one row group of a Core image Parquet file (bands as GeoTIFF bytes).
+            row_meta (pandas.DataFrame): the sample's row of the dataset's metadata.parquet (one row).
+            device (str): 'cuda' or 'cpu'.
 
         Returns:
-            geopandas.GeoDataFrame: A GeoDataFrame containing metadata and embeddings for each fragment.
+            geopandas.GeoDataFrame: one row per fragment (see `embed`).
         """
-        # Read file
-        img, footprint, crs = self._read_image(row)
+        return self.embed(from_core_row(row, row_meta, self.embedder.bands), device=device)
 
-        # Fragment the sample
+    def embed_sample(self, sample, device='cuda'):
+        """Embeds a majortom.build sample (path to its .npz; the .json sidecar beside it)."""
+        return self.embed(from_sample(sample, self.embedder.bands), device=device)
+
+    def embed_taco(self, record, device='cuda'):
+        """Embeds one record (catalogue row as a dict) of a TACO dataset written by majortom.release."""
+        return self.embed(from_taco(dict(record), self.embedder.bands), device=device)
+
+    def embed(self, image, device='cuda'):
+        """
+        Fragments an Image, embeds each fragment and returns one row per fragment.
+
+        Columns: unique_id (SHA-256 of geometry WKT, timestamp, product_id and the embedding's float64 string;
+        see `calculate_checksum`), embedding, timestamp, product_id, grid_cell, grid_row_u, grid_col_r,
+        geometry (WGS84), centre_lat, centre_lon, utm_footprint (WKT in utm_crs), utm_crs,
+        pixel_bbox ([x0, y0, x1, y1] in the image's pixels).
+
+        Args:
+            image (Image): from majortom.embedder.inputs (from_core_row, from_sample, from_taco).
+            device (str): 'cuda' or 'cpu'.
+        """
+        img = torch.from_numpy(image.data)
+        footprint = box(*image.bounds)
+        crs = CRS.from_user_input(image.crs)
+        row_u, col_r = (int(v[:-1]) * (1 if v[-1] in 'UR' else -1) for v in image.grid_cell.split('_'))
+
         fragments, xys = fragment_fn(img, **self.frag_params, return_indices=True, verbose=False)
-
         nrows, ncols, c, h, w = fragments.shape
-        # Apply the model
         with torch.no_grad():
-            embeddings = self.embedder(fragments.reshape(-1,c,h,w).to(device)).view(nrows, ncols, -1)
+            embeddings = self.embedder(fragments.reshape(-1, c, h, w).to(device)).view(nrows, ncols, -1)
 
+        to_wgs84 = Transformer.from_crs(crs, CRS.from_epsg(4326), always_xy=True)
         df_rows = []
-
-        # Pack rows for geoparquet
         for r_idx in range(nrows):
             for c_idx in range(ncols):
                 embedding = embeddings[r_idx, c_idx].cpu().numpy()
-                # spatial features per fragment
-                x_offset,y_offset=xys[r_idx,c_idx].int().tolist()
-                pixel_bbox = [x_offset, y_offset, x_offset + h,y_offset + w] # in pixels
+                x_offset, y_offset = xys[r_idx, c_idx].int().tolist()
+                pixel_bbox = [x_offset, y_offset, x_offset + h, y_offset + w]                  # in pixels
                 utm_footprint = crop_footprint(footprint, *img.shape[:2], pixel_bbox)
-                # main footprint is in WGS84 (needs to be consistent across parquet)
-                transformer = Transformer.from_crs(crs, CRS.from_epsg(4326), always_xy=True)
-                geometry = transform(transformer.transform, utm_footprint) # WGS84
+                geometry = transform(to_wgs84.transform, utm_footprint)                       # WGS84
                 centre_lon, centre_lat = geometry.centroid.coords[0]
-                
-                row_dict = {
-                    'unique_id' : self.calculate_checksum(geometry, row_meta.timestamp.item(), row_meta.product_id.item(), embedding),
-                    'embedding' : embedding,
-                    'timestamp' : row_meta.timestamp.item(),
-                    'product_id' : row_meta.product_id.item(),
-                    'grid_cell' : row_meta.grid_cell.item(),
-                    'grid_row_u' : row_meta.grid_row_u.item(),
-                    'grid_col_r' : row_meta.grid_col_r.item(),
-                    'geometry' : geometry,
-                    'centre_lat' : centre_lat,
-                    'centre_lon' : centre_lon,
-                    'utm_footprint' : utm_footprint.wkt,
-                    'utm_crs' : crs.to_string(),
-                    'pixel_bbox' : pixel_bbox,
-                }
-                df_rows.append(row_dict)
-
-        return gpd.GeoDataFrame(df_rows).astype(self.column_types)
+                df_rows.append({
+                    'unique_id': self.calculate_checksum(geometry, image.timestamp, image.product_id, embedding),
+                    'embedding': embedding,
+                    'timestamp': image.timestamp,
+                    'product_id': image.product_id,
+                    'grid_cell': image.grid_cell,
+                    'grid_row_u': row_u,
+                    'grid_col_r': col_r,
+                    'geometry': geometry,
+                    'centre_lat': centre_lat,
+                    'centre_lon': centre_lon,
+                    'utm_footprint': utm_footprint.wkt,
+                    'utm_crs': crs.to_string(),
+                    'pixel_bbox': pixel_bbox,
+                })
+        return gpd.GeoDataFrame(df_rows, geometry='geometry', crs='EPSG:4326').astype(self.column_types)

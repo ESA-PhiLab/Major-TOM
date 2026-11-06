@@ -88,11 +88,11 @@ explicit imports now, module renames after the merge; CSLC issue posted.
 - [ ] After the merge: module renames to snake_case with aliases (Miko, 2026-11-05)
 - [ ] Bug fixes listed in STRATEGY WS6 (still open: `plot` ignores `scaling`, README `src/grid.py` link, `filter_download` columns, `filter_metadata` compares dates as strings; fixed 2026-11-06: `tqdm.notebook` -> `tqdm.auto`, `read_row` fetches only the sample's row group)
 - [ ] Embedder lazy import, `fragment_fn` checks
-- [ ] Embedding reproducibility test (Slurm script against the local Core-S2RGB-SigLIP copy and one Core-S2L1C-SSL4EO file; cosine >= 0.999)
-- [ ] Embedder inputs beyond Core rows: `majortom.build` samples (`.npz`) and TACO datasets (Miko, 2026-11-06)
+- [ ] Embedding reproducibility test: `docs/evidence/embedding_reproducibility.py` written; FAILS (2026-11-06, 5 samples each): SigLIP median cosine 0.86 (min 0.67), SSL4EO 0.51 (min 0.03); published `unique_id`s recompute 100%; ruled out: the refactor (identical to `main`), precision, normalisation, the +1,000 offset, metadata pointing at the wrong row group; SSL4EO closer in training mode (BatchNorm batch statistics); open
+- [x] Embedder inputs beyond Core rows: `majortom/embedder/inputs.py` (`from_core_row`, `from_sample`, `from_taco`), `MajorTOM_Embedder.embed`, `embed_sample`, `embed_taco`; `tests/test_embedder_inputs.py` (2026-11-06)
 - [ ] Document `unique_id`: SHA-256 of geometry WKT, timestamp, product_id and the float64 numpy string of the embedding (only its first and last 3 values); 200 of 200 published SigLIP rows reproduce (2026-11-06)
 - [ ] TESSERA and OlmoEarth as embedder models in `majortom.embedder` (Miko, 2026-11-06)
-- [ ] `faiss-cpu` in the `embed` extra (Miko, 2026-11-06)
+- [x] `faiss-cpu` in the `embed` extra (2026-11-06)
 - [x] Notebook moves: old notebooks in `legacy/` with a README (2026-11-06); output stripping: legacy notebooks kept as they were
 
 ## WS7 — Notebooks and documentation
