@@ -13,7 +13,24 @@
 | Core-S1RTC | Sentinel-1 RTC, `vv`, `vh` + thumbnail | 1,469,955 | 15.69 TB |
 | Core-DEM | Copernicus DEM 30 | 1,837,843 | |
 
-Embeddings of Core: Core-S2L1C-SSL4EO, Core-S1RTC-SSL4EO, Core-S2RGB-DinoV2, Core-S2RGB-SigLIP.
+Embeddings of Core: Core-S2L1C-SSL4EO, Core-S1RTC-SSL4EO, Core-S2RGB-DinoV2, Core-S2RGB-SigLIP. Every dataset of
+the organisation: `https://huggingface.co/api/datasets?author=Major-TOM`.
+
+## Core-VIIRS-Nighttime-Light (Hugging Face)
+
+VIIRS annual median night-time radiance (`median`, nW/cm²/sr), 2016-2024, 2,108,341 tiles of 1,056 px at 10 m (v2
+window). One tile per cell, in one year. Tiles are GeoTIFFs inside zip shards (cozip); `INDEX.parquet` (146 MB, one
+row per tile) has `id` (`MT10_<grid_cell>`), `year`, `shard`, `offset`, `size`. Read only those columns:
+
+```python
+import fsspec, pyarrow.parquet as pq, rasterio
+url = "https://huggingface.co/datasets/Major-TOM/Core-VIIRS-Nighttime-Light/resolve/main/"
+index = pq.read_table(f"{url}INDEX.parquet", filesystem=fsspec.filesystem("https"),
+                      columns=["id", "year", "shard", "offset", "size"], filters=[("id", "=", "MT10_624U_29L")]).to_pandas()
+t = index.iloc[0]                                                    # 2022 at Loch Lomond
+with rasterio.open(f"/vsisubfile/{t.offset}_{t['size']},/vsicurl/{url}{t.shard}") as src:
+    radiance = src.read(1)
+```
 
 ### Files
 

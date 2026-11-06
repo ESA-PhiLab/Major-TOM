@@ -1,6 +1,6 @@
 ---
 name: major-tom
-description: Work with Major TOM, the global 10 km grid and its Earth observation datasets (Core-S2L2A, Core-S2L1C, Core-S1RTC, Core-DEM, embeddings, Core-Weather, the monthly climate datasets). Use when the user wants to find grid cells for points or areas, read Core samples or metadata from Hugging Face, read weather or climate values for cells from source.coop, build new Major TOM samples from public archives, or release and publish them as TACO datasets, with the majortom package.
+description: Work with Major TOM, the global 10 km grid and its Earth observation datasets (Core-S2L2A, Core-S2L1C, Core-S1RTC, Core-DEM, Core-VIIRS-Nighttime-Light, embeddings, Core-Weather, the monthly climate datasets). Use when the user wants to find grid cells for points or areas, read Core samples or metadata from Hugging Face, read weather or climate values for cells from source.coop, build new Major TOM samples from public archives, or release and publish them as TACO datasets, with the majortom package.
 ---
 
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.

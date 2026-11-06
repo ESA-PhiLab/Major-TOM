@@ -2,12 +2,12 @@
 ![image/png](https://github.com/ESA-PhiLab/Major-TOM/blob/main/Major_Tom_cropped_logo.png)
 
 # 🗺️ Major TOM: Expandable Datasets for Earth Observation
-[![HF](https://img.shields.io/badge/%F0%9F%A4%97-Datasets-yellow)](https://www.huggingface.co/Major-TOM) [![HF](https://img.shields.io/badge/%F0%9F%A4%97-Spaces_Demo-yellow)](https://huggingface.co/spaces/Major-TOM/MajorTOM-Core-Viewer) [![paper](https://img.shields.io/badge/arXiv-2402.12095-D12424)](https://www.arxiv.org/abs/2402.12095) <a href="https://colab.research.google.com/github/ESA-PhiLab/Major-TOM/blob/main/03-Filtering-in-Colab.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a> <a href='https://www.youtube.com/watch?v=KonWxQ1mCpA'><img src='https://img.shields.io/badge/YouTube-%23FF0000.svg?style=flat&logo=youtube&logoColor=white' /></a> <a href='https://open.spotify.com/episode/6R3Rsi3iMwvuumlqFKJbIM'><img src='https://img.shields.io/badge/Spotify-1ED760?&logo=spotify&logoColor=white' /></a>
+[![HF](https://img.shields.io/badge/%F0%9F%A4%97-Datasets-yellow)](https://www.huggingface.co/Major-TOM) [![HF](https://img.shields.io/badge/%F0%9F%A4%97-Spaces_Demo-yellow)](https://huggingface.co/spaces/Major-TOM/MajorTOM-Core-Viewer) [![paper](https://img.shields.io/badge/arXiv-2402.12095-D12424)](https://www.arxiv.org/abs/2402.12095) <a href="https://colab.research.google.com/github/ESA-PhiLab/Major-TOM/blob/main/00-Major-TOM.ipynb" target="_parent"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/></a> <a href='https://www.youtube.com/watch?v=KonWxQ1mCpA'><img src='https://img.shields.io/badge/YouTube-%23FF0000.svg?style=flat&logo=youtube&logoColor=white' /></a> <a href='https://open.spotify.com/episode/6R3Rsi3iMwvuumlqFKJbIM'><img src='https://img.shields.io/badge/Spotify-1ED760?&logo=spotify&logoColor=white' /></a>
 
 
 A standard for curating large-scale (Terabyte-scale) EO datasets.
 
-📚 **Docs:** [Data sources and setup](docs/ARCHIVES.md) · [Sample specification](docs/SPEC.md) · [Workshop notebook](docs/workshop/workshop.ipynb) · [Contributing](CONTRIBUTING.md)
+📚 **Docs:** [Entry notebook](00-Major-TOM.ipynb) · [Data sources and setup](docs/ARCHIVES.md) · [Sample specification](docs/SPEC.md) · [Workshop notebook (CNG 2026)](docs/workshop/workshop.ipynb) · [Legacy notebooks](legacy/README.md) · [Contributing](CONTRIBUTING.md)
 
 This repo currently provides some basic functionality and examples for interacting with Major TOM datasets. This will grow and change as more datasets are created.
 

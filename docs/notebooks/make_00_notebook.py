@@ -4,7 +4,7 @@ majortom.release, publishing, the climate datasets and the Core datasets.
     this file (markdown and code cells as strings) -> nbformat -> 00-Major-TOM.ipynb (no outputs)
     then: run it on Slurm (outputs kept in the committed notebook)
 
-    python docs/workshop/make_00_notebook.py 00-Major-TOM.ipynb
+    python docs/notebooks/make_00_notebook.py 00-Major-TOM.ipynb
 """
 import sys
 from pathlib import Path
@@ -529,8 +529,11 @@ Major TOM Core is the first set of datasets on the grid, on Hugging Face:
 | [Core-S2L1C](https://huggingface.co/datasets/Major-TOM/Core-S2L1C) | Sentinel-2 L1C | 2,245,886 |
 | [Core-S1RTC](https://huggingface.co/datasets/Major-TOM/Core-S1RTC) | Sentinel-1 RTC | 1,469,955 |
 | [Core-DEM](https://huggingface.co/datasets/Major-TOM/Core-DEM) | Copernicus DEM 30 | 1,837,843 |
+| [Core-VIIRS-Nighttime-Light](https://huggingface.co/datasets/Major-TOM/Core-VIIRS-Nighttime-Light) | VIIRS annual median night-time radiance (nW/cm²/sr), 2016-2024, 1,056 px at 10 m | 2,108,341 |
+| [Core-Weather](https://source.coop/major-tom/core-weather) (source.coop) | weather and air quality, hourly for ±24 h and daily for ±30 days, around each Core-S2L2A, S2L1C and S1RTC acquisition | 3,704,013 acquisitions |
 
-Embeddings of them: Core-S2L1C-SSL4EO, Core-S1RTC-SSL4EO, Core-S2RGB-DINOv2, Core-S2RGB-SigLIP.
+Embeddings of them: Core-S2L1C-SSL4EO, Core-S1RTC-SSL4EO, Core-S2RGB-DINOv2, Core-S2RGB-SigLIP. Every dataset of the
+organisation: [huggingface.co/Major-TOM](https://huggingface.co/Major-TOM).
 
 | Function | Does |
 |---|---|
@@ -550,15 +553,52 @@ core = read_row(meta.iloc[0], columns=["B04", "B03", "B02"])
 rgb = np.stack([core[b] for b in ("B04", "B03", "B02")], -1).astype(float)
 plt.figure(figsize=(4, 4)), plt.imshow(np.clip(rgb / np.percentile(rgb, 99), 0, 1)), plt.axis("off")
 plt.title(f"Core-S2L2A {first.grid_cell}, {meta.iloc[0].timestamp[:10]}", loc="left", fontsize=10);"""),
+md("""Core-VIIRS-Nighttime-Light stores each tile as a GeoTIFF inside zip shards (cozip). `INDEX.parquet`, one row per
+tile, gives the tile's shard and byte range, so one HTTP range request reads one tile. Tiles are named
+`MT10_<grid_cell>`; a cell has a tile in one year, not in every year."""),
+code("""import pyarrow.parquet as pq
+import rasterio
+
+VIIRS = "https://huggingface.co/datasets/Major-TOM/Core-VIIRS-Nighttime-Light/resolve/main/"
+ids = [f"MT10_{g}" for g in cells.grid_cell.unique()]
+index = pq.read_table(f"{VIIRS}INDEX.parquet", filesystem=https, columns=["id", "year", "shard", "offset", "size"],
+                      filters=[("id", "in", ids)]).to_pandas()
+fig, axes = plt.subplots(1, len(index), figsize=(3.2 * len(index), 3.4), squeeze=False)
+for ax, tile in zip(axes[0], index.itertuples()):
+    with rasterio.open(f"/vsisubfile/{tile.offset}_{tile.size},/vsicurl/{VIIRS}{tile.shard}") as src:
+        radiance = src.read(1)                                       # nW/cm²/sr, 1,056 x 1,056 at 10 m
+    ax.imshow(np.log10(np.clip(radiance, 0.1, 100)), cmap="inferno", vmin=-1, vmax=2), ax.axis("off")
+    ax.set_title(f"{tile.id[5:]}, {tile.year}", loc="left", fontsize=9)
+fig.suptitle("VIIRS annual median radiance, log scale 0.1-100 nW/cm²/sr", x=0.02, ha="left", fontsize=10);"""),
+md("""Core-Weather holds the weather around each Core acquisition (section 7 lists its sources). `acquisitions.parquet`
+links a Core sample (`dataset`, `product_id`) to its acquisition time; the rows are in that day's file."""),
+code("""WEATHER = "https://data.source.coop/major-tom/core-weather"
+sample = meta.iloc[0]
+links = pd.read_parquet(f"{WEATHER}/acquisitions.parquet", filesystem=https,
+                        filters=[("grid_cell", "=", sample.grid_cell), ("dataset", "=", "Core-S2L2A")])
+pick = links[links.product_id == sample.product_id].iloc[0]          # the Core-S2L2A sample shown above
+day = f"year={pick.acquired:%Y}/{pick.acquired:%Y-%m-%d}.parquet"     # files are split by acquisition day
+here = [("grid_cell", "=", pick.grid_cell), ("acquired", "=", pick.acquired)]
+hourly = pd.read_parquet(f"{WEATHER}/hourly/{day}", filesystem=https, filters=here,
+                         columns=["step_h", "era5_t2m"]).sort_values("step_h")
+ax = hourly.plot(x="step_h", y="era5_t2m", figsize=(7, 3), legend=False, marker=".")
+ax.axvline(0, color="grey", ls="--"), ax.set_xlabel("hours from the acquisition"), ax.set_ylabel("ERA5 2 m temperature, K")
+ax.set_title(f"Core-Weather, {pick.grid_cell}, Core-S2L2A acquisition {pick.acquired:%Y-%m-%d %H:%M} UTC", loc="left", fontsize=10);"""),
 
 md(f"""## 9. More
 
-- [Notebook 05]({BLOB}/05-Generate-Major-TOM-Embeddings.ipynb): embeddings with `majortom.embedder`
+- [Legacy notebook 05]({BLOB}/legacy/05-Generate-Major-TOM-Embeddings.ipynb): embeddings with `majortom.embedder`
   (SigLIP, DINOv2, SSL4EO; needs `majortom[embed]` and a GPU).
 - [SPEC.md]({BLOB}/docs/SPEC.md): the grid and the window rule for any spacing and resolution.
 - [ARCHIVES.md]({BLOB}/docs/ARCHIVES.md), [RELEASE.md]({BLOB}/docs/RELEASE.md), [CLIMATE.md]({BLOB}/docs/CLIMATE.md):
   products and archives, the release format, the climate datasets.
-- Apps: [Core Viewer](https://huggingface.co/spaces/Major-TOM/MajorTOM-Core-Viewer) (search and view Core samples).
+- Apps, each a Hugging Face Space ([apps/README.md]({BLOB}/apps/README.md)):
+  - [Core Viewer](https://huggingface.co/spaces/Major-TOM/MajorTOM-Core-Viewer): one Core sample at a place or found
+    by a text prompt; Sentinel-2, Sentinel-1, DEM, AlphaEarth, VIIRS.
+  - [Raster Viewer](https://huggingface.co/spaces/Major-TOM/MajorTOM-Raster-Viewer) (private for now): where each Core
+    dataset has samples, on a globe; a clicked cell's sample, VIIRS tile, AlphaEarth embedding and Core-Weather.
+  - [Climate Globe](https://huggingface.co/spaces/Major-TOM/MajorTOM-Climate-Globe) (private for now): the monthly
+    climate datasets on a globe; monthly maps, normals, one cell's series.
 - [skills/major-tom]({BLOB}/skills/major-tom/SKILL.md): an agent skill for working with Major TOM."""),
 ]
 
