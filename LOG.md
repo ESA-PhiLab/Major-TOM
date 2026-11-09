@@ -1,5 +1,6 @@
 # Log
 
+- 2026-11-09 Climate and Core-Weather build cost: time, credits, per TB and whole catalogue -> [report](docs/reports/2026-11-09-climate-build-cost.md)
 - 2026-11-06 majortom.embedder takes majortom.build samples and TACO records (inputs.py, embed()); checksum cast to float64; faiss-cpu in embed; reproducibility script: published Core embeddings do not reproduce (open)
 - 2026-11-06 Checklist: embedding products in majortom.build (AlphaEarth, TESSERA), embedder inputs beyond Core rows, OlmoEarth embedder, unique_id documentation, faiss-cpu in embed; explainer committed on the site branch major-tom-explainer
 - 2026-11-06 Notebook 01-PyTorch-Training (Core route, build -> release -> train route, reading without download); read_row fetches only the sample's row group (1,070 s -> 6.6 s for 4 samples); tqdm.auto in metadata.py; notebook outputs gitignored
