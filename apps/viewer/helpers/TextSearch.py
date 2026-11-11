@@ -28,9 +28,7 @@ class SearchSigLIP():
         self.device = 'cuda' if torch.cuda.is_available() and faiss.get_num_gpus() > 0 else 'cpu'
         if self.device == 'cuda':
             res = faiss.StandardGpuResources()
-            cloner_options = faiss.GpuClonerOptions()
-            cloner_options.useFloat16LookupTables = True
-            self.index = faiss.index_cpu_to_gpu(res, 0, self.cpu_index, cloner_options)
+            self.index = faiss.index_cpu_to_gpu(res, 0, self.cpu_index)
             self.index.nprobe = 32  # Higher = more accurate, slower
         else:
             self.index = self.cpu_index
