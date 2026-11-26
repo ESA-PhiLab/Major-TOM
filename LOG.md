@@ -1,5 +1,6 @@
 # Log
 
+- 2026-11-26 ERA5-Monthly, ERA5Land-Monthly, CPC-Monthly READMEs: WMO standard normal period named in the opening; uploaded
 - 2026-11-26 Dataset READMEs for newcomers: Core-Weather opening paragraph and Sources section with links; Climate product links, normals defined, ERA5-Static Kind row; uploaded
 - 2026-11-26 README figures of Climate and Core-Weather redrawn with transparent background and white text edge (save_figure), uploaded; Core-Weather README Steps: timestamp, several acquisitions per day, rounding; reviewed; intro video re-rendered with the Earth Compress acknowledgement
 - 2026-11-26 Earth Compress acknowledgement (Miko's wording) in dataset READMEs, apps and brand notes; README GitHub links pinned to commit 76b77ca

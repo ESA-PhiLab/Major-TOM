@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** by_cell/ layout (1,024-cell row groups, page index) and climatology_overviews/ noted 2026-10-31, not yet published. cpc_gauges added, by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of `major-tom/climate/CPC-Monthly/README.md`. Remove these notes 2026-11-26: product links in Source, normals defined in the opening sentence (not yet reviewed).
+> **Review status:** by_cell/ layout (1,024-cell row groups, page index) and climatology_overviews/ noted 2026-10-31, not yet published. cpc_gauges added, by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of `major-tom/climate/CPC-Monthly/README.md`. Remove these notes 2026-11-26: product links in Source, normals defined in the opening sentence (not yet reviewed). 2026-11-26: WMO standard period named in the opening sentence.
 > when publishing. Licence and citations checked 2026-10-28 (NOAA PSL catalogue, datasets 48 and 49).
 > Artifact counts from docs/evidence/monthly_artifacts.py (2026-10-28).
 
@@ -8,7 +8,7 @@
 
 # CPC-Monthly
 
-Monthly precipitation and daily temperature extremes from rain gauges, for every land cell of the Major TOM grid, 1979–2025, with 1991–2020 climate normals (each calendar month's average and its spread across years). Part of [Major TOM Climate](https://source.coop/major-tom/climate).
+Monthly precipitation and daily temperature extremes from rain gauges, for every land cell of the Major TOM grid, 1979–2025, with 1991–2020 climate normals (1991–2020 is the current WMO standard normal period; normals are each calendar month's average and its spread across years). Part of [Major TOM Climate](https://source.coop/major-tom/climate).
 
 <img src="https://data.source.coop/major-tom/climate/CPC-Monthly/figures/annual-precipitation.png" alt="Annual precipitation from rain gauges, 1991-2020" width="100%">
 
