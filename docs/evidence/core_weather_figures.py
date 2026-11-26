@@ -31,7 +31,7 @@ from matplotlib.colors import TwoSlopeNorm
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).parent))
-from climate_figures import (COLD_HOT, INK, INK_2, PAGE, PLACES, ROWS, COLS, SERIES, WIDTH_PX, SCALE,  # noqa: E402
+from climate_figures import (save_figure, COLD_HOT, INK, INK_2, PAGE, PLACES, ROWS, COLS, SERIES, WIDTH_PX, SCALE,  # noqa: E402
                              grid_image, map_figure, use_major_tom_font)
 
 # one colour per source in every chart: the three validated categorical slots, ERA5-Land in the secondary ink
@@ -125,7 +125,7 @@ def place_figure(core: Path, root: Path, name: str, row: int, col: int, out: Pat
     _style(a, "Daily precipitation", "mm", "days from the acquisition")
     a.legend(frameon=False, fontsize=8, labelcolor=INK_2, loc="best")
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=100 * SCALE, facecolor=PAGE)
+    save_figure(fig, out, dpi=100 * SCALE)
     plt.close(fig)
 
 

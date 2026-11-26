@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** reviewed (Miko, 2026-10-24); draft of the dataset card for Major-TOM/Core-Weather (2026-10-23). ERA5-Land rows, note and credit added 2026-10-26; ERA5 and ERA5-Land rows, Size and Validation updated 2026-10-30 (overnight, from docs/evidence/core_weather_validate.py and a trial merge of four days); reviewed (Miko, 2026-11-02). 2026-11-02, for publishing (not yet reviewed): Reading section with a tested example, daily column names, Copernicus disclaimer, ERA5-Land south note, GitHub links. 2026-11-03 (not yet reviewed): global map and Examples section with three figures (docs/evidence/core_weather_figures.py). 2026-11-05: Earth Compress footer, as in the climate READMEs. 2026-11-20 (not yet reviewed): ERA5-Land south of 57.1°S filled from the Climate Data Store; grid, note and credit updated; sentence on ERA5 coverage in the south added 2026-11-26.
+> **Review status:** reviewed (Miko, 2026-10-24); draft of the dataset card for Major-TOM/Core-Weather (2026-10-23). ERA5-Land rows, note and credit added 2026-10-26; ERA5 and ERA5-Land rows, Size and Validation updated 2026-10-30 (overnight, from docs/evidence/core_weather_validate.py and a trial merge of four days); reviewed (Miko, 2026-11-02). 2026-11-02, for publishing (not yet reviewed): Reading section with a tested example, daily column names, Copernicus disclaimer, ERA5-Land south note, GitHub links. 2026-11-03 (not yet reviewed): global map and Examples section with three figures (docs/evidence/core_weather_figures.py). 2026-11-05: Earth Compress footer, as in the climate READMEs. 2026-11-20 (not yet reviewed): ERA5-Land south of 57.1°S filled from the Climate Data Store; grid, note and credit updated; sentence on ERA5 coverage in the south added 2026-11-26. 2026-11-26: Earth Compress acknowledgement, GitHub links pinned to commit 76b77ca, Steps: timestamp, several acquisitions per day, rounding; figures with transparent background. Reviewed (Miko, 2026-11-26).
 
 # Core-Weather
 
@@ -50,7 +50,9 @@ One Sentinel-2 acquisition at each of three cells, with the same cell's Sentinel
 
 ## Steps
 
-- **Hourly:** step 0 is the full hour nearest the acquisition; step −1 the hour before.
+- `acquired` is the sample's `timestamp` in the Core metadata: the sensing time of its Sentinel product, the same for every cell of that product.
+- A cell can have more than one acquisition on a day (190,372 cell-days have two, e.g. a Sentinel-1 and a Sentinel-2 pass). Each has its own rows, and its steps count from its own time.
+- **Hourly:** step 0 is the full hour nearest the acquisition, rounding half up (10:29 → 10:00, 10:30 → 11:00); step −1 the hour before.
 - **Daily:** step 0 is the 24 hours centred on the acquisition (−12 h to +12 h); step −1 the 24 hours before that.
 - Sources with their own days (NOAA CPC, Sentinel-5P) contribute the source day that holds the window's centre. Their `<source>_start` column gives that day's UTC start, so every value states which 24 hours it covers.
 

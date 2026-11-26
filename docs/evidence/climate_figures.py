@@ -41,6 +41,21 @@ FONTS = Path.home() / ".cache" / "majortom" / "fonts"
 FONT_URL = "https://github.com/google/fonts/raw/main/ofl/ibmplexmono/IBMPlexMono-{}.ttf"   # SIL OFL 1.1
 
 
+def save_figure(fig, out: Path, **kwargs) -> None:
+    """Save with a transparent background (README pages may be light or dark); every text gets a thin white edge
+    so the dark ink stays readable on a dark page."""
+    from matplotlib import patheffects
+    from matplotlib.text import Text
+
+    edge = [patheffects.withStroke(linewidth=1.5, foreground="white")]
+    fig.canvas.draw()                                  # creates the tick labels, so they get the edge too
+    for text in fig.findobj(Text):
+        if text.get_text().strip():
+            text.set_path_effects(edge)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, transparent=True, **kwargs)
+
+
 def use_major_tom_font() -> None:
     """IBM Plex Mono, the Major TOM wordmark's typeface: fetched once into ~/.cache/majortom/fonts, then used for
     every text in the figures. No fallback: a figure in another font is an error, not a silent substitute."""
@@ -143,7 +158,7 @@ def map_figure(panels: list[tuple[np.ndarray, str | None]], cmap, norm, ticks: l
                                          facecolor=MAP_EMPTY, edgecolor="none"))
         fig.text(0.762, 0.50 / height, empty_label, fontsize=8, color=INK_2, va="center")
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=100 * SCALE, facecolor=PAGE)
+    save_figure(fig, out, dpi=100 * SCALE)
     plt.close(fig)
 
 
@@ -292,7 +307,7 @@ def _save_vector(fig, out: Path) -> None:
     """Line charts as SVG: sharp at any display size; text as outlines, so no font is needed to view them."""
     out.parent.mkdir(parents=True, exist_ok=True)
     with matplotlib.rc_context({"svg.fonttype": "path"}):
-        fig.savefig(out, format="svg", facecolor=PAGE)
+        save_figure(fig, out, format="svg")
 
 
 def _cell_normals(release: Path, dataset: str, columns: list[str], row: int, col: int) -> pd.DataFrame:
@@ -421,7 +436,7 @@ def overview(release: Path) -> None:
                    ticks, labels, unit, size=7)
     out = release / "figures" / "overview.png"
     out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out, dpi=100 * SCALE, facecolor=PAGE)
+    save_figure(fig, out, dpi=100 * SCALE)
     plt.close(fig)
 
 

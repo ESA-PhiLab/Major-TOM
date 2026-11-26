@@ -1301,8 +1301,10 @@ def scene_end(s: float):
         ax.text(mx + mark_h * a.mark.shape[1] / a.mark.shape[0] + 12, ey + 38, "asterisk labs",
                 fontsize=mark_h * 0.7 * 0.72, fontfamily="League Spartan", fontweight=500, color=_lvl(level, INK),
                 va="center")
-        credit = ["Developed by Asterisk Labs as part of Earth Compress, an ARIA-funded",
-                  "project jointly led with the National Oceanography Centre."]
+        credit = textwrap.wrap("Developed by Mikolaj Czerkawski and Sponsored by Earth Compress. A project funded by "
+                               "the Advanced Research + Invention Agency (ARIA) and co-led by Asterisk Labs and "
+                               "National Oceanography Centre UK. Learn more here: www.earthcompress.org",
+                               68 if L["size"][0] < 1500 else 110)
         ccx, ccy = L["end_credit"]
         for i, line in enumerate(credit):
             ax.text(ccx, ccy + i * 34, line, fontsize=T_SMALL, ha="center", color=_lvl(level, INK_2))
