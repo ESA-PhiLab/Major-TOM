@@ -13,7 +13,8 @@
 | `earth-compress.svg` | Earth Compress logo, from https://earth-compress.github.io/benchmark/ |
 
 Dataset READMEs: the Major TOM Climate logo at the top; the Earth Compress logo at the bottom with the line
-"Developed by Asterisk Labs as part of Earth Compress, an ARIA-funded project jointly led with the National
-Oceanography Centre." The variants are derived from `mt-climate.svg` by text edits (one style rule, one viewBox),
+"Developed by Mikolaj Czerkawski and Sponsored by Earth Compress. A project funded by the Advanced Research +
+Invention Agency (ARIA) and co-led by Asterisk Labs and National Oceanography Centre UK. Learn more here:
+www.earthcompress.org" (Miko, 2026-11-26). The variants are derived from `mt-climate.svg` by text edits (one style rule, one viewBox),
 not redrawn; edit the master and regenerate them. Copy the files into each published dataset so its README does
 not depend on this repository.

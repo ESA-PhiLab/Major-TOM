@@ -35,7 +35,7 @@ Monthly weather and land-surface state for every cell of the Major TOM grid, 194
 
 ## Variables
 
-Every single-level variable ERA5 offers as a monthly mean, except exact duplicates and precipitation type (see Notes); the selection is documented in [ERA5_VARIABLES.md](https://github.com/ESA-PhiLab/Major-TOM/blob/main/docs/ERA5_VARIABLES.md). Columns are `era5_` and ERA5's short name; units are as the Climate Data Store gives monthly means: **accumulated variables (precipitation, evaporation, runoff, radiation and other fluxes) are per day**, the mean daily total of the month. `era5_valid` is the share of the cell covered by source pixels with data.
+Every single-level variable ERA5 offers as a monthly mean, except exact duplicates and precipitation type (see Notes); the selection is documented in [ERA5_VARIABLES.md](https://github.com/ESA-PhiLab/Major-TOM/blob/76b77caf5fbe081e9044e66c8de6a6bd94dc640b/docs/ERA5_VARIABLES.md). Columns are `era5_` and ERA5's short name; units are as the Climate Data Store gives monthly means: **accumulated variables (precipitation, evaporation, runoff, radiation and other fluxes) are per day**, the mean daily total of the month. `era5_valid` is the share of the cell covered by source pixels with data.
 
 <details>
 <summary>All 201 variables</summary>
@@ -316,4 +316,4 @@ To cite this dataset, cite the Major TOM paper below and the source data as list
 
 <img src="https://data.source.coop/major-tom/climate/brand/earth-compress.svg" alt="Earth Compress" width="180">
 
-Developed by [Asterisk Labs](https://asterisk.coop) as part of [Earth Compress](https://asterisk.coop/project-pages/earth-compress.html), an ARIA-funded project jointly led with the National Oceanography Centre.
+Developed by [Mikolaj Czerkawski](https://github.com/mikonvergence) and Sponsored by Earth Compress. A project funded by the Advanced Research + Invention Agency (ARIA) and co-led by Asterisk Labs and National Oceanography Centre UK. Learn more here: [www.earthcompress.org](https://www.earthcompress.org)

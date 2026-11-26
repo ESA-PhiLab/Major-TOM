@@ -1,5 +1,6 @@
 # Log
 
+- 2026-11-26 Earth Compress acknowledgement (Miko's wording) in dataset READMEs, apps and brand notes; README GitHub links pinned to commit 76b77ca
 - 2026-11-26 Core-Weather README: sentence on ERA5 coverage south of 57.1°S, re-uploaded; south-fill build folders and caches deleted (43 GB)
 - 2026-11-20 Core-Weather: ERA5-Land south of 57.1°S filled from the Climate Data Store (3,235,318 daily rows, 52,776 cells); 2,450 day files and README re-uploaded to source.coop, verified -> [report](docs/reports/2026-11-20-era5land-south-fill.md)
 - 2026-11-09 Climate and Core-Weather build cost: time, credits, per TB and whole catalogue -> [report](docs/reports/2026-11-09-climate-build-cost.md)

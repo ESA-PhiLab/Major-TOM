@@ -69,6 +69,4 @@ the images are not in git.
 
 ## Credit
 
-Developed by [Mikolaj Czerkawski](https://github.com/mikonvergence), [Asterisk Labs](https://asterisk.coop), as part of
-[Earth Compress](https://asterisk.coop/project-pages/earth-compress.html), an ARIA-funded project jointly led with the
-National Oceanography Centre.
+Developed by [Mikolaj Czerkawski](https://github.com/mikonvergence) and Sponsored by Earth Compress. A project funded by the Advanced Research + Invention Agency (ARIA) and co-led by Asterisk Labs and National Oceanography Centre UK. Learn more here: [www.earthcompress.org](https://www.earthcompress.org)
