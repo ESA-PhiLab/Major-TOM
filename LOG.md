@@ -1,5 +1,7 @@
 # Log
 
+- 2026-11-26 Core-Weather README: sentence on ERA5 coverage south of 57.1°S, re-uploaded; south-fill build folders and caches deleted (43 GB)
+- 2026-11-20 Core-Weather: ERA5-Land south of 57.1°S filled from the Climate Data Store (3,235,318 daily rows, 52,776 cells); 2,450 day files and README re-uploaded to source.coop, verified -> [report](docs/reports/2026-11-20-era5land-south-fill.md)
 - 2026-11-09 Climate and Core-Weather build cost: time, credits, per TB and whole catalogue -> [report](docs/reports/2026-11-09-climate-build-cost.md)
 - 2026-11-06 majortom.embedder takes majortom.build samples and TACO records (inputs.py, embed()); checksum cast to float64; faiss-cpu in embed; reproducibility script: published Core embeddings do not reproduce (open)
 - 2026-11-06 Checklist: embedding products in majortom.build (AlphaEarth, TESSERA), embedder inputs beyond Core rows, OlmoEarth embedder, unique_id documentation, faiss-cpu in embed; explainer committed on the site branch major-tom-explainer

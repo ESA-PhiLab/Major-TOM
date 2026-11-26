@@ -126,7 +126,8 @@ explicit imports now, module renames after the merge; CSLC issue posted.
 - [x] Earth Data Hub keys per person (`credentials edh --name`, `EDH_KEY_NAME`): two extra keys in use from 2026-10-28; groups 2-4 and 5-6 run as two chains, all 49 variables expected by ~30 October
 - [x] ERA5Land-Monthly with all 49 variables, climatology 1991-2020 (2026-11-02); ERA5-Monthly-v2 removed, ptype kept (2026-11-02)
 - [x] Core-Weather published to source.coop major-tom/core-weather (2026-11-02, without the ERA5-Land south fill)
-- [ ] Fill ERA5-Land south of 57.1°S from the Climate Data Store (docs/CLIMATE.md 6.1): 2016 and 2018 done; 2019 and 2020 running in parallel (2026-11-05, one cache folder per year); 2021-2024 queued one after another (fill job 2611 last); then re-upload the changed day files, update the README south note, delete the build folders
+- [x] Fill ERA5-Land south of 57.1°S from the Climate Data Store (docs/CLIMATE.md 6.1): 2016, 2018-2024 filled (2026-11-19); 2,450 changed day files and the README re-uploaded, verified (job 2935, 2026-11-20); README south note updated -> [report](docs/reports/2026-11-20-era5land-south-fill.md)
+- [x] South-fill build folders (48) and ERA5-Land caches (6) under /data/Major-TOM/Core-Weather deleted, 43 GB (2026-11-26)
 - [x] Validate all sources and clear the download cache (2026-11-02; south-fill downloads kept)
 - [x] Publish Core-Weather and the monthly datasets to source.coop (2026-11-02)
 - [ ] Hugging Face copies of Core-Weather and the monthly datasets (Miko, 2026-10-24: source.coop first, Hugging Face second)

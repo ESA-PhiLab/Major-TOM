@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** reviewed (Miko, 2026-10-24); draft of the dataset card for Major-TOM/Core-Weather (2026-10-23). ERA5-Land rows, note and credit added 2026-10-26; ERA5 and ERA5-Land rows, Size and Validation updated 2026-10-30 (overnight, from docs/evidence/core_weather_validate.py and a trial merge of four days); reviewed (Miko, 2026-11-02). 2026-11-02, for publishing (not yet reviewed): Reading section with a tested example, daily column names, Copernicus disclaimer, ERA5-Land south note, GitHub links. 2026-11-03 (not yet reviewed): global map and Examples section with three figures (docs/evidence/core_weather_figures.py). 2026-11-05: Earth Compress footer, as in the climate READMEs.
+> **Review status:** reviewed (Miko, 2026-10-24); draft of the dataset card for Major-TOM/Core-Weather (2026-10-23). ERA5-Land rows, note and credit added 2026-10-26; ERA5 and ERA5-Land rows, Size and Validation updated 2026-10-30 (overnight, from docs/evidence/core_weather_validate.py and a trial merge of four days); reviewed (Miko, 2026-11-02). 2026-11-02, for publishing (not yet reviewed): Reading section with a tested example, daily column names, Copernicus disclaimer, ERA5-Land south note, GitHub links. 2026-11-03 (not yet reviewed): global map and Examples section with three figures (docs/evidence/core_weather_figures.py). 2026-11-05: Earth Compress footer, as in the climate READMEs. 2026-11-20 (not yet reviewed): ERA5-Land south of 57.1°S filled from the Climate Data Store; grid, note and credit updated; sentence on ERA5 coverage in the south added 2026-11-26.
 
 # Core-Weather
 
@@ -63,7 +63,7 @@ Each source's columns carry its prefix. Units are as published by the producer; 
 | Source | Hourly | Daily | Grid |
 |---|---|---|---|
 | ERA5 (`era5_`) | 207 variables: every hourly single-level ERA5 variable except exact duplicates and mean rates ([ERA5_VARIABLES.md](https://github.com/ESA-PhiLab/Major-TOM/blob/main/docs/ERA5_VARIABLES.md)), among them `t2m`, `d2m` (K), `tp` (m, hour ending at the stamp), `u10`, `v10` (m s⁻¹), `sp` (Pa), `ssrd` (J m⁻²), `sf`, `sd` (m of water equivalent), `swvl1` (m³ m⁻³), `sst` (K), `siconc` (0–1); `valid`, `land` | means of states, sums of accumulated variables, min and max of the hourly extremes | 0.25° |
-| ERA5-Land (`era5land_`) | all 49 time-varying land variables (among them `t2m`, `d2m` (K), `u10`, `v10` (m s⁻¹), `sp` (Pa), `tp` (m), `sf`, `sd` (m of water equivalent), `ssrd` (J m⁻²), `snowc` (%), `swvl1` (m³ m⁻³)); accumulated variables are amounts over the hour ending at the stamp | means of states, sums of accumulated variables, min and max of `t2m` | 0.1°, land only, 90°N–57.1°S |
+| ERA5-Land (`era5land_`) | all 49 time-varying land variables (among them `t2m`, `d2m` (K), `u10`, `v10` (m s⁻¹), `sp` (Pa), `tp` (m), `sf`, `sd` (m of water equivalent), `ssrd` (J m⁻²), `snowc` (%), `swvl1` (m³ m⁻³)); accumulated variables are amounts over the hour ending at the stamp | means of states, sums of accumulated variables, min and max of `t2m` | 0.1°, land only |
 | CAMS EAC4 (`cams_`) | every 3 hours: surface `no2`, `o3`, `co`, `so2`, `hcho` (kg kg⁻¹, lowest model level), `pm1`, `pm2p5`, `pm10` (kg m⁻³); total columns `tc_no2`, `tc_o3`, `tc_co`, `tc_so2`, `tc_hcho`, `tc_ch4` (kg m⁻²); aerosol optical depth at 550 nm, total and by type | means of the 8 three-hourly steps | 0.75° |
 | NOAA CPC (`cpc_`) | — | `precip` (mm), `tmax`, `tmin` (°C), `start` | 0.5° |
 | Sentinel-5P (`s5p_`) | — | `no2`, `co`, `o3`, `so2`, `hcho` (mol m⁻²), `ch4` (ppb), `aer_ai`, a valid share per product, `start` | 0.05° grid of pixels of 5.5 × 3.5 km at nadir |
@@ -76,7 +76,7 @@ Daily columns name their statistic: `_mean` for states, `_sum` for accumulated v
 ## Notes on the sources
 
 - **ERA5:** hourly accumulations hold tiny negative values (about −2 × 10⁻⁹ m) from storage precision; they are kept.
-- **ERA5-Land:** read from Destination Earth's Earth Data Hub copy (zarr), which stores values rounded to 1 part in 16,384 (bitround, 13 mantissa bits; ±0.018 K at 300 K). Checked against Earth Engine's copy: within 4 × 10⁻⁴ relative. Built in six groups of variables ([docs/CLIMATE.md](https://github.com/ESA-PhiLab/Major-TOM/blob/main/docs/CLIMATE.md) 6.1). Empty over the sea, and **south of 57.1°S** (Antarctica and nearby islands): Earth Data Hub's copy stops there, though ERA5-Land itself is global. ERA5 covers those cells at 0.25°. A fill from the Climate Data Store's hourly ERA5-Land is being built and will be published as an update of the affected day files ([docs/CLIMATE.md](https://github.com/ESA-PhiLab/Major-TOM/blob/main/docs/CLIMATE.md) 6.1).
+- **ERA5-Land:** read from Destination Earth's Earth Data Hub copy (zarr), which stores values rounded to 1 part in 16,384 (bitround, 13 mantissa bits; ±0.018 K at 300 K). Checked against Earth Engine's copy: within 4 × 10⁻⁴ relative. Built in six groups of variables ([docs/CLIMATE.md](https://github.com/ESA-PhiLab/Major-TOM/blob/main/docs/CLIMATE.md) 6.1). Empty over the sea. **South of 57.1°S** (Antarctica and nearby islands), where Earth Data Hub's copy stops, the values come from the Climate Data Store's hourly ERA5-Land (`reanalysis-era5-land`), fetched for those cells only and written into the same columns, in the hourly and the daily tables (update of 2026-11-20: 1,225 days, 3,235,318 daily rows on 52,776 cells, 2016 and 2018–2024; Core has no acquisitions there in 2015 or 2017). ERA5 (`era5_*`, 0.25°) has covered these cells since the first release; only the `era5land_*` columns were empty there before 2026-11-20. Checked against ERA5 in the same daily rows: 2 m temperature differs by −0.42 K on average (standard deviation 0.92 K, correlation 0.998). Over glaciers ERA5-Land holds fixed values: snow depth (`sd`) 10 m of water equivalent, snow density (`rsn`) 300 kg m⁻³, leaf area index 0 ([docs/CLIMATE.md](https://github.com/ESA-PhiLab/Major-TOM/blob/main/docs/CLIMATE.md) 6.1).
 - **NOAA CPC:** each country's gauges report at their own hour, so a CPC day ends at a different UTC hour per country (CPC's end-of-day map, which CPC describes as based on limited, unchecked information).
 - **Sentinel-5P:** data start on 2018-06-28; earlier steps are empty. One overpass a day; gaps under clouds and between swaths.
 - **CAMS EAC4:** available 2003–2025.
@@ -88,6 +88,7 @@ Daily columns name their statistic: `_mean` for states, `_sum` for accumulated v
 |---|---|---|
 | ERA5, ERA5-Land, CAMS | Copernicus licence (CC-BY) | "Contains modified Copernicus Climate Change Service information [year]" (ERA5); "Contains modified Copernicus Atmosphere Monitoring Service information [year]" (CAMS) |
 | ERA5-Land access | (as ERA5-Land) | credit: "ERA5-Land accessed through the Earth Data Hub of Destination Earth (European Union), https://earthdatahub.destine.eu" |
+| ERA5-Land access south of 57.1°S | (as ERA5-Land) | credit: "ERA5-Land south of 57.1°S accessed through the Copernicus Climate Data Store, https://cds.climate.copernicus.eu" |
 | Sentinel-5P | Copernicus Sentinel data terms | "Contains modified Copernicus Sentinel data [year]" |
 | NOAA CPC | no restriction | acknowledgement of NOAA PSL requested |
 | IMERG | NASA open data | cite the IMERG V07 product |
@@ -98,7 +99,7 @@ ERA5-Land is Copernicus Climate Change Service data under the Copernicus licence
 
 3,704,013 acquisitions (distinct cell and acquisition time) on 2,976 days, 2015–2024, for 5,961,727 Core samples
 (2,245,886 each of Core-S2L2A and Core-S2L1C, 1,469,955 of Core-S1RTC). The hourly table has 181,496,637 rows and
-285 columns (137.4 GB of Parquet in 2,976 files), the daily table 225,944,793 rows and 309 columns (257.8 GB in 2,976
+285 columns (137.8 GB of Parquet in 2,976 files), the daily table 225,944,793 rows and 309 columns (258.3 GB in 2,976
 files).
 
 ## Validation
