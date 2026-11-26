@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** by_cell/ layout (1,024-cell row groups, page index) and climatology_overviews/ noted 2026-10-31, not yet published. by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of `major-tom/climate/CAMS-Monthly/README.md`. Remove these notes
+> **Review status:** by_cell/ layout (1,024-cell row groups, page index) and climatology_overviews/ noted 2026-10-31, not yet published. by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of `major-tom/climate/CAMS-Monthly/README.md`. Remove these notes 2026-11-26: product links in Source, normals defined in the opening sentence (not yet reviewed).
 > when publishing. Licence and citations checked 2026-10-28 (Atmosphere Data Store catalogue: CC-BY-4.0; DataCite
 > and Crossref records of both DOIs). The credit line is ECMWF's recommended wording, not a licence requirement.
 
@@ -8,7 +8,7 @@
 
 # CAMS-Monthly
 
-Monthly air quality for every cell of the Major TOM grid, 2003–2025: trace-gas columns, aerosol optical depth by type, particulate matter and surface gases, with climate normals over the whole record. Part of [Major TOM Climate](https://source.coop/major-tom/climate).
+Monthly air quality for every cell of the Major TOM grid, 2003–2025: trace-gas columns, aerosol optical depth by type, particulate matter and surface gases, with climate normals (each calendar month's average and its spread across years) over the whole record. Part of [Major TOM Climate](https://source.coop/major-tom/climate).
 
 <img src="https://data.source.coop/major-tom/climate/CAMS-Monthly/figures/aerosol-optical-depth.png" alt="Mean aerosol optical depth, 2003-2025" width="100%">
 
@@ -18,7 +18,7 @@ Monthly air quality for every cell of the Major TOM grid, 2003–2025: trace-gas
 
 | | |
 |---|---|
-| Product | CAMS global reanalysis (EAC4), monthly averaged fields |
+| Product | [CAMS global reanalysis (EAC4), monthly averaged fields](https://ads.atmosphere.copernicus.eu/datasets/cams-global-reanalysis-eac4-monthly) |
 | Provider | Copernicus Atmosphere Monitoring Service (CAMS), implemented by ECMWF |
 | Kind | reanalysis: an atmospheric chemistry model fitted to satellite observations; complete, without gaps |
 | Accessed | Atmosphere Data Store, `cams-global-reanalysis-eac4-monthly` |

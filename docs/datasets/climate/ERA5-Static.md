@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of `major-tom/climate/ERA5-Static/README.md`. Remove these notes
+> **Review status:** by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of `major-tom/climate/ERA5-Static/README.md`. Remove these notes 2026-11-26: product link and Kind row in Source (not yet reviewed).
 > when publishing. Licence and citations checked 2026-10-28 (Climate Data Store catalogue: CC-BY-4.0; DataCite and
 > Crossref records; ARCO-ERA5's "How to cite"). The credit line is ECMWF's recommended wording, not a licence requirement.
 
@@ -16,8 +16,9 @@ The fixed surface fields of ERA5 for every cell of the Major TOM grid: terrain a
 
 | | |
 |---|---|
-| Product | ERA5 reanalysis, time-invariant fields |
+| Product | [ERA5 reanalysis](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels), time-invariant fields |
 | Provider | Copernicus Climate Change Service (C3S), implemented by ECMWF |
+| Kind | the fixed description of the Earth's surface that ERA5's weather model uses: terrain, land and lake cover, soil and vegetation types; it does not change over time |
 | Accessed | ARCO-ERA5 (Google Cloud, analysis-ready Zarr copy of ERA5) |
 | Licence | CC BY 4.0 (the Climate Data Store's licence since 2 July 2025) |
 

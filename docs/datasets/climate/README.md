@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** reviewed (Miko) and published 2026-11-02 (File layout, ERA5Land-Monthly row). Earlier: by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of the top-level README for source.coop `major-tom/climate`.
+> **Review status:** reviewed (Miko) and published 2026-11-02 (File layout, ERA5Land-Monthly row). Earlier: by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of the top-level README for source.coop `major-tom/climate`. 2026-11-26: plain-language paragraph on records and normals; source links in the dataset table (not yet reviewed).
 > Remove these two notes when publishing. How by_cell/ files are written: added 2026-10-31, not yet reviewed or published; read table re-measured on the new by_cell/ files 2026-10-31 (docs/evidence/climate_bycell_bench.py, the app). By cell and overviews section rewritten 2026-10-31 (measurements from docs/reports/2026-10-30-climate-globe-read-experiments.md). ERA5-Monthly row and figures added 2026-10-30; ERA5Land-Monthly row added 2026-11-02 (draft README). Sizes include by_cell/ and overviews/. File layout section (diagram, settings, sizes, reads) added 2026-11-02, not yet reviewed or published; climatology/ now has a page index. 2026-11-04 (not yet reviewed): ERA5-Monthly by_cell/ published; ERA5 size, by_cell rows and the ERA5 reading paragraph updated with a measured read.
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
@@ -9,18 +9,20 @@
 
 Monthly climate records and climate normals for every cell of the [Major TOM](https://github.com/ESA-PhiLab/Major-TOM) grid, from reanalysis, satellite and rain-gauge sources, in Parquet tables keyed by `grid_cell`.
 
+Each dataset gives, for every 10 km cell of the Major TOM grid, two things: the monthly record of its variables (for example, the rainfall of July 2003 in one cell), and the cell's climate normals: each calendar month's average over a reference period and its spread across years (for example, the mean July rainfall over 1991–2020). The record shows what a particular month was like; the normals show the typical climate of a place. The data come from six public sources of three kinds: reanalyses (weather models fitted to past observations, complete everywhere), satellite measurements and rain-gauge measurements.
+
 Each dataset is a separate folder with its own README.
 
 <img src="https://data.source.coop/major-tom/climate/figures/overview.png" alt="Annual precipitation (CPC, IMERG, ERA5), July temperature (ERA5, CPC), surface height (ERA5), aerosol optical depth and surface PM2.5 (CAMS)" width="100%">
 
 | Dataset | What | Source | Record | Grid | Cells | Variables | Size |
 |---|---|---|---|---|---|---|---|
-| [CPC-Monthly](https://source.coop/major-tom/climate/CPC-Monthly) | rain-gauge precipitation, daily max and min temperature, gauges nearby | NOAA CPC Global Unified | 1979–2025 | 0.5° | 1,657,095 (land) | 4 | 21.2 GB |
-| [IMERG-Monthly](https://source.coop/major-tom/climate/IMERG-Monthly) | satellite precipitation and its quality fields | NASA GPM IMERG V07 | 1998–2024 | 0.1° | 5,113,745 (globe) | 5 | 54.4 GB |
-| [CAMS-Monthly](https://source.coop/major-tom/climate/CAMS-Monthly) | air quality: trace gases, aerosols, particulate matter | Copernicus CAMS EAC4 | 2003–2025 | 0.75° | 5,113,745 (globe) | 19 | 110.9 GB |
-| [ERA5-Static](https://source.coop/major-tom/climate/ERA5-Static) | fixed surface fields: terrain, land and lake cover, soil and vegetation types | ECMWF ERA5 | — | 0.25° | 5,113,745 (globe) | 16 | 0.12 GB |
-| [ERA5Land-Monthly](https://source.coop/major-tom/climate/ERA5Land-Monthly) | land surface at 0.1°: temperature, soil water and temperature, snow, runoff, evaporation, fluxes, lakes | ECMWF ERA5-Land | 1950–2025 | 0.1° | 1,524,009 (land) | 49 | 469.8 GB |
-| [ERA5-Monthly](https://source.coop/major-tom/climate/ERA5-Monthly) | weather and land surface: temperature, humidity, wind, pressure, precipitation, radiation, clouds, soil, snow, waves | ECMWF ERA5 | 1940–2025 | 0.25° | 5,113,745 (globe) | 201 | 5.17 TB |
+| [CPC-Monthly](https://source.coop/major-tom/climate/CPC-Monthly) | rain-gauge precipitation, daily max and min temperature, gauges nearby | [NOAA CPC Global Unified](https://psl.noaa.gov/data/gridded/data.cpc.globalprecip.html) | 1979–2025 | 0.5° | 1,657,095 (land) | 4 | 21.2 GB |
+| [IMERG-Monthly](https://source.coop/major-tom/climate/IMERG-Monthly) | satellite precipitation and its quality fields | [NASA GPM IMERG V07](https://doi.org/10.5067/GPM/IMERG/3B-MONTH/07) | 1998–2024 | 0.1° | 5,113,745 (globe) | 5 | 54.4 GB |
+| [CAMS-Monthly](https://source.coop/major-tom/climate/CAMS-Monthly) | air quality: trace gases, aerosols, particulate matter | [Copernicus CAMS EAC4](https://ads.atmosphere.copernicus.eu/datasets/cams-global-reanalysis-eac4-monthly) | 2003–2025 | 0.75° | 5,113,745 (globe) | 19 | 110.9 GB |
+| [ERA5-Static](https://source.coop/major-tom/climate/ERA5-Static) | fixed surface fields: terrain, land and lake cover, soil and vegetation types | [ECMWF ERA5](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels) | — | 0.25° | 5,113,745 (globe) | 16 | 0.12 GB |
+| [ERA5Land-Monthly](https://source.coop/major-tom/climate/ERA5Land-Monthly) | land surface at 0.1°: temperature, soil water and temperature, snow, runoff, evaporation, fluxes, lakes | [ECMWF ERA5-Land](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-land-monthly-means) | 1950–2025 | 0.1° | 1,524,009 (land) | 49 | 469.8 GB |
+| [ERA5-Monthly](https://source.coop/major-tom/climate/ERA5-Monthly) | weather and land surface: temperature, humidity, wind, pressure, precipitation, radiation, clouds, soil, snow, waves | [ECMWF ERA5](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-monthly-means) | 1940–2025 | 0.25° | 5,113,745 (globe) | 201 | 5.17 TB |
 
 Files are at `https://data.source.coop/major-tom/climate/<dataset>/...`.
 

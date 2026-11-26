@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** by_cell/ layout (1,024-cell row groups, page index) and climatology_overviews/ noted 2026-10-31, not yet published. by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of `major-tom/climate/IMERG-Monthly/README.md`. Remove these notes
+> **Review status:** by_cell/ layout (1,024-cell row groups, page index) and climatology_overviews/ noted 2026-10-31, not yet published. by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of `major-tom/climate/IMERG-Monthly/README.md`. Remove these notes 2026-11-26: product links in Source, normals defined in the opening sentence (not yet reviewed).
 > when publishing. Licence and citation checked 2026-10-28 (DataCite record of the DOI; NASA Earthdata data use
 > guidance). Artifact counts from docs/evidence/monthly_artifacts.py (2026-10-28).
 
@@ -8,7 +8,7 @@
 
 # IMERG-Monthly
 
-Monthly satellite precipitation for every cell of the Major TOM grid, 1998–2024, with climate normals over the whole record. Part of [Major TOM Climate](https://source.coop/major-tom/climate).
+Monthly satellite precipitation for every cell of the Major TOM grid, 1998–2024, with climate normals (each calendar month's average and its spread across years) over the whole record. Part of [Major TOM Climate](https://source.coop/major-tom/climate).
 
 <img src="https://data.source.coop/major-tom/climate/IMERG-Monthly/figures/annual-precipitation.png" alt="Annual precipitation from satellites, 1998-2024" width="100%">
 
@@ -16,7 +16,7 @@ Monthly satellite precipitation for every cell of the Major TOM grid, 1998–202
 
 | | |
 |---|---|
-| Product | GPM IMERG Final Precipitation L3, 1 month, 0.1° (V07) |
+| Product | [GPM IMERG Final Precipitation L3, 1 month, 0.1° (V07)](https://doi.org/10.5067/GPM/IMERG/3B-MONTH/07) |
 | Provider | NASA Goddard Space Flight Center |
 | Kind | precipitation estimated from passive-microwave and infrared satellite observations, calibrated to rain gauges |
 | Accessed | Google Earth Engine collection `NASA/GPM_L3/IMERG_MONTHLY_V07` |
