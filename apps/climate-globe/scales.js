@@ -25,6 +25,11 @@ function lookupTable(stops) {
 
 /** A scale: {type: 'log'|'linear'|'centred', min, max, centre?, ramp, ticks} -> position(v), lut. */
 export function makeScale(spec) {
+  if (spec.type === 'classes') {          // {classes: [[code, name, colour], ...]}: lut[code] = colour, codes 0-255
+    const lut = new Uint8Array(256 * 3)
+    for (const [code, , hex] of spec.classes) lut.set(rgb(hex), code * 3)
+    return { ...spec, lut, position: v => v / 255 }
+  }
   const { type, min, max, centre = 0 } = spec
   const position =
     type === 'log' ? v => (Math.log(v) - Math.log(min)) / (Math.log(max) - Math.log(min))

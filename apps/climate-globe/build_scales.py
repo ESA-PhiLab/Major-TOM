@@ -9,8 +9,12 @@
       -> scales/<dataset>.json: {column: {name, unit, scale: {type, min, max, centre?, ramp, ticks}}}, in the
          overviews' column order; "overviews": the columns with series overviews (globe-scale monthly maps)
 
+    ERA5-Static (no months): the same from overviews/static.parquet (block means; class fields: the block's most
+    common class); shares (0–1) linear over 0-1; the class fields (CLASSES) get a "classes" scale: [code, ECMWF name, colour], code 0 left out
+    (no type assigned, mostly ocean)
+
     python build_scales.py /data/Major-TOM/climate-release/<dataset>        (Slurm, .venv311 or miko-torch)
-    datasets: CPC-Monthly, IMERG-Monthly, CAMS-Monthly, ERA5Land-Monthly, ERA5-Monthly
+    datasets: CPC-Monthly, IMERG-Monthly, CAMS-Monthly, ERA5Land-Monthly, ERA5-Monthly, ERA5-Static
 """
 from __future__ import annotations
 
@@ -38,6 +42,33 @@ NAMES = {
     "cams_pm10": ("particulate matter below 10 µm, at the surface", "kg m⁻³"),
     **{f"cams_{g}": (f"{n} mass mixing ratio at the lowest model level", "kg kg⁻¹") for g, n in
        [("no2", "NO₂"), ("o3", "O₃"), ("co", "CO"), ("so2", "SO₂"), ("hcho", "formaldehyde")]},
+    # ERA5-Static.md groups these too
+    "era5_slor": ("slope of subgrid orography", "–"),
+    "era5_anor": ("angle of subgrid orography", "radians"),
+    "era5_isor": ("anisotropy of subgrid orography", "–"),
+    "era5_cl": ("lake cover", "0–1"),
+    "era5_dl": ("lake depth", "m"),
+    "era5_lshf": ("lake shape factor", "–"),
+    "era5_cvh": ("high vegetation cover", "0–1"),
+    "era5_cvl": ("low vegetation cover", "0–1"),
+    "era5_tvh": ("type of high vegetation", "class"),
+    "era5_tvl": ("type of low vegetation", "class"),
+}
+
+# ECMWF class names (parameter database, params 30, 29, 43), codes present in ERA5-Static, with colours from the
+# validated 8-colour categorical palette (dataviz reference: blue, orange, aqua, yellow, magenta, green, violet, red);
+# the 9th low-vegetation class, the smallest, in grey
+BLUE, ORANGE, AQUA, YELLOW, MAGENTA, GREEN, VIOLET, RED, GREY = (
+    "#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948", "#9a9a9a")
+CLASSES = {
+    "era5_tvh": [(3, "Evergreen needleleaf trees", BLUE), (4, "Deciduous needleleaf trees", ORANGE),
+                 (5, "Deciduous broadleaf trees", AQUA), (6, "Evergreen broadleaf trees", YELLOW),
+                 (18, "Mixed forest/woodland", MAGENTA), (19, "Interrupted forest", GREEN)],
+    "era5_tvl": [(1, "Crops, mixed farming", BLUE), (2, "Grass", ORANGE), (7, "Tall grass", AQUA),
+                 (9, "Tundra", YELLOW), (10, "Irrigated crops", MAGENTA), (11, "Semidesert", GREEN),
+                 (13, "Bogs and marshes", VIOLET), (16, "Evergreen shrubs", GREY), (17, "Deciduous shrubs", RED)],
+    "era5_slt": [(1, "Coarse", BLUE), (2, "Medium", ORANGE), (3, "Medium fine", AQUA), (4, "Fine", YELLOW),
+                 (5, "Very fine", MAGENTA), (6, "Organic", GREEN), (7, "Tropical organic", VIOLET)],
 }
 
 
@@ -81,8 +112,32 @@ def scale(values: np.ndarray, unit: str) -> dict:
     return {"type": "linear", "min": lo, "max": hi, "ramp": "magnitude", "ticks": nice(lo, hi)}
 
 
+def static(folder: Path) -> dict:
+    """ERA5-Static: one scale per field from its block values; class fields get their classes."""
+    table = pq.read_table(folder / "overviews" / "static.parquet")
+    names, out = variables(folder.name), {}
+    for column in [n for n in table.column_names if n.startswith("era5_")]:
+        name, unit = names[column]
+        values = table.column(column).to_numpy(zero_copy_only=False).astype(np.float64)
+        if column in CLASSES:
+            present = set(np.unique(values[np.isfinite(values)]).astype(int)) - {0}
+            listed = {code for code, _, _ in CLASSES[column]}
+            assert present <= listed, f"{column}: codes {sorted(present - listed)} have no name"
+            out[column] = {"name": name, "unit": unit,
+                           "scale": {"type": "classes", "classes": [list(c) for c in CLASSES[column]]}}
+        elif unit == "0–1":                         # shares (land, lake, vegetation): the whole 0-1, linear
+            out[column] = {"name": name, "unit": unit, "scale": {"type": "linear", "min": 0, "max": 1,
+                           "ramp": "magnitude", "ticks": [0, 0.25, 0.5, 0.75, 1]}}
+        else:
+            out[column] = {"name": name, "unit": unit, "scale": scale(values, unit)}
+    return {"static": True, "overviews": [], "variables": out}
+
+
 def main(folder: Path) -> None:
     dataset = folder.name                                                     # e.g. CPC-Monthly
+    if dataset == "ERA5-Static":
+        write(dataset, static(folder))
+        return
     months = [pq.read_table(folder / "climatology_overviews" / f"{m:02d}.parquet") for m in range(1, 13)]
     columns = [n.removesuffix("_mean") for n in months[0].column_names
                if n.endswith("_mean") and not n.endswith("_valid_mean")]
@@ -96,13 +151,17 @@ def main(folder: Path) -> None:
         out[column] = {"name": name, "unit": unit, "scale": scale(values.astype(np.float64), unit)}
     overview = next(folder.glob("overviews/year=*/*.parquet"))
     with_overview = [n for n in pq.read_schema(overview).names if n in out]
+    write(dataset, {"overviews": with_overview, "variables": out})
+
+
+def write(dataset: str, info: dict) -> None:
     path = APP / "scales" / f"{dataset}.json"
     path.parent.mkdir(exist_ok=True)
-    path.write_text(json.dumps({"overviews": with_overview, "variables": out}, indent=1, ensure_ascii=False) + "\n")
+    path.write_text(json.dumps(info, indent=1, ensure_ascii=False) + "\n")
     kinds = {}
-    for v in out.values():
+    for v in info["variables"].values():
         kinds[v["scale"]["type"]] = kinds.get(v["scale"]["type"], 0) + 1
-    print(f"{len(out)} variables -> {path}: {kinds}")
+    print(f"{len(info['variables'])} variables -> {path}: {kinds}")
 
 
 if __name__ == "__main__":

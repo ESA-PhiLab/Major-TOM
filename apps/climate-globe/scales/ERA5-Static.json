@@ -1,0 +1,361 @@
+{
+ "static": true,
+ "overviews": [],
+ "variables": {
+  "era5_anor": {
+   "name": "angle of subgrid orography",
+   "unit": "radians",
+   "scale": {
+    "type": "centred",
+    "min": -0.843,
+    "centre": 0,
+    "max": 0.843,
+    "ramp": "diverging",
+    "ticks": [
+     -0.5,
+     0.0,
+     0.5
+    ]
+   }
+  },
+  "era5_isor": {
+   "name": "anisotropy of subgrid orography",
+   "unit": "–",
+   "scale": {
+    "type": "log",
+    "min": 0.0085,
+    "max": 0.682,
+    "ramp": "magnitude",
+    "ticks": [
+     0.01,
+     0.02,
+     0.05,
+     0.1,
+     0.2,
+     0.5
+    ]
+   }
+  },
+  "era5_z": {
+   "name": "geopotential at the surface (÷ 9.80665 = height in m)",
+   "unit": "m² s⁻²",
+   "scale": {
+    "type": "centred",
+    "min": -25300.0,
+    "centre": 0,
+    "max": 25300.0,
+    "ramp": "diverging",
+    "ticks": [
+     -20000.0,
+     -10000.0,
+     0.0,
+     10000.0,
+     20000.0
+    ]
+   }
+  },
+  "era5_cvh": {
+   "name": "high vegetation cover",
+   "unit": "0–1",
+   "scale": {
+    "type": "linear",
+    "min": 0,
+    "max": 1,
+    "ramp": "magnitude",
+    "ticks": [
+     0,
+     0.25,
+     0.5,
+     0.75,
+     1
+    ]
+   }
+  },
+  "era5_cl": {
+   "name": "lake cover",
+   "unit": "0–1",
+   "scale": {
+    "type": "linear",
+    "min": 0,
+    "max": 1,
+    "ramp": "magnitude",
+    "ticks": [
+     0,
+     0.25,
+     0.5,
+     0.75,
+     1
+    ]
+   }
+  },
+  "era5_dl": {
+   "name": "lake depth",
+   "unit": "m",
+   "scale": {
+    "type": "linear",
+    "min": 3.99,
+    "max": 5710.0,
+    "ramp": "magnitude",
+    "ticks": [
+     1000.0,
+     2000.0,
+     3000.0,
+     4000.0,
+     5000.0
+    ]
+   }
+  },
+  "era5_lshf": {
+   "name": "lake shape factor",
+   "unit": "–",
+   "scale": {
+    "type": "linear",
+    "min": 0.644,
+    "max": 0.799,
+    "ramp": "magnitude",
+    "ticks": [
+     0.65,
+     0.7,
+     0.75
+    ]
+   }
+  },
+  "era5_lsm": {
+   "name": "land-sea mask (share of land)",
+   "unit": "0–1",
+   "scale": {
+    "type": "linear",
+    "min": 0,
+    "max": 1,
+    "ramp": "magnitude",
+    "ticks": [
+     0,
+     0.25,
+     0.5,
+     0.75,
+     1
+    ]
+   }
+  },
+  "era5_cvl": {
+   "name": "low vegetation cover",
+   "unit": "0–1",
+   "scale": {
+    "type": "linear",
+    "min": 0,
+    "max": 1,
+    "ramp": "magnitude",
+    "ticks": [
+     0,
+     0.25,
+     0.5,
+     0.75,
+     1
+    ]
+   }
+  },
+  "era5_wmb": {
+   "name": "model bathymetry (empty over land)",
+   "unit": "m",
+   "scale": {
+    "type": "linear",
+    "min": 27.0,
+    "max": 999.0,
+    "ramp": "magnitude",
+    "ticks": [
+     200.0,
+     400.0,
+     600.0,
+     800.0
+    ]
+   }
+  },
+  "era5_slor": {
+   "name": "slope of subgrid orography",
+   "unit": "–",
+   "scale": {
+    "type": "log",
+    "min": 0.0001,
+    "max": 0.0386,
+    "ramp": "magnitude",
+    "ticks": [
+     0.0001,
+     0.0005,
+     0.002,
+     0.01
+    ]
+   }
+  },
+  "era5_slt": {
+   "name": "soil type (ECMWF classes)",
+   "unit": "class",
+   "scale": {
+    "type": "classes",
+    "classes": [
+     [
+      1,
+      "Coarse",
+      "#2a78d6"
+     ],
+     [
+      2,
+      "Medium",
+      "#eb6834"
+     ],
+     [
+      3,
+      "Medium fine",
+      "#1baf7a"
+     ],
+     [
+      4,
+      "Fine",
+      "#eda100"
+     ],
+     [
+      5,
+      "Very fine",
+      "#e87ba4"
+     ],
+     [
+      6,
+      "Organic",
+      "#008300"
+     ],
+     [
+      7,
+      "Tropical organic",
+      "#6250d6"
+     ]
+    ]
+   }
+  },
+  "era5_sdfor": {
+   "name": "standard deviation of filtered subgrid orography",
+   "unit": "m",
+   "scale": {
+    "type": "log",
+    "min": 0.16,
+    "max": 164.0,
+    "ramp": "magnitude",
+    "ticks": [
+     0.2,
+     1.0,
+     5.0,
+     20.0,
+     100.0
+    ]
+   }
+  },
+  "era5_sdor": {
+   "name": "standard deviation of orography (terrain roughness)",
+   "unit": "m",
+   "scale": {
+    "type": "log",
+    "min": 0.23,
+    "max": 234.0,
+    "ramp": "magnitude",
+    "ticks": [
+     0.5,
+     2.0,
+     10.0,
+     50.0,
+     200.0
+    ]
+   }
+  },
+  "era5_tvh": {
+   "name": "type of high vegetation",
+   "unit": "class",
+   "scale": {
+    "type": "classes",
+    "classes": [
+     [
+      3,
+      "Evergreen needleleaf trees",
+      "#2a78d6"
+     ],
+     [
+      4,
+      "Deciduous needleleaf trees",
+      "#eb6834"
+     ],
+     [
+      5,
+      "Deciduous broadleaf trees",
+      "#1baf7a"
+     ],
+     [
+      6,
+      "Evergreen broadleaf trees",
+      "#eda100"
+     ],
+     [
+      18,
+      "Mixed forest/woodland",
+      "#e87ba4"
+     ],
+     [
+      19,
+      "Interrupted forest",
+      "#008300"
+     ]
+    ]
+   }
+  },
+  "era5_tvl": {
+   "name": "type of low vegetation",
+   "unit": "class",
+   "scale": {
+    "type": "classes",
+    "classes": [
+     [
+      1,
+      "Crops, mixed farming",
+      "#2a78d6"
+     ],
+     [
+      2,
+      "Grass",
+      "#eb6834"
+     ],
+     [
+      7,
+      "Tall grass",
+      "#1baf7a"
+     ],
+     [
+      9,
+      "Tundra",
+      "#eda100"
+     ],
+     [
+      10,
+      "Irrigated crops",
+      "#e87ba4"
+     ],
+     [
+      11,
+      "Semidesert",
+      "#008300"
+     ],
+     [
+      13,
+      "Bogs and marshes",
+      "#6250d6"
+     ],
+     [
+      16,
+      "Evergreen shrubs",
+      "#9a9a9a"
+     ],
+     [
+      17,
+      "Deciduous shrubs",
+      "#e34948"
+     ]
+    ]
+   }
+  }
+ }
+}

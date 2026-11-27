@@ -10,6 +10,8 @@
       -> ERA5: July normals, the Sahara's temperature under the cursor, another variable
       -> ERA5 at Loch Lomond: the whole by_cell/ series of era5_t2m (1,032 months), against values in the files;
          its 10-year window, moved by the ‹ button and by dragging; °C labels beside kelvin
+      -> ERA5-Static: 16 fields, no month controls; globe from overviews/static.parquet, zoomed from static.parquet;
+         surface height at Loch Lomond against the file; soil type as a class name, in the legend and the cell panel
 
     cd apps/climate-globe && pytest -m network        (needs `pip install pytest playwright && playwright install chromium`)
 """
@@ -33,6 +35,8 @@ CURATED = [("cpc", "cpc_precip"), ("imerg", "imerg_precip"), ("cpc", "cpc_tmax")
 # per source: the variables in its dropdown and one besides the first, whose July normals are loaded
 VARIABLES = {"cpc": (4, "cpc_gauges"), "imerg": (5, "imerg_quality"), "cams": (19, "cams_aod550"),
              "era5land": (49, "era5land_swvl1"), "era5": (201, "era5_tp")}
+# ERA5-Static at Loch Lomond, from static.parquet: era5_z 1788.4923 m² s⁻² (182.37 m), era5_slt 1 (Coarse)
+LOCH_LOMOND_Z = 1788.4923 / 9.80665
 
 
 @pytest.fixture(scope="module")
@@ -202,3 +206,25 @@ def test_era5_series_by_cell(page):
     page.mouse.move(box["x"] + box["width"] * 0.8, y, steps=8)    # drag right: earlier years
     page.mouse.up()
     assert shown()[0] < max(1940, first - 5) or shown()[0] == 1940
+
+
+def test_era5_static_fields_and_classes(page):
+    pick(page, "era5static")
+    assert page.eval_on_selector_all("#variable option", "o => o.length") == 16
+    loaded(page, "era5static:era5_z/")
+    page.wait_for_function("document.body.dataset.loaded.endsWith('/2')", timeout=120_000)   # globe: blocks
+    assert page.is_hidden("#month-section") and page.is_hidden("#source-section")
+    assert page.text_content("#stat-source").startswith("Parquet overview")
+    page.evaluate(f"globe.jumpTo({{center: [{LOCH_LOMOND[0]}, {LOCH_LOMOND[1]}], zoom: 4}})")
+    page.wait_for_function("document.body.dataset.loaded.endsWith('/0')", timeout=300_000)   # zoomed: static.parquet
+    page.mouse.click(*at(page, *LOCH_LOMOND))
+    assert page.text_content("#pick-cell") == "624U_29L"
+    value = page.evaluate(f"globe && window.fieldAt({LOCH_LOMOND[0]}, {LOCH_LOMOND[1]})")
+    assert value == pytest.approx(LOCH_LOMOND_Z, abs=1e-2)
+    assert "182 m" in page.text_content("#clim-title")
+    page.select_option("#variable", "era5_slt")
+    loaded(page, "era5static:era5_slt/")
+    page.wait_for_function("document.getElementById('clim-title').textContent.includes('Coarse (1)')", timeout=60_000)
+    assert page.eval_on_selector_all("#legend-classes li", "l => l.length") == 7
+    assert page.is_hidden("#legend-bar")
+    assert page.text_content("#status") == ""

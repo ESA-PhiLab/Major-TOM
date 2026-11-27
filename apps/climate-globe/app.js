@@ -8,7 +8,7 @@
 import * as maplibregl from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.mjs'
 import { feature } from 'https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/+esm'
 import { SOURCES, SOURCE_COOP, cellRow, loadByCellSeries, loadCellClimatology, loadCellSeries, loadNormalsOverview,
-  loadOverviewMonth, loadPreview, loadSeries, loadVariables, variableLayer } from './data.js'
+  loadOverviewMonth, loadPreview, loadSeries, loadStatic, loadVariables, variableLayer } from './data.js'
 import { lineChart, plotShare } from './charts.js'
 import { placeLabels } from './labels.js'
 import { drawBar, makeScale } from './scales.js'
@@ -130,6 +130,7 @@ map.on('mousemove', e => {
 window.globe = map                                         // for automated checks
 window.pickState = () => pick
 window.loadsUnderWay = () => pending.size
+window.fieldAt = (lng, lat) => state.field?.valueAt(lng, lat)
 
 /** Outline and describe the cell under the cursor (again after each load, so the value is never stale). */
 function describe() {
@@ -140,9 +141,17 @@ function describe() {
   const v = state.field?.valueAt(lng, lat)
   $('cursor-cell').textContent = cell.name
   $('cursor-pos').textContent = `${lat.toFixed(2)}°, ${lng.toFixed(2)}°`
-  $('cursor-value').textContent = v === undefined ? 'colours only (image)'
-    : Number.isNaN(v) ? 'no value'
-    : `${format(v)} ${state.layer.unit}${state.field.level ? ` (${2 ** state.field.level}×${2 ** state.field.level} mean)` : ''}`
+  $('cursor-value').textContent = v === undefined ? 'colours only (image)' : valueText(state.layer, v, state.field.level)
+}
+/** A value as shown: number and unit, or a class field's class name and code; at level 2, what the block holds. */
+function valueText(layer, v, level) {
+  const block = level ? `${2 ** level}×${2 ** level}` : ''
+  if (layer.scale.type === 'classes') {
+    if (Number.isNaN(v)) return `none (0)${block ? `, most common in ${block}` : ''}`
+    const name = layer.scale.classes.find(([code]) => code === v)?.[1] ?? 'not an ECMWF class'
+    return `${name} (${v})${block ? `, most common in ${block}` : ''}`
+  }
+  return Number.isNaN(v) ? 'no value' : `${format(v)} ${layer.unit}${block ? ` (${block} mean)` : ''}`
 }
 function clearCursor() {
   cursor = null
@@ -222,6 +231,13 @@ $('pick-clear').addEventListener('click', () => {
 async function pickLayer() {
   const layer = state.layer, { row, col } = pick.cell, ticket = ++pick.ticket
   stopSeries()
+  for (const id of ['chart-clim', 'clim-stats', 'series-title', 'series-load', 'series-stats']) $(id).hidden = Boolean(layer.static)
+  if (layer.static) {                       // fixed fields: the value from the field on the map, no further read
+    pick.layer = layer.id; pick.layerObj = layer; pick.clim = null; pick.series = null
+    $('series-nav').hidden = $('chart-series').hidden = $('series-monthly').hidden = true
+    $('series-monthly-stats').textContent = ''
+    return drawPick()
+  }
   pick.layer = layer.id; pick.layerObj = layer; pick.clim = null; pick.series = null; pick.view = null; pick.marked = null
   $('series-nav').hidden = true
   $('clim-title').textContent = `${layer.name} (${layer.source.split(',')[0]}), normal ${layer.normal}: mean ± 1 std, ${layer.unit}`
@@ -307,6 +323,11 @@ async function monthlySeries(button, out) {
 /** Draw both charts, the shown month marked. */
 function drawPick() {
   if (!pick.cell) return
+  if (pick.layerObj.static) {
+    const v = state.field?.valueAt(pick.cell.lng, pick.cell.lat)
+    $('clim-title').textContent = `${pick.layerObj.name} (ERA5-Static): ${v === undefined ? '–' : valueText(pick.layerObj, v, state.field.level)}`
+    return
+  }
   const layer = pick.layerObj, { year, month } = when(state.step)
   if (pick.clim) {
     const { mean, std } = pick.clim, floor = layer.scale.type === 'log' ? 0 : -Infinity     // no negative rain
@@ -389,6 +410,7 @@ function stepFor({ year, month }) {
   return (Math.min(Math.max(year ?? b, a), b) - a) * 12 + month - 1
 }
 function timeLabel(step) {
+  if (state.layer.static) return 'fixed fields'
   const { year, month } = when(step)
   return year === null ? `${MONTHS[month - 1]} · normal ${state.layer.normal}` : `${MONTHS[month - 1]} ${year}`
 }
@@ -396,7 +418,8 @@ function timeLabel(step) {
 // ---- load and draw -----------------------------------------------------------------------------------------
 
 /** Level a month is read at: a dataset's overviews (4 x 4 means) at globe scale, its monthly files zoomed in. */
-const levelFor = (layer, mode) => (mode === 'preview' ? (layer.normals ? 2 : 0)
+const levelFor = (layer, mode) => (layer.static ? (map.getZoom() < 3.5 ? 2 : 0)
+  : mode === 'preview' ? (layer.normals ? 2 : 0)
   : (layer.tables || layer.overview) && map.getZoom() < 3.5 ? 2 : 0)
 
 /** Load one month of `layer` from a source (or join the load already under way, or take it from the cache).
@@ -407,6 +430,10 @@ function fetchField(layer, mode, step, level, onProgress = () => {}) {
   if (pending.has(key)) return pending.get(key)
   const scale = makeScale(layer.scale), { year, month } = whenFor(layer, mode, step)
   const load = (async () => {
+    if (layer.static) {
+      const o = await loadStatic(layer, level, onProgress)
+      return { field: gridField(o.values, scale, level), stats: o.stats }
+    }
     if (mode === 'preview' && layer.normals) {
       const o = await loadNormalsOverview(layer, month, onProgress)
       return { field: gridField(o.values, scale, level), stats: o.stats }
@@ -433,6 +460,7 @@ function fetchField(layer, mode, step, level, onProgress = () => {}) {
 
 /** After a month is shown: load its neighbours one after the other, the direction last stepped first. */
 async function loadAhead(layer, mode, step, level) {
+  if (layer.static) return                                                        // no months
   const n = steps()
   for (const d of [state.direction, -state.direction]) {
     const next = (step + d + n) % n, key = `${layer.id}/${mode}/${next}/${level}`
@@ -480,6 +508,7 @@ async function show() {
 
 function readout(stats, drawMs, cached, ahead) {
   $('stat-source').textContent = state.mode === 'preview' && state.layer.normals ? 'Parquet climatology overview (4×4 means), read live'
+    : state.layer.static ? (stats.level ? 'Parquet overview (4×4 blocks), read live' : 'Parquet, read live')
     : state.mode === 'preview' ? 'climatology image (PNG)'
     : stats.level ? 'Parquet overview (4×4 means), read live' : 'Parquet, read live'
   $('stat-bytes').textContent = cached ? (ahead ? `loaded ahead (${(stats.bytes / 1e6).toFixed(1)} MB)` : 'cached') : `${(stats.bytes / 1e6).toFixed(1)} MB in ${stats.requests} request${stats.requests > 1 ? 's' : ''}` +
@@ -492,6 +521,18 @@ function readout(stats, drawMs, cached, ahead) {
 }
 
 function legend(scale) {
+  const classes = scale.type === 'classes'
+  $('legend-bar').hidden = $('legend-ticks').hidden = classes
+  $('legend-classes').hidden = !classes
+  if (classes) {                                 // one swatch per class, in code order; code 0 is left uncoloured
+    $('legend-classes').replaceChildren(...scale.classes.map(([code, name, colour]) => {
+      const li = document.createElement('li')
+      li.innerHTML = `<i style="background:${colour}"></i>${name} <small>${code}</small>`
+      return li
+    }))
+    $('legend-unit').textContent = 'ECMWF classes · uncoloured: none (0)'
+    return
+  }
   drawBar($('legend-bar'), scale)
   $('legend-ticks').replaceChildren(...scale.ticks.map(t => {
     const span = document.createElement('span')
@@ -514,7 +555,7 @@ function buildLayerList() {
     const label = document.createElement('label')
     label.className = 'option'
     label.innerHTML = `<input type="radio" name="layer" value="${source.id}"><span><b>${source.label}</b>` +
-      `<small>${source.source.split(', ')[1]}, ${source.series[0]}–${source.series[1]}</small></span>`
+      `<small>${source.source.split(', ')[1]}${source.series ? `, ${source.series[0]}–${source.series[1]}` : ''}</small></span>`
     label.querySelector('input').checked = source.id === state.layer.id.split(':')[0]
     label.querySelector('input').addEventListener('change', async () => {
       variables[source.id] ??= await loadVariables(source)
@@ -550,7 +591,9 @@ $('variable').addEventListener('change', e => {
 
 /** Source and time controls follow the layer: a layer without preview images is read live. */
 function syncControls() {
-  const hasPreview = Boolean(state.layer.preview || state.layer.normals)
+  const hasPreview = Boolean(state.layer.preview || state.layer.normals || state.layer.static)
+  $('source-section').hidden = $('month-section').hidden = Boolean(state.layer.static)   // fixed fields: no months
+  if (state.layer.static) state.mode = 'preview'               // no years: the month slider's 12 steps, unused
   if ($('variable').dataset.source !== state.layer.id.split(':')[0]) buildVariableList()
   $('variable').value = state.layer.column
   $('mode-preview').querySelector('small').textContent = state.layer.normals ? 'normals, Parquet' : 'images'
@@ -567,6 +610,7 @@ function syncControls() {
 }
 
 function move(delta) {
+  if (state.layer.static) return
   const n = steps()
   state.step = (state.step + delta + n) % n
   state.direction = Math.sign(delta) || 1

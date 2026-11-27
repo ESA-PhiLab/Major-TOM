@@ -41,6 +41,12 @@ export const SOURCES = [
     series: [1950, 2025], normal: '1991–2020', tables: false, byCell: true },
   { id: 'era5', label: 'ERA5', source: 'ERA5, reanalysis', dataset: 'ERA5-Monthly', column: 'era5_t2m',
     series: [1940, 2025], normal: '1991–2020', tables: false, byCell: true },
+  // fixed fields, no months: overviews/static.parquet at globe scale, static.parquet zoomed in (loadStatic)
+  { id: 'era5static', label: 'ERA5-Static', source: 'ERA5, fixed fields', dataset: 'ERA5-Static', column: 'era5_z',
+    static: true,
+    curated: {                                                                    // stored as geopotential, m² s⁻²
+      era5_z: { name: 'Surface height', unit: 'm', perMonth: () => 1 / 9.80665,
+        scale: { type: 'linear', min: 0, max: 5000, ramp: 'magnitude', ticks: [0, 1000, 2000, 3000, 4000, 5000] } } } },
 ]
 
 /** A source's variables: names, units and colour scales (scales/<dataset>.json, made by build_scales.py). */
@@ -52,7 +58,7 @@ export const loadVariables = source => fetch(`scales/${source.dataset}.json` + l
 export function variableLayer(source, info, column) {
   const v = info.variables[column], c = source.curated?.[column] ?? {}
   return { ...source, id: `${source.id}:${column}`, column, name: c.name ?? v.name, unit: c.unit ?? v.unit,
-    scale: c.scale ?? v.scale, perMonth: c.perMonth, preview: c.preview, normals: !c.preview,
+    scale: c.scale ?? v.scale, perMonth: c.perMonth, preview: c.preview, normals: !c.preview && !source.static,
     overview: info.overviews.includes(column) }
 }
 
@@ -285,6 +291,36 @@ async function readBlocks(url, column, f, onProgress) {
     onComplete(rows) { for (const [r, c, v] of rows) if (v !== null) values[r * w + c] = v * f } })
   onProgress(1, stats.bytes, stats.bytes)
   stats.read = performance.now() - stats.t0; stats.level = level
+  return { values, stats }
+}
+
+/** One ERA5-Static field: level 2, the 4 x 4 blocks of overviews/static.parquet (one file, every field); level 0,
+ *  one column of static.parquet, which stores its own cell positions (read once). Class fields: code 0 (no type
+ *  assigned, mostly ocean) -> NaN, left uncoloured. */
+export async function loadStatic(layer, level, onProgress = () => {}) {
+  const classes = layer.scale.type === 'classes', f = factor(layer)
+  let values, stats
+  if (level === 2) {
+    ({ values, stats } = await readBlocks(`${SOURCE_COOP}/${layer.dataset}/overviews/static.parquet`, layer.column, f, onProgress))
+  } else {
+    stats = newStats()
+    const progress = { total: 0, done: 0, expected: 0,
+      report: () => onProgress(progress.done / Math.max(progress.total, 1), stats.bytes, progress.expected) }
+    const url = `${SOURCE_COOP}/${layer.dataset}/static.parquet`
+    stats.firstOfDataset = !positions.has(layer.dataset)
+    if (stats.firstOfDataset) positions.set(layer.dataset, readColumns(url,
+      [['grid_row_u', Int16Array], ['grid_col_r', Int16Array]], stats, progress).then(({ grid_row_u: r, grid_col_r: c }) => {
+      const index = new Int32Array(r.length)
+      for (let i = 0; i < r.length; i++) index[i] = (r[i] + ROWS / 2) * COLS + c[i] + COLS / 2
+      return index
+    }))
+    const [index, cols] = await Promise.all([positions.get(layer.dataset), readColumns(url, [[layer.column, Float32Array]], stats, progress)])
+    const v = cols[layer.column]
+    values = new Float32Array(ROWS * COLS).fill(NaN)
+    for (let i = 0; i < v.length; i++) values[index[i]] = v[i] * f
+    stats.read = performance.now() - stats.t0; stats.cells = v.length
+  }
+  if (classes) for (let i = 0; i < values.length; i++) if (values[i] === 0) values[i] = NaN
   return { values, stats }
 }
 

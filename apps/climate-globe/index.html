@@ -98,6 +98,11 @@
   #legend-ticks span:first-child { transform: none; }
   #legend-ticks span:last-child { transform: translateX(-100%); }
   #legend-unit { font-size: 13px; color: var(--ink-3); margin-top: 2px; }
+  #legend-bar[hidden], #legend-ticks[hidden], #legend-classes[hidden] { display: none; }
+  #legend-classes { list-style: none; margin: 0; padding: 0; font-size: 13px; color: var(--ink-2); }
+  #legend-classes li { display: flex; align-items: center; gap: 8px; line-height: 1.6; }
+  #legend-classes i { width: 12px; height: 12px; border-radius: 2px; flex: none; }
+  #legend-classes small { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
 
   .pick-head { display: flex; justify-content: space-between; align-items: baseline; }
   .pick-head h2 { margin-bottom: 4px; }
@@ -214,7 +219,7 @@
         server.</p>
     </section>
 
-    <section>
+    <section id="source-section">
       <h2>Source</h2>
       <div class="segmented">
         <button id="mode-preview" data-mode="preview">Climatology<small>images</small></button>
@@ -223,7 +228,7 @@
       <p class="note" id="mode-note"></p>
     </section>
 
-    <section>
+    <section id="month-section">
       <h2>Month</h2>
       <div id="time-label">–</div>
       <div class="time-row">
@@ -243,6 +248,7 @@
       <h2>Colour scale</h2>
       <canvas id="legend-bar" width="300" height="12"></canvas>
       <div id="legend-ticks"></div>
+      <ul id="legend-classes" hidden></ul>
       <div id="legend-unit"></div>
     </section>
 

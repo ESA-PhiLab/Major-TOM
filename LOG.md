@@ -1,5 +1,6 @@
 # Log
 
+- 2026-11-27 Climate Globe: ERA5-Static block, 16 fixed fields, ECMWF class legend for vegetation and soil types
 - 2026-11-27 ERA5-Static: overviews/static.parquet (4 x 4 block means, class fields as the most common class), README Files table; uploaded
 - 2026-11-27 Climate Globe: every variable of CPC, IMERG, CAMS, ERA5-Land and ERA5 (dataset list, variable dropdown, scales/ per dataset); not pushed
 - 2026-11-27 Mark Raster Viewer README reviewed
