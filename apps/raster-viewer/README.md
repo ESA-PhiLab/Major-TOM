@@ -10,9 +10,8 @@ short_description: Major TOM Core samples on a 3D globe, read in the browser
 
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** not yet reviewed. First version 2026-11-02; Space created and deployed 2026-11-02.
-> Changed 2026-11-04: Core-Weather panel in the flow; `weather.js`, `viirs.js`, `aef.js` and `zstd.js` in the
-> Files and Reads tables; the import rule for private copies; the test files. 2026-11-27 (not yet reviewed): Spaces public; app text and Code links updated for the release.
+> **Review status:** reviewed (Miko, 2026-11-27). First version 2026-11-02; public Space since 2026-11-27, synced by
+> `.github/workflows/apps-spaces.yml`.
 
 # Major TOM Raster Viewer
 
