@@ -1,5 +1,6 @@
 # Log
 
+- 2026-11-27 Climate Globe: every variable of CPC, IMERG, CAMS, ERA5-Land and ERA5 (dataset list, variable dropdown, scales/ per dataset); not pushed
 - 2026-11-27 Mark Raster Viewer README reviewed
 - 2026-11-27 Climate Globe and Raster Viewer ready for release: serverless label, intro line, Code links to the app folders, no preview or private wording; Space READMEs updated
 - 2026-11-27 Mark Core-Weather opening and Sources, CAMS-Monthly Core-Weather link reviewed; all published Climate and Core-Weather READMEs reviewed

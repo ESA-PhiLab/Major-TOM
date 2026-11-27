@@ -1,0 +1,77 @@
+{
+ "overviews": [
+  "cpc_precip",
+  "cpc_tmax",
+  "cpc_tmin",
+  "cpc_gauges"
+ ],
+ "variables": {
+  "cpc_precip": {
+   "name": "total precipitation in the month (sum of daily totals)",
+   "unit": "mm",
+   "scale": {
+    "type": "log",
+    "min": 0.28,
+    "max": 281.0,
+    "ramp": "magnitude",
+    "ticks": [
+     0.5,
+     2.0,
+     10.0,
+     50.0,
+     200.0
+    ]
+   }
+  },
+  "cpc_tmax": {
+   "name": "mean of the daily maximum temperature",
+   "unit": "°C",
+   "scale": {
+    "type": "linear",
+    "min": -23.3,
+    "max": 39.5,
+    "ramp": "coldHot",
+    "ticks": [
+     -20.0,
+     0.0,
+     20.0
+    ]
+   }
+  },
+  "cpc_tmin": {
+   "name": "mean of the daily minimum temperature",
+   "unit": "°C",
+   "scale": {
+    "type": "linear",
+    "min": -30.7,
+    "max": 26.8,
+    "ramp": "coldHot",
+    "ticks": [
+     -30.0,
+     -20.0,
+     -10.0,
+     0.0,
+     10.0,
+     20.0
+    ]
+   }
+  },
+  "cpc_gauges": {
+   "name": "rain gauges near the cell: CPC's daily gauge count in the 3 × 3 source pixels around it (1.5° × 1.5°), averaged over the month's days",
+   "unit": "gauges",
+   "scale": {
+    "type": "log",
+    "min": 0.035,
+    "max": 35.0,
+    "ramp": "magnitude",
+    "ticks": [
+     0.05,
+     0.2,
+     1.0,
+     5.0,
+     20.0
+    ]
+   }
+  }
+ }
+}

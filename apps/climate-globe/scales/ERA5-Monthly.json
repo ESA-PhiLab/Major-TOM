@@ -200,8 +200,7 @@
   "era5_wsk",
   "era5_wsp",
   "era5_wss",
-  "era5_deg0l",
-  "era5_valid"
+  "era5_deg0l"
  ],
  "variables": {
   "era5_u100": {

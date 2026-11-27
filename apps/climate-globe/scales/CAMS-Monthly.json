@@ -1,0 +1,343 @@
+{
+ "overviews": [
+  "cams_tc_no2",
+  "cams_tc_o3",
+  "cams_tc_co",
+  "cams_tc_so2",
+  "cams_tc_hcho",
+  "cams_tc_ch4",
+  "cams_aod550",
+  "cams_aod550_dust",
+  "cams_aod550_seasalt",
+  "cams_aod550_bc",
+  "cams_aod550_om",
+  "cams_aod550_sulphate",
+  "cams_pm2p5",
+  "cams_pm10",
+  "cams_no2",
+  "cams_o3",
+  "cams_co",
+  "cams_so2",
+  "cams_hcho"
+ ],
+ "variables": {
+  "cams_tc_no2": {
+   "name": "total column of NO₂",
+   "unit": "kg m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 2.43e-07,
+    "max": 3.9e-06,
+    "ramp": "magnitude",
+    "ticks": [
+     1e-06,
+     2e-06,
+     3e-06
+    ]
+   }
+  },
+  "cams_tc_o3": {
+   "name": "total column of O₃",
+   "unit": "kg m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 0.00523,
+    "max": 0.00867,
+    "ramp": "magnitude",
+    "ticks": [
+     0.006,
+     0.007,
+     0.008
+    ]
+   }
+  },
+  "cams_tc_co": {
+   "name": "total column of CO",
+   "unit": "kg m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 0.000366,
+    "max": 0.00121,
+    "ramp": "magnitude",
+    "ticks": [
+     0.0004,
+     0.0006,
+     0.0008,
+     0.001,
+     0.0012
+    ]
+   }
+  },
+  "cams_tc_so2": {
+   "name": "total column of SO₂",
+   "unit": "kg m⁻²",
+   "scale": {
+    "type": "log",
+    "min": 1.4e-07,
+    "max": 5.49e-06,
+    "ramp": "magnitude",
+    "ticks": [
+     2e-07,
+     5e-07,
+     1e-06,
+     2e-06,
+     5e-06
+    ]
+   }
+  },
+  "cams_tc_hcho": {
+   "name": "total column of formaldehyde",
+   "unit": "kg m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 1.49e-07,
+    "max": 7.3e-06,
+    "ramp": "magnitude",
+    "ticks": [
+     2e-06,
+     4e-06,
+     6e-06
+    ]
+   }
+  },
+  "cams_tc_ch4": {
+   "name": "total column of methane",
+   "unit": "kg m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 0.00683,
+    "max": 0.0102,
+    "ramp": "magnitude",
+    "ticks": [
+     0.007,
+     0.008,
+     0.009,
+     0.01
+    ]
+   }
+  },
+  "cams_aod550": {
+   "name": "total aerosol optical depth at 550 nm",
+   "unit": "dimensionless",
+   "scale": {
+    "type": "linear",
+    "min": 0.0133,
+    "max": 0.501,
+    "ramp": "magnitude",
+    "ticks": [
+     0.1,
+     0.2,
+     0.3,
+     0.4,
+     0.5
+    ]
+   }
+  },
+  "cams_aod550_dust": {
+   "name": "aerosol optical depth at 550 nm, dust",
+   "unit": "dimensionless",
+   "scale": {
+    "type": "log",
+    "min": 0.00021,
+    "max": 0.215,
+    "ramp": "magnitude",
+    "ticks": [
+     0.0005,
+     0.002,
+     0.01,
+     0.05,
+     0.2
+    ]
+   }
+  },
+  "cams_aod550_seasalt": {
+   "name": "aerosol optical depth at 550 nm, sea salt",
+   "unit": "dimensionless",
+   "scale": {
+    "type": "linear",
+    "min": 0.00122,
+    "max": 0.111,
+    "ramp": "magnitude",
+    "ticks": [
+     0.02,
+     0.04,
+     0.06,
+     0.08,
+     0.1
+    ]
+   }
+  },
+  "cams_aod550_bc": {
+   "name": "aerosol optical depth at 550 nm, black carbon",
+   "unit": "dimensionless",
+   "scale": {
+    "type": "log",
+    "min": 0.00037,
+    "max": 0.0284,
+    "ramp": "magnitude",
+    "ticks": [
+     0.0005,
+     0.001,
+     0.002,
+     0.005,
+     0.01,
+     0.02
+    ]
+   }
+  },
+  "cams_aod550_om": {
+   "name": "aerosol optical depth at 550 nm, organic matter",
+   "unit": "dimensionless",
+   "scale": {
+    "type": "log",
+    "min": 0.0022,
+    "max": 0.243,
+    "ramp": "magnitude",
+    "ticks": [
+     0.005,
+     0.01,
+     0.02,
+     0.05,
+     0.1,
+     0.2
+    ]
+   }
+  },
+  "cams_aod550_sulphate": {
+   "name": "aerosol optical depth at 550 nm, sulphate",
+   "unit": "dimensionless",
+   "scale": {
+    "type": "linear",
+    "min": 0.00349,
+    "max": 0.133,
+    "ramp": "magnitude",
+    "ticks": [
+     0.02,
+     0.04,
+     0.06,
+     0.08,
+     0.1,
+     0.12
+    ]
+   }
+  },
+  "cams_pm2p5": {
+   "name": "particulate matter below 2.5 µm, at the surface",
+   "unit": "kg m⁻³",
+   "scale": {
+    "type": "log",
+    "min": 2.9e-10,
+    "max": 7.09e-08,
+    "ramp": "magnitude",
+    "ticks": [
+     5e-10,
+     1e-09,
+     2e-09,
+     5e-09,
+     1e-08,
+     2e-08,
+     5e-08
+    ]
+   }
+  },
+  "cams_pm10": {
+   "name": "particulate matter below 10 µm, at the surface",
+   "unit": "kg m⁻³",
+   "scale": {
+    "type": "log",
+    "min": 4.6e-10,
+    "max": 1.08e-07,
+    "ramp": "magnitude",
+    "ticks": [
+     5e-10,
+     2e-09,
+     1e-08,
+     5e-08
+    ]
+   }
+  },
+  "cams_no2": {
+   "name": "NO₂ mass mixing ratio at the lowest model level",
+   "unit": "kg kg⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 1.1e-11,
+    "max": 1.1e-08,
+    "ramp": "magnitude",
+    "ticks": [
+     2e-11,
+     1e-10,
+     5e-10,
+     2e-09,
+     1e-08
+    ]
+   }
+  },
+  "cams_o3": {
+   "name": "O₃ mass mixing ratio at the lowest model level",
+   "unit": "kg kg⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 1.85e-08,
+    "max": 7.89e-08,
+    "ramp": "magnitude",
+    "ticks": [
+     2e-08,
+     4e-08,
+     6e-08
+    ]
+   }
+  },
+  "cams_co": {
+   "name": "CO mass mixing ratio at the lowest model level",
+   "unit": "kg kg⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 4.4e-08,
+    "max": 3.7e-07,
+    "ramp": "magnitude",
+    "ticks": [
+     1e-07,
+     2e-07,
+     3e-07
+    ]
+   }
+  },
+  "cams_so2": {
+   "name": "SO₂ mass mixing ratio at the lowest model level",
+   "unit": "kg kg⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 8.4e-12,
+    "max": 8.4e-09,
+    "ramp": "magnitude",
+    "ticks": [
+     1e-11,
+     5e-11,
+     2e-10,
+     1e-09,
+     5e-09
+    ]
+   }
+  },
+  "cams_hcho": {
+   "name": "formaldehyde mass mixing ratio at the lowest model level",
+   "unit": "kg kg⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 1.5e-11,
+    "max": 4.73e-09,
+    "ramp": "magnitude",
+    "ticks": [
+     2e-11,
+     5e-11,
+     1e-10,
+     2e-10,
+     5e-10,
+     1e-09,
+     2e-09
+    ]
+   }
+  }
+ }
+}

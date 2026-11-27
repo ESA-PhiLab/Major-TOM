@@ -4,8 +4,10 @@
       -> series: a globe month from overviews/, a zoomed month from series/
       -> a click at Loch Lomond (624U_29L): CPC normals and the whole by_cell/ series, against values in the files
       -> keys (left/right change the month, not the map), cursor off the globe, place names from zoom 5
-      -> previews of the four layers (skipped where images/ is absent: the images are not in git)
-      -> ERA5: the variable list (scales.json), July normals from climatology_overviews/, another variable
+      -> previews of the four curated variables (skipped where images/ is absent: the images are not in git)
+      -> every source: its variable list (scales/<dataset>.json) and one more variable's July normals from
+         climatology_overviews/
+      -> ERA5: July normals, the Sahara's temperature under the cursor, another variable
       -> ERA5 at Loch Lomond: the whole by_cell/ series of era5_t2m (1,032 months), against values in the files;
          its 10-year window, moved by the ‹ button and by dragging; °C labels beside kelvin
 
@@ -27,8 +29,10 @@ pytestmark = pytest.mark.network
 APP = Path(__file__).resolve().parents[1]
 ARGS = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]
 LOCH_LOMOND = (-4.62, 56.10)
-LAYERS = {"cpc-precip": "CPC, rain gauges", "imerg-precip": "IMERG, satellites", "cpc-tmax": "CPC, stations",
-          "cams-pm25": "CAMS, reanalysis"}
+CURATED = [("cpc", "cpc_precip"), ("imerg", "imerg_precip"), ("cpc", "cpc_tmax"), ("cams", "cams_pm2p5")]
+# per source: the variables in its dropdown and one besides the first, whose July normals are loaded
+VARIABLES = {"cpc": (4, "cpc_gauges"), "imerg": (5, "imerg_quality"), "cams": (19, "cams_aod550"),
+             "era5land": (49, "era5land_swvl1"), "era5": (201, "era5_tp")}
 
 
 @pytest.fixture(scope="module")
@@ -57,6 +61,14 @@ def page(url):
         browser.close()
 
 
+def pick(page, source, column=None):
+    """Pick a source in the panel and, optionally, one of its variables."""
+    page.click(f"label.option:has(input[value={source}])")
+    page.wait_for_function(f"document.getElementById('variable').dataset.source === '{source}'")
+    if column:
+        page.select_option("#variable", column)
+
+
 def loaded(page, prefix, timeout=300_000):
     page.wait_for_function(f"(document.body.dataset.loaded || '').startsWith('{prefix}')", timeout=timeout)
 
@@ -64,7 +76,7 @@ def loaded(page, prefix, timeout=300_000):
 def series(page):
     """Switch to the series read live: the tests that are not about previews do not need images/."""
     page.click("[data-mode=live]")
-    loaded(page, "cpc-precip/live")
+    loaded(page, "cpc:cpc_precip/live")
 
 
 def at(page, lon, lat):
@@ -75,7 +87,7 @@ def at(page, lon, lat):
 
 def test_series_month_and_cell(page):
     page.click("[data-mode=live]")
-    loaded(page, "cpc-precip/live")
+    loaded(page, "cpc:cpc_precip/live")
     page.wait_for_function("document.body.dataset.loaded.endsWith('/2')", timeout=300_000)    # globe: overview
     assert page.text_content("#stat-source").startswith("Parquet overview")
     page.evaluate(f"globe.jumpTo({{center: [{LOCH_LOMOND[0]}, {LOCH_LOMOND[1]}], zoom: 4}})")
@@ -129,19 +141,30 @@ def test_place_names_from_zoom_five(page):
 
 
 @pytest.mark.skipif(not (APP / "images").exists(), reason="preview images are not in git (build_images.py)")
-def test_previews_of_every_layer(page):
-    loaded(page, "cpc-precip/preview")
-    for layer, label in LAYERS.items():
-        page.click(f"text={label}")
-        loaded(page, f"{layer}/preview")
+def test_previews_of_curated_variables(page):
+    loaded(page, "cpc:cpc_precip/preview")
+    for source, column in CURATED:
+        pick(page, source, column)
+        loaded(page, f"{source}:{column}/preview")
+        assert page.text_content("#stat-source") == "climatology image (PNG)"
         assert page.text_content("#status") == ""
 
 
+@pytest.mark.parametrize("source", VARIABLES)
+def test_every_source_lists_its_variables(page, source):
+    count, column = VARIABLES[source]
+    pick(page, source)
+    assert page.eval_on_selector_all("#variable option", "o => o.length") == count
+    page.select_option("#variable", column)
+    loaded(page, f"{source}:{column}/preview")                                     # July normals, 4 x 4 blocks
+    assert page.text_content("#stat-source").startswith("Parquet climatology overview")
+    assert page.text_content("#status") == ""
+
+
 def test_era5_variables_and_normals(page):
-    page.click("text=ERA5, reanalysis")
+    pick(page, "era5")
     loaded(page, "era5:era5_t2m/preview")                                          # July normals, 4 x 4 blocks
     assert page.text_content("#stat-source").startswith("Parquet climatology overview")
-    assert page.eval_on_selector_all("#variable option", "o => o.length") == 201
     page.mouse.move(*at(page, 12, 22))                                             # Sahara in July
     page.wait_for_timeout(300)
     kelvin = float(page.text_content("#cursor-value").split()[0])
@@ -152,7 +175,7 @@ def test_era5_variables_and_normals(page):
 
 
 def test_era5_series_by_cell(page):
-    page.click("text=ERA5, reanalysis")
+    pick(page, "era5")
     loaded(page, "era5:era5_t2m/preview")
     page.evaluate(f"globe.jumpTo({{center: [{LOCH_LOMOND[0]}, {LOCH_LOMOND[1]}], zoom: 4}})")
     page.wait_for_timeout(1000)

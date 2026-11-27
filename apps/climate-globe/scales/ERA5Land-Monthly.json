@@ -1,0 +1,888 @@
+{
+ "overviews": [
+  "era5land_t2m",
+  "era5land_d2m",
+  "era5land_u10",
+  "era5land_v10",
+  "era5land_sp",
+  "era5land_tp",
+  "era5land_sf",
+  "era5land_ssrd",
+  "era5land_snowc",
+  "era5land_sd",
+  "era5land_swvl1",
+  "era5land_skt",
+  "era5land_e",
+  "era5land_ro",
+  "era5land_ssr",
+  "era5land_str",
+  "era5land_strd",
+  "era5land_slhf",
+  "era5land_sshf",
+  "era5land_swvl2",
+  "era5land_swvl3",
+  "era5land_swvl4",
+  "era5land_stl1",
+  "era5land_stl2",
+  "era5land_stl3",
+  "era5land_stl4",
+  "era5land_pev",
+  "era5land_evabs",
+  "era5land_evatc",
+  "era5land_evavt",
+  "era5land_evaow",
+  "era5land_sro",
+  "era5land_ssro",
+  "era5land_sde",
+  "era5land_rsn",
+  "era5land_tsn",
+  "era5land_asn",
+  "era5land_smlt",
+  "era5land_es",
+  "era5land_fal",
+  "era5land_src",
+  "era5land_lblt",
+  "era5land_licd",
+  "era5land_lict",
+  "era5land_lmld",
+  "era5land_lmlt",
+  "era5land_ltlt",
+  "era5land_lai_hv",
+  "era5land_lai_lv"
+ ],
+ "variables": {
+  "era5land_t2m": {
+   "name": "2m temperature",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 228.0,
+    "max": 306.0,
+    "ramp": "coldHot",
+    "ticks": [
+     240.0,
+     260.0,
+     280.0,
+     300.0
+    ]
+   }
+  },
+  "era5land_d2m": {
+   "name": "2m dewpoint temperature",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 224.0,
+    "max": 297.0,
+    "ramp": "coldHot",
+    "ticks": [
+     240.0,
+     260.0,
+     280.0
+    ]
+   }
+  },
+  "era5land_u10": {
+   "name": "10m u component of wind",
+   "unit": "m s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -5.96,
+    "centre": 0,
+    "max": 5.96,
+    "ramp": "diverging",
+    "ticks": [
+     -4.0,
+     -2.0,
+     0.0,
+     2.0,
+     4.0
+    ]
+   }
+  },
+  "era5land_v10": {
+   "name": "10m v component of wind",
+   "unit": "m s⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -5.11,
+    "centre": 0,
+    "max": 5.11,
+    "ramp": "diverging",
+    "ticks": [
+     -4.0,
+     -2.0,
+     0.0,
+     2.0,
+     4.0
+    ]
+   }
+  },
+  "era5land_sp": {
+   "name": "surface pressure",
+   "unit": "Pa",
+   "scale": {
+    "type": "linear",
+    "min": 61900.0,
+    "max": 101000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     70000.0,
+     80000.0,
+     90000.0,
+     100000.0
+    ]
+   }
+  },
+  "era5land_tp": {
+   "name": "total precipitation",
+   "unit": "m day⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 1.1e-05,
+    "max": 0.0112,
+    "ramp": "magnitude",
+    "ticks": [
+     2e-05,
+     0.0001,
+     0.0005,
+     0.002,
+     0.01
+    ]
+   }
+  },
+  "era5land_sf": {
+   "name": "snowfall",
+   "unit": "m of water equivalent day⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 2.1e-06,
+    "max": 0.00211,
+    "ramp": "magnitude",
+    "ticks": [
+     5e-06,
+     2e-05,
+     0.0001,
+     0.0005,
+     0.002
+    ]
+   }
+  },
+  "era5land_ssrd": {
+   "name": "surface solar radiation downwards",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 0.0,
+    "max": 29600000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     0.0,
+     5000000.0,
+     10000000.0,
+     15000000.0,
+     20000000.0,
+     25000000.0
+    ]
+   }
+  },
+  "era5land_snowc": {
+   "name": "snow cover",
+   "unit": "%",
+   "scale": {
+    "type": "log",
+    "min": 0.1,
+    "max": 100.0,
+    "ramp": "magnitude",
+    "ticks": [
+     0.1,
+     0.5,
+     2.0,
+     10.0,
+     50.0
+    ]
+   }
+  },
+  "era5land_sd": {
+   "name": "snow depth water equivalent",
+   "unit": "m of water equivalent",
+   "scale": {
+    "type": "centred",
+    "min": -10.0,
+    "centre": 0,
+    "max": 10.0,
+    "ramp": "diverging",
+    "ticks": [
+     -10.0,
+     -5.0,
+     0.0,
+     5.0,
+     10.0
+    ]
+   }
+  },
+  "era5land_swvl1": {
+   "name": "volumetric soil water layer 1",
+   "unit": "m³ m⁻³",
+   "scale": {
+    "type": "linear",
+    "min": 0.000813,
+    "max": 0.478,
+    "ramp": "magnitude",
+    "ticks": [
+     0.1,
+     0.2,
+     0.3,
+     0.4
+    ]
+   }
+  },
+  "era5land_skt": {
+   "name": "skin temperature",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 226.0,
+    "max": 309.0,
+    "ramp": "coldHot",
+    "ticks": [
+     240.0,
+     260.0,
+     280.0,
+     300.0
+    ]
+   }
+  },
+  "era5land_e": {
+   "name": "total evaporation",
+   "unit": "m of water equivalent day⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -0.00437,
+    "centre": 0,
+    "max": 0.00437,
+    "ramp": "diverging",
+    "ticks": [
+     -0.004,
+     -0.002,
+     0.0,
+     0.002,
+     0.004
+    ]
+   }
+  },
+  "era5land_ro": {
+   "name": "runoff",
+   "unit": "m day⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 7.3e-06,
+    "max": 0.00734,
+    "ramp": "magnitude",
+    "ticks": [
+     1e-05,
+     5e-05,
+     0.0002,
+     0.001,
+     0.005
+    ]
+   }
+  },
+  "era5land_ssr": {
+   "name": "surface net solar radiation",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 0.0,
+    "max": 22100000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     0.0,
+     5000000.0,
+     10000000.0,
+     15000000.0,
+     20000000.0
+    ]
+   }
+  },
+  "era5land_str": {
+   "name": "surface net thermal radiation",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": -12100000.0,
+    "max": -1880000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     -12000000.0,
+     -10000000.0,
+     -8000000.0,
+     -6000000.0,
+     -4000000.0,
+     -2000000.0
+    ]
+   }
+  },
+  "era5land_strd": {
+   "name": "surface thermal radiation downwards",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 9120000.0,
+    "max": 36600000.0,
+    "ramp": "magnitude",
+    "ticks": [
+     10000000.0,
+     15000000.0,
+     20000000.0,
+     25000000.0,
+     30000000.0,
+     35000000.0
+    ]
+   }
+  },
+  "era5land_slhf": {
+   "name": "surface latent heat flux",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -10900000.0,
+    "centre": 0,
+    "max": 10900000.0,
+    "ramp": "diverging",
+    "ticks": [
+     -10000000.0,
+     -5000000.0,
+     0.0,
+     5000000.0,
+     10000000.0
+    ]
+   }
+  },
+  "era5land_sshf": {
+   "name": "surface sensible heat flux",
+   "unit": "J m⁻² day⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -9180000.0,
+    "centre": 0,
+    "max": 9180000.0,
+    "ramp": "diverging",
+    "ticks": [
+     -5000000.0,
+     0.0,
+     5000000.0
+    ]
+   }
+  },
+  "era5land_swvl2": {
+   "name": "volumetric soil water layer 2",
+   "unit": "m³ m⁻³",
+   "scale": {
+    "type": "linear",
+    "min": 0.000258,
+    "max": 0.484,
+    "ramp": "magnitude",
+    "ticks": [
+     0.1,
+     0.2,
+     0.3,
+     0.4
+    ]
+   }
+  },
+  "era5land_swvl3": {
+   "name": "volumetric soil water layer 3",
+   "unit": "m³ m⁻³",
+   "scale": {
+    "type": "linear",
+    "min": 4.51e-08,
+    "max": 0.489,
+    "ramp": "magnitude",
+    "ticks": [
+     0.1,
+     0.2,
+     0.3,
+     0.4
+    ]
+   }
+  },
+  "era5land_swvl4": {
+   "name": "volumetric soil water layer 4",
+   "unit": "m³ m⁻³",
+   "scale": {
+    "type": "centred",
+    "min": -0.507,
+    "centre": 0,
+    "max": 0.507,
+    "ramp": "diverging",
+    "ticks": [
+     -0.4,
+     -0.2,
+     0.0,
+     0.2,
+     0.4
+    ]
+   }
+  },
+  "era5land_stl1": {
+   "name": "soil temperature level 1",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 227.0,
+    "max": 309.0,
+    "ramp": "coldHot",
+    "ticks": [
+     240.0,
+     260.0,
+     280.0,
+     300.0
+    ]
+   }
+  },
+  "era5land_stl2": {
+   "name": "soil temperature level 2",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 227.0,
+    "max": 308.0,
+    "ramp": "coldHot",
+    "ticks": [
+     240.0,
+     260.0,
+     280.0,
+     300.0
+    ]
+   }
+  },
+  "era5land_stl3": {
+   "name": "soil temperature level 3",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 227.0,
+    "max": 306.0,
+    "ramp": "coldHot",
+    "ticks": [
+     240.0,
+     260.0,
+     280.0,
+     300.0
+    ]
+   }
+  },
+  "era5land_stl4": {
+   "name": "soil temperature level 4",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 227.0,
+    "max": 305.0,
+    "ramp": "coldHot",
+    "ticks": [
+     240.0,
+     260.0,
+     280.0,
+     300.0
+    ]
+   }
+  },
+  "era5land_pev": {
+   "name": "potential evaporation",
+   "unit": "m day⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -0.024,
+    "centre": 0,
+    "max": 0.024,
+    "ramp": "diverging",
+    "ticks": [
+     -0.02,
+     -0.01,
+     0.0,
+     0.01,
+     0.02
+    ]
+   }
+  },
+  "era5land_evabs": {
+   "name": "evaporation from bare soil",
+   "unit": "m of water equivalent day⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": -0.00275,
+    "max": 0.0,
+    "ramp": "magnitude",
+    "ticks": [
+     -0.0025,
+     -0.002,
+     -0.0015,
+     -0.001,
+     -0.0005,
+     0.0
+    ]
+   }
+  },
+  "era5land_evatc": {
+   "name": "evaporation from the top of canopy",
+   "unit": "m of water equivalent day⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -0.00179,
+    "centre": 0,
+    "max": 0.00179,
+    "ramp": "diverging",
+    "ticks": [
+     -0.001,
+     0.0,
+     0.001
+    ]
+   }
+  },
+  "era5land_evavt": {
+   "name": "evaporation from vegetation transpiration",
+   "unit": "m of water equivalent day⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -0.000969,
+    "centre": 0,
+    "max": 0.000969,
+    "ramp": "diverging",
+    "ticks": [
+     -0.0005,
+     0.0,
+     0.0005
+    ]
+   }
+  },
+  "era5land_evaow": {
+   "name": "evaporation from open water surfaces excluding oceans",
+   "unit": "m of water equivalent day⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -0.00118,
+    "centre": 0,
+    "max": 0.00118,
+    "ramp": "diverging",
+    "ticks": [
+     -0.001,
+     -0.0005,
+     0.0,
+     0.0005,
+     0.001
+    ]
+   }
+  },
+  "era5land_sro": {
+   "name": "surface runoff",
+   "unit": "m day⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 2.3e-06,
+    "max": 0.00235,
+    "ramp": "magnitude",
+    "ticks": [
+     5e-06,
+     2e-05,
+     0.0001,
+     0.0005,
+     0.002
+    ]
+   }
+  },
+  "era5land_ssro": {
+   "name": "sub surface runoff",
+   "unit": "m day⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 5.5e-06,
+    "max": 0.00546,
+    "ramp": "magnitude",
+    "ticks": [
+     1e-05,
+     5e-05,
+     0.0002,
+     0.001,
+     0.005
+    ]
+   }
+  },
+  "era5land_sde": {
+   "name": "snow depth",
+   "unit": "m",
+   "scale": {
+    "type": "centred",
+    "min": -33.3,
+    "centre": 0,
+    "max": 33.3,
+    "ramp": "diverging",
+    "ticks": [
+     -20.0,
+     0.0,
+     20.0
+    ]
+   }
+  },
+  "era5land_rsn": {
+   "name": "snow density",
+   "unit": "kg m⁻³",
+   "scale": {
+    "type": "linear",
+    "min": 100.0,
+    "max": 300.0,
+    "ramp": "magnitude",
+    "ticks": [
+     100.0,
+     150.0,
+     200.0,
+     250.0,
+     300.0
+    ]
+   }
+  },
+  "era5land_tsn": {
+   "name": "temperature of snow layer",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 226.0,
+    "max": 273.0,
+    "ramp": "coldHot",
+    "ticks": [
+     230.0,
+     240.0,
+     250.0,
+     260.0,
+     270.0
+    ]
+   }
+  },
+  "era5land_asn": {
+   "name": "snow albedo",
+   "unit": "(0 - 1)",
+   "scale": {
+    "type": "linear",
+    "min": 0.601,
+    "max": 0.88,
+    "ramp": "magnitude",
+    "ticks": [
+     0.65,
+     0.7,
+     0.75,
+     0.8,
+     0.85
+    ]
+   }
+  },
+  "era5land_smlt": {
+   "name": "snowmelt",
+   "unit": "m of water equivalent day⁻¹",
+   "scale": {
+    "type": "log",
+    "min": 2.6e-06,
+    "max": 0.00261,
+    "ramp": "magnitude",
+    "ticks": [
+     5e-06,
+     2e-05,
+     0.0001,
+     0.0005,
+     0.002
+    ]
+   }
+  },
+  "era5land_es": {
+   "name": "snow evaporation",
+   "unit": "m of water equivalent day⁻¹",
+   "scale": {
+    "type": "centred",
+    "min": -0.000342,
+    "centre": 0,
+    "max": 0.000342,
+    "ramp": "diverging",
+    "ticks": [
+     -0.0002,
+     0.0,
+     0.0002
+    ]
+   }
+  },
+  "era5land_fal": {
+   "name": "forecast albedo",
+   "unit": "(0 - 1)",
+   "scale": {
+    "type": "linear",
+    "min": 0.0939,
+    "max": 0.85,
+    "ramp": "magnitude",
+    "ticks": [
+     0.2,
+     0.4,
+     0.6,
+     0.8
+    ]
+   }
+  },
+  "era5land_src": {
+   "name": "skin reservoir content",
+   "unit": "m of water equivalent",
+   "scale": {
+    "type": "centred",
+    "min": -0.000458,
+    "centre": 0,
+    "max": 0.000458,
+    "ramp": "diverging",
+    "ticks": [
+     -0.0004,
+     -0.0002,
+     0.0,
+     0.0002,
+     0.0004
+    ]
+   }
+  },
+  "era5land_lblt": {
+   "name": "lake bottom temperature",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 273.0,
+    "max": 300.0,
+    "ramp": "coldHot",
+    "ticks": [
+     275.0,
+     280.0,
+     285.0,
+     290.0,
+     295.0,
+     300.0
+    ]
+   }
+  },
+  "era5land_licd": {
+   "name": "lake ice depth",
+   "unit": "m",
+   "scale": {
+    "type": "centred",
+    "min": -3.0,
+    "centre": 0,
+    "max": 3.0,
+    "ramp": "diverging",
+    "ticks": [
+     -3.0,
+     -2.0,
+     -1.0,
+     0.0,
+     1.0,
+     2.0,
+     3.0
+    ]
+   }
+  },
+  "era5land_lict": {
+   "name": "lake ice temperature",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 226.0,
+    "max": 273.0,
+    "ramp": "coldHot",
+    "ticks": [
+     230.0,
+     240.0,
+     250.0,
+     260.0,
+     270.0
+    ]
+   }
+  },
+  "era5land_lmld": {
+   "name": "lake mix layer depth",
+   "unit": "m",
+   "scale": {
+    "type": "linear",
+    "min": 0.0101,
+    "max": 24.9,
+    "ramp": "magnitude",
+    "ticks": [
+     5.0,
+     10.0,
+     15.0,
+     20.0
+    ]
+   }
+  },
+  "era5land_lmlt": {
+   "name": "lake mix layer temperature",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 273.0,
+    "max": 301.0,
+    "ramp": "coldHot",
+    "ticks": [
+     275.0,
+     280.0,
+     285.0,
+     290.0,
+     295.0,
+     300.0
+    ]
+   }
+  },
+  "era5land_ltlt": {
+   "name": "lake total layer temperature",
+   "unit": "K",
+   "scale": {
+    "type": "linear",
+    "min": 273.0,
+    "max": 300.0,
+    "ramp": "coldHot",
+    "ticks": [
+     275.0,
+     280.0,
+     285.0,
+     290.0,
+     295.0,
+     300.0
+    ]
+   }
+  },
+  "era5land_lai_hv": {
+   "name": "leaf area index high vegetation",
+   "unit": "m² m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 0.0,
+    "max": 5.66,
+    "ramp": "magnitude",
+    "ticks": [
+     0.0,
+     1.0,
+     2.0,
+     3.0,
+     4.0,
+     5.0
+    ]
+   }
+  },
+  "era5land_lai_lv": {
+   "name": "leaf area index low vegetation",
+   "unit": "m² m⁻²",
+   "scale": {
+    "type": "linear",
+    "min": 0.0,
+    "max": 3.04,
+    "ramp": "magnitude",
+    "ticks": [
+     0.0,
+     1.0,
+     2.0,
+     3.0
+    ]
+   }
+  }
+ }
+}

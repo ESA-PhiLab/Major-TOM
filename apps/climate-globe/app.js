@@ -7,8 +7,8 @@
 
 import * as maplibregl from 'https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.mjs'
 import { feature } from 'https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/+esm'
-import { LAYERS, SOURCE_COOP, cellRow, era5Layer, loadByCellSeries, loadCellClimatology, loadCellSeries,
-  loadEra5Variables, loadNormalsOverview, loadOverviewMonth, loadPreview, loadSeries } from './data.js'
+import { SOURCES, SOURCE_COOP, cellRow, loadByCellSeries, loadCellClimatology, loadCellSeries, loadNormalsOverview,
+  loadOverviewMonth, loadPreview, loadSeries, loadVariables, variableLayer } from './data.js'
 import { lineChart, plotShare } from './charts.js'
 import { placeLabels } from './labels.js'
 import { drawBar, makeScale } from './scales.js'
@@ -18,8 +18,11 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
   'November', 'December']
 const $ = id => document.getElementById(id)
 
-const state = { layer: LAYERS[0], mode: 'preview', step: 6, field: null, version: 0, loading: 0, direction: 1,
-  era5: null, era5Column: 'era5_t2m' }                   // ERA5's variables (scales.json) and the one picked
+// per source: its variables (scales/<dataset>.json, loaded when first picked) and the column picked in it
+const variables = { [SOURCES[0].id]: await loadVariables(SOURCES[0]) }
+const picked = Object.fromEntries(SOURCES.map(s => [s.id, s.column]))
+const state = { layer: variableLayer(SOURCES[0], variables[SOURCES[0].id], SOURCES[0].column), mode: 'preview', step: 6,
+  field: null, version: 0, loading: 0, direction: 1 }
 const cache = new Map()                                  // "<layer>/<mode>/<step>/<level>" -> loaded field, last 8
 const pending = new Map()                                // same keys -> loads under way (shown or ahead)
 
@@ -507,15 +510,15 @@ const tickText = t => (t !== 0 && (Math.abs(t) >= 1e5 || Math.abs(t) < 1e-3) ? t
 // ---- panel -------------------------------------------------------------------------------------------------
 
 function buildLayerList() {
-  $('layers').replaceChildren(...LAYERS.map(layer => {
+  $('layers').replaceChildren(...SOURCES.map(source => {
     const label = document.createElement('label')
     label.className = 'option'
-    label.innerHTML = `<input type="radio" name="layer" value="${layer.id}"><span><b>${layer.name}</b>` +
-      `<small>${layer.source}</small></span>`
-    label.querySelector('input').checked = layer.id === state.layer.id.split(':')[0]
+    label.innerHTML = `<input type="radio" name="layer" value="${source.id}"><span><b>${source.label}</b>` +
+      `<small>${source.source.split(', ')[1]}, ${source.series[0]}–${source.series[1]}</small></span>`
+    label.querySelector('input').checked = source.id === state.layer.id.split(':')[0]
     label.querySelector('input').addEventListener('change', async () => {
-      if (layer.variables && !state.era5) state.era5 = await loadEra5Variables()
-      setLayer(layer.variables ? era5Layer(state.era5, state.era5Column) : layer)
+      variables[source.id] ??= await loadVariables(source)
+      setLayer(variableLayer(source, variables[source.id], picked[source.id]))
     })
     return label
   }))
@@ -527,28 +530,29 @@ function setLayer(layer) {
   state.layer = layer; syncControls(); state.step = stepFor(t); syncControls(); show()
 }
 
-/** The ERA5 variables, in the README's order, as the dropdown's options ("name (unit)"). */
+/** The current source's variables, in its scales file's order, as the dropdown's options ("name (unit)"); a
+ *  curated variable shows its own name and display unit. */
 function buildVariableList() {
-  $('variable').replaceChildren(...Object.entries(state.era5.variables).map(([column, v]) => {
-    const option = document.createElement('option')
+  const source = SOURCES.find(s => s.id === state.layer.id.split(':')[0])
+  $('variable').replaceChildren(...Object.keys(variables[source.id].variables).map(column => {
+    const layer = variableLayer(source, variables[source.id], column), option = document.createElement('option')
     option.value = column
-    option.textContent = v.unit ? `${v.name} (${v.unit})` : v.name
+    option.textContent = layer.unit ? `${layer.name} (${layer.unit})` : layer.name
     return option
   }))
+  $('variable').dataset.source = source.id
 }
 $('variable').addEventListener('change', e => {
-  state.era5Column = e.target.value
-  setLayer(era5Layer(state.era5, state.era5Column))
+  const source = SOURCES.find(s => s.id === state.layer.id.split(':')[0])
+  picked[source.id] = e.target.value
+  setLayer(variableLayer(source, variables[source.id], picked[source.id]))
 })
 
 /** Source and time controls follow the layer: a layer without preview images is read live. */
 function syncControls() {
   const hasPreview = Boolean(state.layer.preview || state.layer.normals)
-  $('variable-row').hidden = !state.layer.variables
-  if (state.layer.variables) {
-    if (!$('variable').options.length) buildVariableList()
-    $('variable').value = state.layer.column
-  }
+  if ($('variable').dataset.source !== state.layer.id.split(':')[0]) buildVariableList()
+  $('variable').value = state.layer.column
   $('mode-preview').querySelector('small').textContent = state.layer.normals ? 'normals, Parquet' : 'images'
   $('mode-preview').disabled = !hasPreview
   if (!hasPreview && state.mode === 'preview') state.mode = 'live'

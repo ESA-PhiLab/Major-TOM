@@ -11,36 +11,49 @@ import { COLS, ROWS } from './tiles.js'
 export const SOURCE_COOP = 'https://data.source.coop/major-tom/climate'
 const HOURS = [744, 678, 744, 720, 744, 720, 744, 744, 720, 744, 720, 744]        // Feb: 28.25 days
 
-export const LAYERS = [
-  { id: 'cpc-precip', name: 'Precipitation', source: 'CPC, rain gauges', dataset: 'CPC-Monthly', column: 'cpc_precip',
-    unit: 'mm per month', scale: { type: 'log', min: 4, max: 400, ramp: 'dryWet', ticks: [4, 10, 25, 50, 100, 200, 400] },
-    preview: 'images/CPC-Monthly/precip/{MM}.png', series: [1979, 2025], normal: '1991–2020', tables: true },
-  { id: 'imerg-precip', name: 'Precipitation', source: 'IMERG, satellites', dataset: 'IMERG-Monthly', column: 'imerg_precip',
-    unit: 'mm per month', perMonth: m => HOURS[m - 1],                            // stored as mm/h
-    scale: { type: 'log', min: 4, max: 400, ramp: 'dryWet', ticks: [4, 10, 25, 50, 100, 200, 400] },
-    preview: 'images/IMERG-Monthly/precip/{MM}.png', series: [1998, 2024], normal: '1998–2024', tables: true },
-  { id: 'cpc-tmax', name: 'Daily maximum temperature', source: 'CPC, stations', dataset: 'CPC-Monthly', column: 'cpc_tmax',
-    unit: '°C', scale: { type: 'centred', min: -40, centre: 0, max: 40, ramp: 'coldHot', ticks: [-40, -20, 0, 20, 40] },
-    preview: 'images/CPC-Monthly/tmax/{MM}.png',
-    series: [1979, 2025], normal: '1991–2020', tables: true },
-  { id: 'cams-pm25', name: 'Surface PM2.5', source: 'CAMS, reanalysis', dataset: 'CAMS-Monthly', column: 'cams_pm2p5',
-    unit: 'µg/m³', perMonth: () => 1e9,                                          // stored as kg/m³
-    scale: { type: 'log', min: 2, max: 150, ramp: 'haze', ticks: [2, 5, 10, 25, 50, 150] },
-    preview: 'images/CAMS-Monthly/pm25/{MM}.png', series: [2003, 2025], normal: '2003–2025', tables: true },
-  // one entry for 201 variables: the panel picks the variable (era5Layer); normals from climatology_overviews/
-  { id: 'era5', name: 'ERA5', source: 'ERA5, reanalysis', dataset: 'ERA5-Monthly', variables: true, normals: true,
-    series: [1940, 2025], normal: '1991–2020', tables: false, byCell: true },   // by_cell/, no slow comparison (2.96 GB)
+const PRECIP = { type: 'log', min: 4, max: 400, ramp: 'dryWet', ticks: [4, 10, 25, 50, 100, 200, 400] }
+const CELSIUS = { type: 'centred', min: -40, centre: 0, max: 40, ramp: 'coldHot', ticks: [-40, -20, 0, 20, 40] }
+
+// One entry per dataset: the panel picks a source, then one of its variables (scales/<dataset>.json, build_scales.py).
+// `column`: the variable shown first. `curated`: variables with a hand-set name, display unit and scale (and, for
+// four of them, climatology preview images); every other variable uses its generated name, stored unit and scale.
+// `tables`: offer the slow comparison (every monthly file); off where the series files are large (ERA5, ERA5-Land).
+export const SOURCES = [
+  { id: 'cpc', label: 'CPC', source: 'CPC, rain gauges', dataset: 'CPC-Monthly', column: 'cpc_precip',
+    series: [1979, 2025], normal: '1991–2020', tables: true, byCell: true,
+    curated: {
+      cpc_precip: { name: 'Precipitation', unit: 'mm per month', scale: PRECIP, preview: 'images/CPC-Monthly/precip/{MM}.png' },
+      cpc_tmax: { name: 'Daily maximum temperature', unit: '°C', scale: CELSIUS, preview: 'images/CPC-Monthly/tmax/{MM}.png' },
+      cpc_tmin: { name: 'Daily minimum temperature', unit: '°C', scale: CELSIUS } } },
+  { id: 'imerg', label: 'IMERG', source: 'IMERG, satellites', dataset: 'IMERG-Monthly', column: 'imerg_precip',
+    series: [1998, 2024], normal: '1998–2024', tables: true, byCell: true,
+    curated: {
+      imerg_precip: { name: 'Precipitation', unit: 'mm per month', perMonth: m => HOURS[m - 1], scale: PRECIP,   // stored as mm/h
+        preview: 'images/IMERG-Monthly/precip/{MM}.png' } } },
+  { id: 'cams', label: 'CAMS', source: 'CAMS, reanalysis', dataset: 'CAMS-Monthly', column: 'cams_pm2p5',
+    series: [2003, 2025], normal: '2003–2025', tables: true, byCell: true,
+    curated: {                                                                                // stored as kg/m³
+      cams_pm2p5: { name: 'Surface PM2.5', unit: 'µg/m³', perMonth: () => 1e9, preview: 'images/CAMS-Monthly/pm25/{MM}.png',
+        scale: { type: 'log', min: 2, max: 150, ramp: 'haze', ticks: [2, 5, 10, 25, 50, 150] } },
+      cams_pm10: { name: 'Surface PM10', unit: 'µg/m³', perMonth: () => 1e9,
+        scale: { type: 'log', min: 5, max: 300, ramp: 'haze', ticks: [5, 10, 25, 50, 100, 300] } } } },
+  { id: 'era5land', label: 'ERA5-Land', source: 'ERA5-Land, reanalysis', dataset: 'ERA5Land-Monthly', column: 'era5land_t2m',
+    series: [1950, 2025], normal: '1991–2020', tables: false, byCell: true },
+  { id: 'era5', label: 'ERA5', source: 'ERA5, reanalysis', dataset: 'ERA5-Monthly', column: 'era5_t2m',
+    series: [1940, 2025], normal: '1991–2020', tables: false, byCell: true },
 ]
 
-/** ERA5's variables: names, units and colour scales (scales.json, made by build_scales.py). */
-export const loadEra5Variables = () => fetch('scales.json' + location.search).then(r => r.json())
+/** A source's variables: names, units and colour scales (scales/<dataset>.json, made by build_scales.py). */
+export const loadVariables = source => fetch(`scales/${source.dataset}.json` + location.search).then(r => r.json())
 
-/** The ERA5 layer for one variable: a layer like the others, with that column, unit and scale. `overview`: the
- *  variable has series overviews (globe-scale monthly maps); the others are read from series/ at every zoom. */
-export function era5Layer(info, column) {
-  const v = info.variables[column], base = LAYERS.find(l => l.id === 'era5')
-  return { ...base, id: `era5:${column}`, column, variable: v.name, name: `ERA5: ${v.name}`, unit: v.unit,
-    scale: v.scale, overview: info.overviews.includes(column) }
+/** The layer for one (source, variable): what the map, legend and cell panel read. A curated variable keeps its
+ *  name, unit, scale and preview images; normals are read from climatology_overviews/ where there are no images.
+ *  `overview`: the variable has series overviews (globe-scale monthly maps); others are read from series/. */
+export function variableLayer(source, info, column) {
+  const v = info.variables[column], c = source.curated?.[column] ?? {}
+  return { ...source, id: `${source.id}:${column}`, column, name: c.name ?? v.name, unit: c.unit ?? v.unit,
+    scale: c.scale ?? v.scale, perMonth: c.perMonth, preview: c.preview, normals: !c.preview,
+    overview: info.overviews.includes(column) }
 }
 
 const TAIL = 131072             // a file's first request: its last 128 KB, which hold the footer (28-97 KB here);

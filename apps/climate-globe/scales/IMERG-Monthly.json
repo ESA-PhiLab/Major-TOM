@@ -1,0 +1,94 @@
+{
+ "overviews": [
+  "imerg_precip",
+  "imerg_error",
+  "imerg_gauge_weight",
+  "imerg_quality",
+  "imerg_liquid"
+ ],
+ "variables": {
+  "imerg_precip": {
+   "name": "mean precipitation rate over the month",
+   "unit": "mm h⁻¹ (× 24 × days in month = monthly total in mm)",
+   "scale": {
+    "type": "linear",
+    "min": 7.21e-05,
+    "max": 0.448,
+    "ramp": "magnitude",
+    "ticks": [
+     0.1,
+     0.2,
+     0.3,
+     0.4
+    ]
+   }
+  },
+  "imerg_error": {
+   "name": "random error of the merged satellite-gauge estimate (NASA's randomError)",
+   "unit": "mm h⁻¹",
+   "scale": {
+    "type": "linear",
+    "min": 0.005,
+    "max": 0.0769,
+    "ramp": "magnitude",
+    "ticks": [
+     0.02,
+     0.04,
+     0.06
+    ]
+   }
+  },
+  "imerg_gauge_weight": {
+   "name": "weight of rain gauges relative to the satellite estimate (gaugeRelativeWeighting)",
+   "unit": "%",
+   "scale": {
+    "type": "log",
+    "min": 0.82,
+    "max": 85.3,
+    "ramp": "magnitude",
+    "ticks": [
+     1.0,
+     2.0,
+     5.0,
+     10.0,
+     20.0,
+     50.0
+    ]
+   }
+  },
+  "imerg_quality": {
+   "name": "quality index of the precipitation field (precipitationQualityIndex)",
+   "unit": "equivalent gauges per 2.5° box",
+   "scale": {
+    "type": "log",
+    "min": 2.2,
+    "max": 54.6,
+    "ramp": "magnitude",
+    "ticks": [
+     5.0,
+     10.0,
+     20.0,
+     50.0
+    ]
+   }
+  },
+  "imerg_liquid": {
+   "name": "accumulation-weighted probability that the precipitation was liquid (probabilityLiquidPrecipitation)",
+   "unit": "%",
+   "scale": {
+    "type": "linear",
+    "min": 0.0,
+    "max": 100.0,
+    "ramp": "magnitude",
+    "ticks": [
+     0.0,
+     20.0,
+     40.0,
+     60.0,
+     80.0,
+     100.0
+    ]
+   }
+  }
+ }
+}
