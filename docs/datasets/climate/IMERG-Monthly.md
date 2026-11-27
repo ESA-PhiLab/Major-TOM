@@ -1,8 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** by_cell/ layout (1,024-cell row groups, page index) and climatology_overviews/ noted 2026-10-31, not yet published. by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of `major-tom/climate/IMERG-Monthly/README.md`. Remove these notes 2026-11-26: product links in Source, normals defined in the opening sentence (not yet reviewed).
-> when publishing. Licence and citation checked 2026-10-28 (DataCite record of the DOI; NASA Earthdata data use
-> guidance). Artifact counts from docs/evidence/monthly_artifacts.py (2026-10-28). 2026-11-27 (not yet reviewed): links on the source, provider and access route.
+> **Review status:** reviewed (Miko, 2026-11-27), as published at `major-tom/climate/IMERG-Monthly/README.md`, including the source, provider and access-route links. Citation checked 2026-11-27 (DataCite: doi:10.5067/GPM/IMERG/3B-MONTH/07). Artifact counts from docs/evidence/monthly_artifacts.py.
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 

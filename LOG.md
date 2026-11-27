@@ -1,5 +1,6 @@
 # Log
 
+- 2026-11-27 Mark IMERG-Monthly README reviewed
 - 2026-11-27 READMEs: source, provider and access-route links; Core-Weather licence updated to CC BY 4.0 and source citations added; uploaded
 - 2026-11-27 Mark CPC-Monthly and ERA5Land-Monthly READMEs reviewed; Climate citations checked against Crossref, DataCite and the CDS/ADS catalogues
 - 2026-11-26 Mark ERA5-Monthly README reviewed
