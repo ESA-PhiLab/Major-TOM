@@ -1,21 +1,21 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** reviewed (Miko, 2026-11-27), as published at `major-tom/climate/ERA5Land-Monthly/README.md`. Citations checked 2026-11-27 (DataCite and CDS catalogue: doi:10.24381/cds.68d2bb30, licence CC-BY; Crossref: doi:10.5194/essd-13-4349-2021). Variables table from docs/evidence/era5_monthly_variables.py; validation from docs/evidence/monthly_validate.py.
+> **Review status:** reviewed (Miko, 2026-11-27), as published at `major-tom/climate/ERA5Land-Monthly/README.md`. Citations checked 2026-11-27 (DataCite and CDS catalogue: doi:10.24381/cds.68d2bb30, licence CC-BY; Crossref: doi:10.5194/essd-13-4349-2021). Variables table from docs/evidence/era5_monthly_variables.py; validation from docs/evidence/monthly_validate.py. 2026-11-27 (not yet reviewed): links on the source, provider and access route.
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 
 # ERA5Land-Monthly
 
-Monthly land-surface state for every land cell of the Major TOM grid, 1950–2025: 49 ERA5-Land variables (temperature, humidity, wind, pressure, precipitation, radiation and heat fluxes, soil water and temperature, snow, runoff, evaporation, lakes, vegetation), with 1991–2020 climate normals (1991–2020 is the current WMO standard normal period; normals are each calendar month's average and its spread across years). Part of [Major TOM Climate](https://source.coop/major-tom/climate).
+Monthly land-surface state for every land cell of the Major TOM grid, 1950–2025: 49 [ERA5-Land](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-land-monthly-means) variables (temperature, humidity, wind, pressure, precipitation, radiation and heat fluxes, soil water and temperature, snow, runoff, evaporation, lakes, vegetation), with 1991–2020 climate normals (1991–2020 is the current WMO standard normal period; normals are each calendar month's average and its spread across years). Part of [Major TOM Climate](https://source.coop/major-tom/climate).
 
 ## Source
 
 | | |
 |---|---|
 | Product | [ERA5-Land monthly averaged data from 1950 to present](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-land-monthly-means) |
-| Provider | Copernicus Climate Change Service (C3S), implemented by ECMWF |
+| Provider | [Copernicus Climate Change Service (C3S)](https://climate.copernicus.eu), implemented by [ECMWF](https://www.ecmwf.int) |
 | Kind | reanalysis of the land surface: ERA5's land model rerun at 0.1°, driven by ERA5's atmosphere, with temperature, humidity and pressure adjusted to the finer terrain |
-| Accessed | Climate Data Store, `reanalysis-era5-land-monthly-means` (2026-10-28 to 2026-11-01) |
+| Accessed | [Climate Data Store](https://cds.climate.copernicus.eu), `reanalysis-era5-land-monthly-means` (2026-10-28 to 2026-11-01) |
 | Licence | CC BY 4.0 (the Climate Data Store's licence since 2 July 2025) |
 
 ## Coverage

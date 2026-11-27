@@ -1,12 +1,12 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** reviewed (Miko, 2026-11-26), as published at `major-tom/climate/ERA5-Monthly/README.md`. Figures and validation from docs/evidence/climate_figures.py and monthly_validate.py; variables table from docs/evidence/era5_monthly_variables.py.
+> **Review status:** reviewed (Miko, 2026-11-26), as published at `major-tom/climate/ERA5-Monthly/README.md`. Figures and validation from docs/evidence/climate_figures.py and monthly_validate.py; variables table from docs/evidence/era5_monthly_variables.py. 2026-11-27 (not yet reviewed): links on the source, provider and access route.
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 
 # ERA5-Monthly
 
-Monthly weather and land-surface state for every cell of the Major TOM grid, 1940–2025: 201 ERA5 variables (temperature, humidity, wind, pressure, precipitation, radiation, clouds, soil, snow, waves and more), with 1991–2020 climate normals (1991–2020 is the current WMO standard normal period; normals are each calendar month's average and its spread across years). Part of [Major TOM Climate](https://source.coop/major-tom/climate).
+Monthly weather and land-surface state for every cell of the Major TOM grid, 1940–2025: 201 [ERA5](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-monthly-means) variables (temperature, humidity, wind, pressure, precipitation, radiation, clouds, soil, snow, waves and more), with 1991–2020 climate normals (1991–2020 is the current WMO standard normal period; normals are each calendar month's average and its spread across years). Part of [Major TOM Climate](https://source.coop/major-tom/climate).
 
 <img src="https://data.source.coop/major-tom/climate/ERA5-Monthly/figures/annual-precipitation.png" alt="Annual precipitation from ERA5, 1991-2020" width="100%">
 
@@ -17,9 +17,9 @@ Monthly weather and land-surface state for every cell of the Major TOM grid, 194
 | | |
 |---|---|
 | Product | [ERA5 monthly averaged data on single levels from 1940 to present](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-monthly-means) (monthly averaged reanalysis) |
-| Provider | Copernicus Climate Change Service (C3S), implemented by ECMWF |
+| Provider | [Copernicus Climate Change Service (C3S)](https://climate.copernicus.eu), implemented by [ECMWF](https://www.ecmwf.int) |
 | Kind | reanalysis: a weather model fitted to observations; complete in space and time |
-| Accessed | Climate Data Store, `reanalysis-era5-single-levels-monthly-means` |
+| Accessed | [Climate Data Store](https://cds.climate.copernicus.eu), `reanalysis-era5-single-levels-monthly-means` |
 | Licence | CC BY 4.0 (the Climate Data Store's licence since 2 July 2025) |
 
 ## Coverage
