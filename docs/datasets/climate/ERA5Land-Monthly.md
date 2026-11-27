@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** reviewed (Miko, 2026-11-27), as published at `major-tom/climate/ERA5Land-Monthly/README.md`. Citations checked 2026-11-27 (DataCite and CDS catalogue: doi:10.24381/cds.68d2bb30, licence CC-BY; Crossref: doi:10.5194/essd-13-4349-2021). Variables table from docs/evidence/era5_monthly_variables.py; validation from docs/evidence/monthly_validate.py. 2026-11-27 (not yet reviewed): links on the source, provider and access route.
+> **Review status:** reviewed (Miko, 2026-11-27), as published at `major-tom/climate/ERA5Land-Monthly/README.md`. Citations checked 2026-11-27 (DataCite and CDS catalogue: doi:10.24381/cds.68d2bb30, licence CC-BY; Crossref: doi:10.5194/essd-13-4349-2021). Variables table from docs/evidence/era5_monthly_variables.py; validation from docs/evidence/monthly_validate.py. Links on the source, provider and access route reviewed (Miko, 2026-11-27).
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 

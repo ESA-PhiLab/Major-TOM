@@ -1,7 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** reviewed (Miko) and published 2026-11-02 (File layout, ERA5Land-Monthly row). Earlier: by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of the top-level README for source.coop `major-tom/climate`. 2026-11-26: plain-language paragraph on records and normals; source links in the dataset table (not yet reviewed).
-> Remove these two notes when publishing. How by_cell/ files are written: added 2026-10-31, not yet reviewed or published; read table re-measured on the new by_cell/ files 2026-10-31 (docs/evidence/climate_bycell_bench.py, the app). By cell and overviews section rewritten 2026-10-31 (measurements from docs/reports/2026-10-30-climate-globe-read-experiments.md). ERA5-Monthly row and figures added 2026-10-30; ERA5Land-Monthly row added 2026-11-02 (draft README). Sizes include by_cell/ and overviews/. File layout section (diagram, settings, sizes, reads) added 2026-11-02, not yet reviewed or published; climatology/ now has a page index. 2026-11-04 (not yet reviewed): ERA5-Monthly by_cell/ published; ERA5 size, by_cell rows and the ERA5 reading paragraph updated with a measured read. 2026-11-27 (not yet reviewed): Core-Weather mention linked to its source.coop page.
+> **Review status:** reviewed (Miko, 2026-11-27), as published at `major-tom/climate/README.md`. Read measurements from docs/evidence/climate_bycell_bench.py and docs/reports/2026-10-30-climate-globe-read-experiments.md.
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 
