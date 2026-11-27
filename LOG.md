@@ -1,5 +1,6 @@
 # Log
 
+- 2026-11-27 Mark CPC-Monthly and ERA5Land-Monthly READMEs reviewed; Climate citations checked against Crossref, DataCite and the CDS/ADS catalogues
 - 2026-11-26 Mark ERA5-Monthly README reviewed
 - 2026-11-26 ERA5-Monthly, ERA5Land-Monthly, CPC-Monthly READMEs: WMO standard normal period named in the opening; uploaded
 - 2026-11-26 Dataset READMEs for newcomers: Core-Weather opening paragraph and Sources section with links; Climate product links, normals defined, ERA5-Static Kind row; uploaded
