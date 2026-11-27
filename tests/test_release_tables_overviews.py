@@ -58,3 +58,29 @@ def test_climatology_overviews_match_a_direct_computation(tmp_path):
     merged = want.merge(got, on=["block_row", "block_col"], suffixes=("", "_got"))
     assert len(merged) == len(want) == len(got)
     assert np.allclose(merged.x_t2m_mean, merged.x_t2m_mean_got, rtol=1e-6)
+
+
+def test_static_overview_means_and_most_common_class(tmp_path):
+    from majortom.release.tables.overviews import static_overview
+
+    rng = np.random.default_rng(1)
+    rows, cols = rng.integers(-20, 20, 3000), rng.integers(-40, 40, 3000)       # dense: several cells per block
+    t = pd.DataFrame({"grid_cell": [f"c{i}" for i in range(3000)], "grid_row_u": rows.astype(np.int16),
+                      "grid_col_r": cols.astype(np.int16), "era5_z": rng.normal(size=3000).astype(np.float32),
+                      "era5_slt": rng.integers(0, 8, 3000).astype(np.float32)})
+    t.loc[5, "era5_slt"] = 2.99991                                      # a 16-bit decode error, as in ERA5-Static
+    t.loc[::11, "era5_slt"] = np.nan
+    (tmp_path / "src").mkdir()
+    t.to_parquet(tmp_path / "src" / "static.parquet", index=False)
+    n = static_overview(tmp_path / "src", tmp_path / "dst")
+    got = pq.read_table(tmp_path / "dst" / "overviews" / "static.parquet").to_pandas()
+    assert n == len(got)
+    t["block_row"], t["block_col"] = (t.grid_row_u.astype(int) + 1002) // 4, (t.grid_col_r.astype(int) + 2004) // 4
+    t["code"] = t.era5_slt.round()
+    mode = t.dropna(subset=["code"]).groupby(["block_row", "block_col"]).code.agg(lambda s: s.value_counts().sort_index()
+                                                                                  .idxmax())
+    want = t.groupby(["block_row", "block_col"]).era5_z.mean().to_frame().join(mode).reset_index()
+    merged = want.merge(got, on=["block_row", "block_col"], suffixes=("", "_got"))
+    assert len(merged) == len(want) == len(got)
+    assert np.allclose(merged.era5_z, merged.era5_z_got, atol=1e-6)
+    assert np.array_equal(merged.code.to_numpy(), merged.era5_slt.to_numpy(), equal_nan=True)

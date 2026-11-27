@@ -15,6 +15,12 @@
       -> per calendar month: every band read in batches, that month's rows, the <variable>_mean columns
       -> the same block means -> <dst>/climatology_overviews/MM.parquet: each variable's normal per block
     python -m majortom.release tables overviews --climatology --src <dataset folder> --out <dataset folder>
+
+    <src>/static.parquet (ERA5-Static: one row per cell, no months)
+      -> the same block means; class columns (vegetation and soil types) take the block's most common class
+         instead, as a mean of class codes is not a class
+      -> <dst>/overviews/static.parquet
+    python -m majortom.release tables overviews --static --src <dataset folder> --out <dataset folder>
 """
 from __future__ import annotations
 
@@ -30,10 +36,25 @@ import pyarrow.parquet as pq
 
 ROWS, COLS = 2004, 4008                                    # the (row, column) array of 10 km cells
 POSITION = {"grid_cell", "grid_row_u", "grid_col_r", "year", "month"}
+CLASSES = ["era5_tvh", "era5_tvl", "era5_slt"]              # ERA5-Static's class columns: whole-number codes
 
 
-def block_means(table: pa.Table, level: int, columns: list[str] | None = None) -> pa.Table:
-    """One file's rows -> one row per block with a value: block_row, block_col, n_cells, each float column's mean."""
+def _block_mode(block: np.ndarray, x: np.ndarray, size: int) -> np.ndarray:
+    """Per block, the most common whole-number value among its cells with a value (ties: the smaller value);
+    NaN for blocks without one."""
+    ok = np.isfinite(x)
+    codes = np.rint(x[ok]).astype(np.int64)
+    k = int(codes.max()) + 1 if len(codes) else 1
+    counts = np.bincount(block[ok] * k + codes, minlength=size * k).reshape(size, k)
+    mode = counts.argmax(axis=1).astype(np.float32)
+    mode[counts.sum(axis=1) == 0] = np.nan
+    return mode
+
+
+def block_means(table: pa.Table, level: int, columns: list[str] | None = None,
+                modes: list[str] | None = None) -> pa.Table:
+    """One file's rows -> one row per block with a value: block_row, block_col, n_cells, each float column's mean
+    (for the columns in `modes`: the most common value instead)."""
     w = -(-COLS // 2 ** level)
     r = table.column("grid_row_u").to_numpy().astype(np.int64) + ROWS // 2
     c = table.column("grid_col_r").to_numpy().astype(np.int64) + COLS // 2
@@ -47,6 +68,9 @@ def block_means(table: pa.Table, level: int, columns: list[str] | None = None) -
         x = table.column(name).to_numpy(zero_copy_only=False).astype(np.float64)          # null -> NaN
         ok = np.isfinite(x)
         any_value |= ok
+        if name in (modes or []):
+            means[name] = _block_mode(block, x, size)
+            continue
         total = np.bincount(block[ok], weights=x[ok], minlength=size)
         count = np.bincount(block[ok], minlength=size)
         with warnings.catch_warnings():
@@ -96,6 +120,17 @@ def _climatology_month(src: Path, dst: Path, month: int, level: int) -> int:
     out = block_means(pa.concat_tables(parts), level)
     dst.parent.mkdir(parents=True, exist_ok=True)
     pq.write_table(out, dst, compression="zstd", write_statistics=True)
+    return out.num_rows
+
+
+def static_overview(src: Path | str, dst: Path | str, level: int = 2) -> int:
+    """Write `dst`/overviews/static.parquet: block means of `src`/static.parquet (ERA5-Static), the class columns
+    as the block's most common class; returns the number of blocks."""
+    src, dst = Path(src), Path(dst)
+    out = block_means(pq.read_table(src / "static.parquet"), level, modes=CLASSES)
+    path = dst / "overviews" / "static.parquet"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    pq.write_table(out, path, compression="zstd", write_statistics=True)
     return out.num_rows
 
 

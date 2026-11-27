@@ -12,6 +12,7 @@
     python -m majortom.release tables overviews --src <dataset folder> --out <dataset folder> [--level 2]
         monthly files -> overviews/year=YYYY/MM.parquet: block means for globe-wide maps
         --climatology: climatology files -> climatology_overviews/MM.parquet: block means of the normals
+        --static: ERA5-Static's static.parquet -> overviews/static.parquet (class columns: most common class)
     python -m majortom.release tables by-cell --src <dataset folder> --out <dataset folder> [--workers 4]
         monthly files -> by_cell/band=NN.parquet: every cell's whole series together
 """
@@ -65,6 +66,11 @@ def _tables(a: argparse.Namespace) -> None:
         from .tables import by_cell
 
         print(f"{by_cell(a.src, a.out, a.workers):,} cells written and checked", flush=True)
+        return
+    if a.layout == "overviews" and a.static:
+        from .tables import static_overview
+
+        print(f"{static_overview(a.src, a.out, a.level):,} blocks written to overviews/static.parquet", flush=True)
         return
     if a.layout == "overviews" and a.climatology:
         from .tables import climatology_overviews
@@ -136,6 +142,7 @@ def main(argv: list[str] | None = None) -> None:
     o.add_argument("--workers", type=int, default=None)
     o.add_argument("--columns", nargs="+", help="only these columns (default: every float column)")
     o.add_argument("--climatology", action="store_true", help="the climatology's normals instead of the monthly files")
+    o.add_argument("--static", action="store_true", help="ERA5-Static's static.parquet (class columns: most common class)")
     o.set_defaults(run=_tables)
     c = tsub.add_parser("by-cell", help="monthly files -> every cell's whole series together, by band")
     c.add_argument("--src", type=Path, required=True, help="a dataset folder (cells.parquet, series/)")

@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** reviewed (Miko, 2026-11-27), as published at `major-tom/climate/ERA5-Static/README.md`, including the product link, Kind row and the source, provider and access-route links. Citations checked 2026-11-27 (DataCite: doi:10.24381/cds.adbb2d47; Crossref: doi:10.1002/qj.3803; ARCO-ERA5's "How to cite"). The credit line is ECMWF's recommended wording, not a licence requirement.
+> **Review status:** reviewed (Miko, 2026-11-27), as published at `major-tom/climate/ERA5-Static/README.md`, including the product link, Kind row and the source, provider and access-route links. Citations checked 2026-11-27 (DataCite: doi:10.24381/cds.adbb2d47; Crossref: doi:10.1002/qj.3803; ARCO-ERA5's "How to cite"). The credit line is ECMWF's recommended wording, not a licence requirement. 2026-11-27 (reviewed, Miko): `overviews/static.parquet` in Files (majortom/release/tables/overviews.py, `--static`).
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 
@@ -46,7 +46,10 @@ The fixed surface fields of [ERA5](https://cds.climate.copernicus.eu/datasets/re
 
 ## Files
 
-`static.parquet`: one row per cell along the Hilbert curve (see the [top-level README](https://source.coop/major-tom/climate)), `grid_cell`, `grid_row_u`, `grid_col_r` and the columns above.
+| File | Contents |
+|---|---|
+| `static.parquet` | one row per cell along the Hilbert curve (see the [top-level README](https://source.coop/major-tom/climate)), `grid_cell`, `grid_row_u`, `grid_col_r` and the columns above; 124.7 MB |
+| `overviews/static.parquet` | one row per block of 4 × 4 cells, for maps of the whole globe: `block_row` = (`grid_row_u` + 1002) // 4, `block_col` = (`grid_col_r` + 2004) // 4, `n_cells`, each column's mean; the class fields take the block's most common class instead (ties: the lower code); 320,719 blocks, 8.9 MB |
 
 ```python
 import fsspec

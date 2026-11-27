@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** reviewed (Miko, 2026-11-27), as published at `major-tom/climate/README.md`. Read measurements from docs/evidence/climate_bycell_bench.py and docs/reports/2026-10-30-climate-globe-read-experiments.md.
+> **Review status:** reviewed (Miko, 2026-11-27), as published at `major-tom/climate/README.md`. Read measurements from docs/evidence/climate_bycell_bench.py and docs/reports/2026-10-30-climate-globe-read-experiments.md. 2026-11-27 (reviewed, Miko): ERA5-Static size 0.13 GB with its overview.
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 
@@ -19,7 +19,7 @@ Each dataset is a separate folder with its own README.
 | [CPC-Monthly](https://source.coop/major-tom/climate/CPC-Monthly) | rain-gauge precipitation, daily max and min temperature, gauges nearby | [NOAA CPC Global Unified](https://psl.noaa.gov/data/gridded/data.cpc.globalprecip.html) | 1979–2025 | 0.5° | 1,657,095 (land) | 4 | 21.2 GB |
 | [IMERG-Monthly](https://source.coop/major-tom/climate/IMERG-Monthly) | satellite precipitation and its quality fields | [NASA GPM IMERG V07](https://doi.org/10.5067/GPM/IMERG/3B-MONTH/07) | 1998–2024 | 0.1° | 5,113,745 (globe) | 5 | 54.4 GB |
 | [CAMS-Monthly](https://source.coop/major-tom/climate/CAMS-Monthly) | air quality: trace gases, aerosols, particulate matter | [Copernicus CAMS EAC4](https://ads.atmosphere.copernicus.eu/datasets/cams-global-reanalysis-eac4-monthly) | 2003–2025 | 0.75° | 5,113,745 (globe) | 19 | 110.9 GB |
-| [ERA5-Static](https://source.coop/major-tom/climate/ERA5-Static) | fixed surface fields: terrain, land and lake cover, soil and vegetation types | [ECMWF ERA5](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels) | — | 0.25° | 5,113,745 (globe) | 16 | 0.12 GB |
+| [ERA5-Static](https://source.coop/major-tom/climate/ERA5-Static) | fixed surface fields: terrain, land and lake cover, soil and vegetation types | [ECMWF ERA5](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels) | — | 0.25° | 5,113,745 (globe) | 16 | 0.13 GB |
 | [ERA5Land-Monthly](https://source.coop/major-tom/climate/ERA5Land-Monthly) | land surface at 0.1°: temperature, soil water and temperature, snow, runoff, evaporation, fluxes, lakes | [ECMWF ERA5-Land](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-land-monthly-means) | 1950–2025 | 0.1° | 1,524,009 (land) | 49 | 469.8 GB |
 | [ERA5-Monthly](https://source.coop/major-tom/climate/ERA5-Monthly) | weather and land surface: temperature, humidity, wind, pressure, precipitation, radiation, clouds, soil, snow, waves | [ECMWF ERA5](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels-monthly-means) | 1940–2025 | 0.25° | 5,113,745 (globe) | 201 | 5.17 TB |
 
