@@ -10,8 +10,8 @@ short_description: Major TOM Climate datasets on a 3D globe, from source.coop
 
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** not yet reviewed. First version 2026-10-30. Changed 2026-11-04: deployment (Space synced by
-> `.github/workflows/apps-spaces.yml`); ERA5 series read from `by_cell/` (commit 15d5a93). 2026-11-27 (not yet reviewed): Spaces public; app text and Code links updated for the release. 2026-11-27 (not yet reviewed): every variable of CPC, IMERG, CAMS, ERA5-Land and ERA5 (a dataset list with a variable dropdown; `scales/`). 2026-11-27 (not yet reviewed): ERA5-Static, with ECMWF class names for the class fields.
+> **Review status:** reviewed (Miko, 2026-11-27). First version 2026-10-30; public Space since 2026-11-27, synced by
+> `.github/workflows/apps-spaces.yml`. Covers every variable of CPC, IMERG, CAMS, ERA5-Land and ERA5, and ERA5-Static.
 
 # Major TOM Climate Globe
 
