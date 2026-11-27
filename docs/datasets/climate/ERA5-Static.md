@@ -1,8 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of `major-tom/climate/ERA5-Static/README.md`. Remove these notes 2026-11-26: product link and Kind row in Source (not yet reviewed).
-> when publishing. Licence and citations checked 2026-10-28 (Climate Data Store catalogue: CC-BY-4.0; DataCite and
-> Crossref records; ARCO-ERA5's "How to cite"). The credit line is ECMWF's recommended wording, not a licence requirement. 2026-11-27 (not yet reviewed): links on the source, provider and access route.
+> **Review status:** reviewed (Miko, 2026-11-27), as published at `major-tom/climate/ERA5-Static/README.md`, including the product link, Kind row and the source, provider and access-route links. Citations checked 2026-11-27 (DataCite: doi:10.24381/cds.adbb2d47; Crossref: doi:10.1002/qj.3803; ARCO-ERA5's "How to cite"). The credit line is ECMWF's recommended wording, not a licence requirement.
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 

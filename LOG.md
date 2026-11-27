@@ -1,5 +1,6 @@
 # Log
 
+- 2026-11-27 Mark ERA5-Static README reviewed
 - 2026-11-27 Mark CAMS-Monthly README reviewed
 - 2026-11-27 Mark IMERG-Monthly README reviewed
 - 2026-11-27 READMEs: source, provider and access-route links; Core-Weather licence updated to CC BY 4.0 and source citations added; uploaded
