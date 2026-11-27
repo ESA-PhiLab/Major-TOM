@@ -10,9 +10,9 @@ short_description: Major TOM Core samples on a 3D globe, read in the browser
 
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** not yet reviewed. First version 2026-11-02; Space created (private) and deployed 2026-11-02.
+> **Review status:** not yet reviewed. First version 2026-11-02; Space created and deployed 2026-11-02.
 > Changed 2026-11-04: Core-Weather panel in the flow; `weather.js`, `viirs.js`, `aef.js` and `zstd.js` in the
-> Files and Reads tables; the private-Space import rule; the test files.
+> Files and Reads tables; the import rule for private copies; the test files. 2026-11-27 (not yet reviewed): Spaces public; app text and Code links updated for the release.
 
 # Major TOM Raster Viewer
 
@@ -93,9 +93,9 @@ one sample's row cost 23-27 MB. Hence the footprint files.
 
 The AlphaEarth figures are from the comments in `aef.js` and the flow above, not a fresh measurement.
 
-## Private Space: every local module is imported by app.js
+## Every local module is imported by app.js
 
-On the private Space the app runs in an iframe, where the login cookie is not sent. A file is served only if its
+The Space is public. On a private copy of it, the app runs in an iframe, where the login cookie is not sent. A file is served only if its
 URL or its referer carries the `?__sign=` token. Only `index.html` and `app.js` carry it, so a module imported only
 by another module gets a 401 and the app does not start. Every local module is therefore imported directly by
 `app.js` (`app.js:18-29`; `zstd.js` is imported there as well as by `viirs.js` and `aef.js`).

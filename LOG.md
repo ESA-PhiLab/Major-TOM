@@ -1,5 +1,6 @@
 # Log
 
+- 2026-11-27 Climate Globe and Raster Viewer ready for release: serverless label, intro line, Code links to the app folders, no preview or private wording; Space READMEs updated
 - 2026-11-27 Mark Core-Weather opening and Sources, CAMS-Monthly Core-Weather link reviewed; all published Climate and Core-Weather READMEs reviewed
 - 2026-11-27 Mark Climate README, Core-Weather licence and citations, ERA5-Monthly and ERA5Land-Monthly links reviewed
 - 2026-11-27 Climate README and CAMS-Monthly: link Major TOM Core-Weather; uploaded

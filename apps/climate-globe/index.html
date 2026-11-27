@@ -159,10 +159,10 @@
   <div class="bar">
     <img src="mt-climate-icon.svg" alt="">
     <div class="crumbs"><span class="org">Major-TOM /</span> <b>Climate Globe</b></div>
-    <span class="pill">first version</span>
+    <span class="pill">serverless</span>
     <nav>
       <a href="https://source.coop/major-tom/climate">Dataset</a>
-      <a href="https://github.com/ESA-PhiLab/Major-TOM">Code</a>
+      <a href="https://github.com/ESA-PhiLab/Major-TOM/tree/refactor/v1/apps/climate-globe">Code</a>
     </nav>
   </div>
 </header>
@@ -210,12 +210,14 @@
       <div id="layers"></div>
       <label class="variable" id="variable-row" hidden>Variable
         <select id="variable" aria-label="ERA5 variable"></select></label>
+      <p class="note">Runs in your browser: reads the Major TOM Climate Parquet files on source.coop directly, no
+        server.</p>
     </section>
 
     <section>
       <h2>Source</h2>
       <div class="segmented">
-        <button id="mode-preview" data-mode="preview">Climatology<small>preview images</small></button>
+        <button id="mode-preview" data-mode="preview">Climatology<small>images</small></button>
         <button data-mode="live">Series<small>Parquet, read live</small></button>
       </div>
       <p class="note" id="mode-note"></p>

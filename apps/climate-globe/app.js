@@ -137,7 +137,7 @@ function describe() {
   const v = state.field?.valueAt(lng, lat)
   $('cursor-cell').textContent = cell.name
   $('cursor-pos').textContent = `${lat.toFixed(2)}°, ${lng.toFixed(2)}°`
-  $('cursor-value').textContent = v === undefined ? 'colours only (preview)'
+  $('cursor-value').textContent = v === undefined ? 'colours only (image)'
     : Number.isNaN(v) ? 'no value'
     : `${format(v)} ${state.layer.unit}${state.field.level ? ` (${2 ** state.field.level}×${2 ** state.field.level} mean)` : ''}`
 }
@@ -477,7 +477,7 @@ async function show() {
 
 function readout(stats, drawMs, cached, ahead) {
   $('stat-source').textContent = state.mode === 'preview' && state.layer.normals ? 'Parquet climatology overview (4×4 means), read live'
-    : state.mode === 'preview' ? 'preview image (PNG)'
+    : state.mode === 'preview' ? 'climatology image (PNG)'
     : stats.level ? 'Parquet overview (4×4 means), read live' : 'Parquet, read live'
   $('stat-bytes').textContent = cached ? (ahead ? `loaded ahead (${(stats.bytes / 1e6).toFixed(1)} MB)` : 'cached') : `${(stats.bytes / 1e6).toFixed(1)} MB in ${stats.requests} request${stats.requests > 1 ? 's' : ''}` +
     (stats.firstOfDataset ? ' (with cell positions)' : '')
@@ -549,11 +549,11 @@ function syncControls() {
     if (!$('variable').options.length) buildVariableList()
     $('variable').value = state.layer.column
   }
-  $('mode-preview').querySelector('small').textContent = state.layer.normals ? 'normals, Parquet' : 'preview images'
+  $('mode-preview').querySelector('small').textContent = state.layer.normals ? 'normals, Parquet' : 'images'
   $('mode-preview').disabled = !hasPreview
   if (!hasPreview && state.mode === 'preview') state.mode = 'live'
   for (const b of document.querySelectorAll('[data-mode]')) b.setAttribute('aria-pressed', String(b.dataset.mode === state.mode))
-  $('mode-note').textContent = hasPreview ? '' : 'No preview images for this layer yet: read live.'
+  $('mode-note').textContent = hasPreview ? '' : 'No climatology images for this layer: read live.'
   const n = steps()
   state.step = Math.min(state.step, n - 1)
   $('time').max = String(n - 1); $('time').value = String(state.step)
