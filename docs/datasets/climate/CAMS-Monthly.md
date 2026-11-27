@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** reviewed (Miko, 2026-11-27), as published at `major-tom/climate/CAMS-Monthly/README.md`, including the source, provider and access-route links. Citations checked 2026-11-27 (DataCite and ADS catalogue: doi:10.24381/fd75fff2, licence CC-BY; Crossref: doi:10.5194/acp-19-3515-2019). The credit line is ECMWF's recommended wording, not a licence requirement. 2026-11-27 (not yet reviewed): Core-Weather mention linked to its source.coop page.
+> **Review status:** reviewed (Miko, 2026-11-27), as published at `major-tom/climate/CAMS-Monthly/README.md`, including the source, provider and access-route links. Citations checked 2026-11-27 (DataCite and ADS catalogue: doi:10.24381/fd75fff2, licence CC-BY; Crossref: doi:10.5194/acp-19-3515-2019). The credit line is ECMWF's recommended wording, not a licence requirement. Core-Weather link in the Grid note reviewed (Miko, 2026-11-27).
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 

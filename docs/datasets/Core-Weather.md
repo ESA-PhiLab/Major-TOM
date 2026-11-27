@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** reviewed (Miko, 2026-11-26), as published at `major-tom/core-weather/README.md`; licence, source citations and Read from links reviewed (Miko, 2026-11-27). Not yet reviewed: plain-language opening paragraph and Sources section (2026-11-26). Figures from docs/evidence/core_weather_figures.py; validation from docs/evidence/core_weather_validate.py.
+> **Review status:** reviewed (Miko, 2026-11-26), as published at `major-tom/core-weather/README.md`; plain-language opening paragraph, Sources section, licence, source citations and Read from links reviewed (Miko, 2026-11-27). Figures from docs/evidence/core_weather_figures.py; validation from docs/evidence/core_weather_validate.py.
 
 # Core-Weather
 
