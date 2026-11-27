@@ -1,5 +1,6 @@
 # Log
 
+- 2026-11-27 Climate README and CAMS-Monthly: link Major TOM Core-Weather; uploaded
 - 2026-11-27 Mark ERA5-Static README reviewed
 - 2026-11-27 Mark CAMS-Monthly README reviewed
 - 2026-11-27 Mark IMERG-Monthly README reviewed

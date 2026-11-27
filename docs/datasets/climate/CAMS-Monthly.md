@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** reviewed (Miko, 2026-11-27), as published at `major-tom/climate/CAMS-Monthly/README.md`, including the source, provider and access-route links. Citations checked 2026-11-27 (DataCite and ADS catalogue: doi:10.24381/fd75fff2, licence CC-BY; Crossref: doi:10.5194/acp-19-3515-2019). The credit line is ECMWF's recommended wording, not a licence requirement.
+> **Review status:** reviewed (Miko, 2026-11-27), as published at `major-tom/climate/CAMS-Monthly/README.md`, including the source, provider and access-route links. Citations checked 2026-11-27 (DataCite and ADS catalogue: doi:10.24381/fd75fff2, licence CC-BY; Crossref: doi:10.5194/acp-19-3515-2019). The credit line is ECMWF's recommended wording, not a licence requirement. 2026-11-27 (not yet reviewed): Core-Weather mention linked to its source.coop page.
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 
@@ -73,7 +73,7 @@ The band of a cell is (row + 1002) × 20 // 2004, with row the signed number in 
 ## Notes
 
 - **Climatology period.** CAMS EAC4 starts in 2003, so its normals use the whole record (2003–2025); `n_years` is 23.
-- **Grid.** At 0.75°, a city and its surroundings share one value. Major TOM Core-Weather also has Sentinel-5P at a few kilometres, with gaps under cloud.
+- **Grid.** At 0.75°, a city and its surroundings share one value. [Major TOM Core-Weather](https://source.coop/major-tom/core-weather) also has Sentinel-5P at a few kilometres, with gaps under cloud.
 - **Reanalysis.** Values are model states fitted to satellite retrievals. Surface quantities (PM, surface gases) depend most on the model.
 - **Cell means.** Values are area-weighted means over each cell, without interpolation; see the [top-level README](https://source.coop/major-tom/climate).
 
