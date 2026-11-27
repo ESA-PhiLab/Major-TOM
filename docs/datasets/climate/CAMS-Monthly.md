@@ -1,8 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** by_cell/ layout (1,024-cell row groups, page index) and climatology_overviews/ noted 2026-10-31, not yet published. by_cell/ and overviews/ sections and working code examples added 2026-10-30 (examples run as written). Earlier status: unreviewed draft (2026-10-28) of `major-tom/climate/CAMS-Monthly/README.md`. Remove these notes 2026-11-26: product links in Source, normals defined in the opening sentence (not yet reviewed).
-> when publishing. Licence and citations checked 2026-10-28 (Atmosphere Data Store catalogue: CC-BY-4.0; DataCite
-> and Crossref records of both DOIs). The credit line is ECMWF's recommended wording, not a licence requirement. 2026-11-27 (not yet reviewed): links on the source, provider and access route.
+> **Review status:** reviewed (Miko, 2026-11-27), as published at `major-tom/climate/CAMS-Monthly/README.md`, including the source, provider and access-route links. Citations checked 2026-11-27 (DataCite and ADS catalogue: doi:10.24381/fd75fff2, licence CC-BY; Crossref: doi:10.5194/acp-19-3515-2019). The credit line is ECMWF's recommended wording, not a licence requirement.
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 
