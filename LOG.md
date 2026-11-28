@@ -1,5 +1,6 @@
 # Log
 
+- 2026-11-28 Measure duplication of coarse sources on Major TOM cells and what compression recovers (docs/evidence/climate_compression.py)
 - 2026-11-27 Climate Globe: ERA5-Static block, 16 fixed fields, ECMWF class legend for vegetation and soil types
 - 2026-11-27 ERA5-Static: overviews/static.parquet (4 x 4 block means, class fields as the most common class), README Files table; uploaded
 - 2026-11-27 Climate Globe: every variable of CPC, IMERG, CAMS, ERA5-Land and ERA5 (dataset list, variable dropdown, scales/ per dataset); not pushed

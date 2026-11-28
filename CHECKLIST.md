@@ -133,6 +133,7 @@ explicit imports now, module renames after the merge; CSLC issue posted.
 - [ ] Hugging Face copies of Core-Weather and the monthly datasets (Miko, 2026-10-24: source.coop first, Hugging Face second)
 - [x] Climate Globe (apps/climate-globe, private Space)
 - [ ] Climate datasets in the public Major TOM viewing app (final task)
+- [ ] Report for Earth Compress: how each Core-Weather and Climate source was accessed at scale, limits, failures and gotchas (Miko, 2026-11-28); draw on docs/CLIMATE.md and the 2026-10-23, 2026-10-24, 2026-11-09 and 2026-11-20 reports
 - [x] Intro animation for Major TOM Climate and Core-Weather: the logo builds first, then examples of the data animated (time series drawn month by month, global maps filling in); requested 2026-11-03, v2 done 2026-11-04 (docs/animations/intro_climate_weather.py, square and wide, 66 s)
 
 ## WS10 — Apps (`apps/`, apps/README.md)
