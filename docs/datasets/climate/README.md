@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** reviewed (Miko, 2026-11-27), as published at `major-tom/climate/README.md`. Read measurements from docs/evidence/climate_bycell_bench.py and docs/reports/2026-10-30-climate-globe-read-experiments.md. 2026-11-27 (reviewed, Miko): ERA5-Static size 0.13 GB with its overview.
+> **Review status:** reviewed (Miko, 2026-11-27), as published at `major-tom/climate/README.md`. Read measurements from docs/evidence/climate_bycell_bench.py and docs/reports/2026-10-30-climate-globe-read-experiments.md. 2026-11-27 (reviewed, Miko): ERA5-Static size 0.13 GB with its overview. 2026-11-28 (text reviewed before editing, Miko): Format choices section.
 
 <img src="https://data.source.coop/major-tom/climate/brand/mt-climate-banner.svg" alt="Major TOM Climate" width="100%">
 
@@ -233,6 +233,26 @@ Join to any Major TOM dataset on `grid_cell`; join a series to its climatology o
 - **Units as published** by each source, not converted; each dataset's README lists them.
 - **Reanalyses.** ERA5 and CAMS values are model states fitted to observations.
 - **Source errors.** Values are not edited. Known problems are listed in each dataset's README.
+
+## Format choices
+
+**Tables keyed by cell.** The Major TOM grid is not a latitude-longitude raster. Each row of cells has its own number of columns, which shrinks towards the poles, so cells in neighbouring rows do not line up. Stored as a rectangular array of 2,004 × 4,008, the 5,113,745 cells would leave 36.3% of it empty. The Major TOM Core datasets are not a cube either: each sample has its own acquisition time. Every table here is therefore keyed by `grid_cell`, and one join connects any climate source to any Core sample. An array format with one flattened cell dimension (as used for HEALPix grids in Zarr) would also hold this data; keyed Parquet tables join with Core's metadata without one.
+
+**Coarse sources are repeated, and compression does not undo it.** Values are cell means (see Values), so a source pixel larger than a cell gives its value, or blends of it at its edges, to many cells. Measured on the July 2020 month file of each dataset (`*_valid` columns left out, [docs/evidence/climate_compression.py](https://github.com/ESA-PhiLab/Major-TOM/blob/refactor/v1/docs/evidence/climate_compression.py)):
+
+| Dataset | Source grid | Cells per source pixel | Stored | Source grid, uncompressed float32 | Stored / source grid |
+|---|---|---|---|---|---|
+| CPC-Monthly | 0.5° | 16.83 | 12.4 MB | 1.6 MB | 7.89 |
+| IMERG-Monthly | 0.1° | 1.13 | 76.2 MB | 90.7 MB | 0.84 |
+| CAMS-Monthly | 0.75° | 44.76 | 173.4 MB | 8.7 MB | 19.97 |
+| ERA5Land-Monthly | 0.1° | 1.11 | 290.1 MB | 268.2 MB | 1.08 |
+| ERA5-Monthly | 0.25° | 5.26 | 2,625.9 MB | 782.1 MB | 3.36 |
+
+Compression shrinks the cell tables 1.6 to 2.4 times. Cells on a pixel's edge hold blends, not copies: even in CAMS only 62.3% of cells (median over columns) equal the previous cell in file order. The 0.1° sources take about their source-grid size. The cost is in the coarse sources: CAMS at 20 times, ERA5 at 3.4 times. It is the price of reading any source by `grid_cell` without a lookup step. The source pixels were counted at each cell's centre, so the counts are approximate.
+
+**Two copies of each series.** This is a dataset for pre-training and evaluating models, not an archive: the archives are the sources themselves (ARCO-ERA5, the Climate Data Store, NASA, NOAA). A model reads either a spatial neighbourhood, such as one month over a region or the globe, or a temporal one, such as one cell's whole record. One layout cannot serve both cheaply, so `series/` is written by month and `by_cell/` by cell. One cell's 47-year CPC series takes 0.35 GB from `series/` and 0.18 MB from `by_cell/` (see Layout).
+
+**Geometry from the package.** The files carry no geometry column. A cell's position and outline follow from `grid_cell`, or from `grid_row_u` and `grid_col_r`, through the `majortom` package (`majortom/cells.py`; `majortom/spec.py`, `cell_polygon`). The datasets are read by key, so there is no STAC catalogue.
 
 ## Licences
 

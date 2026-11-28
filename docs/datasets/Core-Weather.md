@@ -1,6 +1,6 @@
 > **CLAUDE-GENERATED DOCUMENT** — automated LLM-generated content. Verify before relying on it.
 
-> **Review status:** reviewed (Miko, 2026-11-26), as published at `major-tom/core-weather/README.md`; plain-language opening paragraph, Sources section, licence, source citations and Read from links reviewed (Miko, 2026-11-27). Figures from docs/evidence/core_weather_figures.py; validation from docs/evidence/core_weather_validate.py.
+> **Review status:** reviewed (Miko, 2026-11-26), as published at `major-tom/core-weather/README.md`; plain-language opening paragraph, Sources section, licence, source citations and Read from links reviewed (Miko, 2026-11-27). Figures from docs/evidence/core_weather_figures.py; validation from docs/evidence/core_weather_validate.py. 2026-11-28 (text reviewed before editing, Miko): pointer to Climate's Format choices under Tables.
 
 # Core-Weather
 
@@ -32,6 +32,8 @@ The column prefix of each source (`era5_`, `era5land_`, `cams_`, `s5p_`, `cpc_`,
 | `acquisitions.parquet` | Core sample | links each sample (`dataset`, `product_id`) to its rows |
 
 Rows are keyed by `grid_cell` and `acquired` (the acquisition time, UTC). Core-S2L2A and Core-S2L1C samples of the same acquisition share rows. Files are split by acquisition year and day: `daily/year=2021/2021-07-14.parquet`.
+
+Format choices for both products (keyed tables, measured duplication of coarse sources, geometry from the `majortom` package): [Major TOM Climate, Format choices](https://source.coop/major-tom/climate).
 
 ## Reading
 
